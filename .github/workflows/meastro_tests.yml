@@ -1,3 +1,11 @@
+# This workflow requires the following secrets to be configured:
+# 
+# MAWAQIT_DART_DEFINES - should contain all the dart-define flags in this format:
+# --dart-define=mawaqit.api.key=your_api_key --dart-define=mawaqit.sentry.dns=your_sentry_dns --dart-define=mawaqit.firebase.api_key=your_firebase_api_key --dart-define=mawaqit.firebase.app_id=your_firebase_app_id --dart-define=mawaqit.firebase.messaging_sender_id=your_messaging_sender_id --dart-define=mawaqit.firebase.project_id=your_project_id --dart-define=mawaqit.firebase.storage_bucket=your_storage_bucket
+#
+# DCD_API_KEY - API key for devicecloud.dev
+#
+
 name: Manual Mobile App Tests
 on:
   push:
@@ -14,6 +22,8 @@ jobs:
   run-maestro-tests:
     name: Run Maestro Tests on devicecloud.dev
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -29,7 +39,7 @@ jobs:
       - name: Generate bundles
         run: dart run build_runner build
 
-      - name: Build Android APK (release)
+      - name: Build Android APK (debug)
         run: |
           flutter build apk --debug ${{ secrets.MAWAQIT_DART_DEFINES }}
 

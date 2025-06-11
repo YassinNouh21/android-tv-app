@@ -45,10 +45,17 @@ android {
     signingConfigs {
         create("release") {
           if (System.getenv()["CI"] == "true") {
-            storeFile = file(System.getenv()["CM_KEYSTORE_PATH"])
-            storePassword = System.getenv()["CM_KEYSTORE_PASSWORD"]
-            keyAlias = System.getenv()["CM_KEY_ALIAS"]
-            keyPassword = System.getenv()["CM_KEY_PASSWORD"]
+            val keystorePath = System.getenv()["CM_KEYSTORE_PATH"]
+            val storePassword = System.getenv()["CM_KEYSTORE_PASSWORD"]
+            val keyAlias = System.getenv()["CM_KEY_ALIAS"]
+            val keyPassword = System.getenv()["CM_KEY_PASSWORD"]
+            
+            if (keystorePath != null && storePassword != null && keyAlias != null && keyPassword != null) {
+              storeFile = file(keystorePath)
+              this.storePassword = storePassword
+              this.keyAlias = keyAlias
+              this.keyPassword = keyPassword
+            }
           } else if (keystorePropsFile.exists() &&
             keystoreProps["storeFile"] != null &&
             keystoreProps["storePassword"] != null &&
@@ -64,6 +71,12 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            // Debug builds use the default debug signing, no need to specify signingConfig
+        }
+        
         getByName("release") {
             isMinifyEnabled = false
             isShrinkResources = false
