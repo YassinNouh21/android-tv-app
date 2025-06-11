@@ -1,0 +1,43 @@
+name: Manual Mobile App Tests
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      run_name:
+        description: 'Custom name for this test run'
+        required: false
+        type: string
+
+jobs:
+  run-maestro-tests:
+    name: Run Maestro Tests on devicecloud.dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate bundles
+        run: dart run build_runner build
+
+      - name: Build Android APK (release)
+        run: |
+          flutter build apk --debug ${{ secrets.MAWAQIT_DART_DEFINES }}
+
+      - name: Run Maestro Tests on Device Cloud (Android)
+        uses: devicecloud-dev/device-cloud-for-maestro@v1
+        with:
+          api-key: ${{ secrets.DCD_API_KEY }}
+          android-device: generic-tablet
+          orientation: 90
+          app-file: build/app/outputs/flutter-apk/app-debug.apk
+          name: ${{ inputs.run_name || github.ref_name }}
