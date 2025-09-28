@@ -18,10 +18,8 @@ class HomeDateWidget extends StatelessWidget {
     final userPrefs = context.watch<UserPreferencesManager>();
     final now = mosqueManager.mosqueDate();
     final lang = Localizations.localeOf(context).languageCode;
-    print("langggggggg $lang");
     var hijriDate = mosqueManager.mosqueHijriDate(userPrefs.hijriAdjustments);
     var hijriDateFormatted = hijriDate.formatMawaqitType();
-    print("langggggggg ${mosqueManager.mosque?.countryCode}");
 
     final georgianDate = now.formatIntoMawaqitFormat(local: '${lang}_${mosqueManager.mosque?.countryCode}');
 
