@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:sizer/sizer.dart';
 
+import 'package:mawaqit/src/helpers/LocaleHelper.dart';
+
 class TimePeriodWidget extends StatelessWidget {
   const TimePeriodWidget({
     Key? key,
@@ -18,7 +20,7 @@ class TimePeriodWidget extends StatelessWidget {
 
     final value = DateFormat(
       "a",
-      currentLocale == 'ta' ? 'en' : currentLocale, // Keep English for Tamil, translate others
+      LocaleHelper.getAmPmLocale(currentLocale),
     ).format(dateTime);
     final defaultStyle = DefaultTextStyle.of(context).style;
     final textStyle = (style ?? defaultStyle).copyWith(
