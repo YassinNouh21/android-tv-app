@@ -19,7 +19,6 @@ const _maghrebMonthNames = [
 const _maghrebMonthsLocales = [
   'AR_TN',
   'AR_DZ',
-  'AR_MA',
 ];
 
 extension MawaqitDateUtils on DateTime {
