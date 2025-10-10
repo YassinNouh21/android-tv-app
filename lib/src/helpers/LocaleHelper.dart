@@ -59,4 +59,27 @@ class LocaleHelper {
     final sortedLocales = List<Locale>.from(locales)..sort((a, b) => _customLocaleCompare(a, b, localeNames));
     return sortedLocales;
   }
+
+  /// [getAmPmLocale] Returns the appropriate locale for AM/PM time formatting.
+  ///
+  /// Some languages require English AM/PM formatting for better readability
+  /// instead of their native language formatting. This method centralizes
+  /// the logic for determining which locale to use for AM/PM formatting.
+  ///
+  /// Currently handles:
+  /// - Tamil ('ta'): Uses English formatting for better readability
+  ///
+  /// Usage:
+  /// ```dart
+  /// final amPmLocale = LocaleHelper.getAmPmLocale(currentLocale);
+  /// final value = DateFormat("a", amPmLocale).format(dateTime);
+  /// ```
+  static String getAmPmLocale(String currentLocale) {
+    switch (currentLocale) {
+      case 'ta':
+        return 'en'; // Use English AM/PM for Tamil for better readability
+      default:
+        return currentLocale; // Use native locale for other languages
+    }
+  }
 }
