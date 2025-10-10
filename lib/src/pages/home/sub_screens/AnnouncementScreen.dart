@@ -12,6 +12,7 @@ import 'package:mawaqit/src/pages/home/sub_screens/normal_home.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/state_management/announcement/announcement_image_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -326,7 +327,7 @@ class _TextAnnouncement extends StatelessWidget {
       ];
 }
 
-class _ImageAnnouncement extends StatelessWidget {
+class _ImageAnnouncement extends ConsumerStatefulWidget {
   const _ImageAnnouncement({
     Key? key,
     required this.image,
@@ -338,30 +339,37 @@ class _ImageAnnouncement extends StatelessWidget {
   /// used to skip to the next announcement if the image failed to load
   final VoidCallback? onError;
 
-  BoxFit _getSmartImageFit(bool isScreenPortrait) {
-    if (isScreenPortrait) {
-      // Portrait screen - let portrait images fill better, landscape images fit width
-      return BoxFit.cover;
-    } else {
-      // Landscape screen - original behavior
-      return BoxFit.fill;
-    }
-  }
+  @override
+  ConsumerState<_ImageAnnouncement> createState() => _ImageAnnouncementState();
+}
 
+class _ImageAnnouncementState extends ConsumerState<_ImageAnnouncement> {
   @override
   Widget build(BuildContext context) {
     final isScreenPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    final imageProvider = MawaqitNetworkImageProvider(image, onError: onError);
+    final imageDimensionsAsync = ref.watch(announcementImageProvider(widget.image));
+    final imageProvider = MawaqitNetworkImageProvider(widget.image, onError: widget.onError);
+
+    final imageFit = imageDimensionsAsync.when(
+      data: (dimensions) => dimensions.getOptimalBoxFit(isScreenPortrait),
+      loading: () => isScreenPortrait ? BoxFit.cover : BoxFit.fill,
+      error: (_, __) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onError?.call();
+        });
+        return isScreenPortrait ? BoxFit.cover : BoxFit.fill;
+      },
+    );
 
     return isScreenPortrait
         ? Image(
             image: imageProvider,
-            fit: _getSmartImageFit(isScreenPortrait),
+            fit: imageFit,
             width: double.infinity,
           ).animate().slideX().addRepaintBoundary()
         : Image(
             image: imageProvider,
-            fit: _getSmartImageFit(isScreenPortrait),
+            fit: imageFit,
             width: double.infinity,
             height: double.infinity,
           ).animate().slideX().addRepaintBoundary();
