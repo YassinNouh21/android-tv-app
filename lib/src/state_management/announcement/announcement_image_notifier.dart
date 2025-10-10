@@ -34,8 +34,7 @@ class ImageDimensions {
 }
 
 // Provider for each announcement image using AsyncValue
-final announcementImageProvider =
-    FutureProvider.autoDispose.family<ImageDimensions, String>((ref, imageUrl) async {
+final announcementImageProvider = FutureProvider.autoDispose.family<ImageDimensions, String>((ref, imageUrl) async {
   final completer = Completer<ImageDimensions>();
   ImageStreamListener? imageStreamListener;
   ImageStream? imageStream;
