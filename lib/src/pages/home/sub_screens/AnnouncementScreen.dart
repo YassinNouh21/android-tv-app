@@ -12,7 +12,6 @@ import 'package:mawaqit/src/pages/home/sub_screens/normal_home.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
-import 'package:mawaqit/src/state_management/announcement/announcement_image_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -327,7 +326,7 @@ class _TextAnnouncement extends StatelessWidget {
       ];
 }
 
-class _ImageAnnouncement extends ConsumerStatefulWidget {
+class _ImageAnnouncement extends StatelessWidget {
   const _ImageAnnouncement({
     Key? key,
     required this.image,
@@ -340,36 +339,17 @@ class _ImageAnnouncement extends ConsumerStatefulWidget {
   final VoidCallback? onError;
 
   @override
-  ConsumerState<_ImageAnnouncement> createState() => _ImageAnnouncementState();
-}
-
-class _ImageAnnouncementState extends ConsumerState<_ImageAnnouncement> {
-  @override
   Widget build(BuildContext context) {
-    final isScreenPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    final imageDimensionsAsync = ref.watch(announcementImageProvider(widget.image));
-    final imageProvider = MawaqitNetworkImageProvider(widget.image, onError: widget.onError);
-
-    final imageFit = imageDimensionsAsync.when(
-      data: (dimensions) => dimensions.getOptimalBoxFit(isScreenPortrait),
-      loading: () => isScreenPortrait ? BoxFit.cover : BoxFit.fill,
-      error: (_, __) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          widget.onError?.call();
-        });
-        return isScreenPortrait ? BoxFit.cover : BoxFit.fill;
-      },
-    );
-
-    return isScreenPortrait
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    return isPortrait
         ? Image(
-            image: imageProvider,
-            fit: imageFit,
+            image: MawaqitNetworkImageProvider(image, onError: onError),
+            fit: BoxFit.fitWidth,
             width: double.infinity,
           ).animate().slideX().addRepaintBoundary()
         : Image(
-            image: imageProvider,
-            fit: imageFit,
+            image: MawaqitNetworkImageProvider(image, onError: onError),
+            fit: BoxFit.fill,
             width: double.infinity,
             height: double.infinity,
           ).animate().slideX().addRepaintBoundary();

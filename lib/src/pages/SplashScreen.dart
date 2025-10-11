@@ -62,14 +62,6 @@ class _SpashState extends ConsumerState<Splash> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Add timeout as safety net
-    Timer(Duration(seconds: 60), () {
-      if (mounted && !_isNavigating) {
-        _navigateToNextScreen();
-      }
-    });
-
     _initializeApp();
   }
 
@@ -111,9 +103,7 @@ class _SpashState extends ConsumerState<Splash> with WidgetsBindingObserver {
 
   // Try to navigate if both animation and data loading are complete
   void _tryNavigate() {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (_isAnimationComplete && _isDataLoadingComplete) {
       setState(() {
@@ -175,12 +165,14 @@ class _SpashState extends ConsumerState<Splash> with WidgetsBindingObserver {
   // Initialize mosque data
   Future<void> _initMosqueData() async {
     try {
+      // Feature manager initialization
+      FeatureManagerProvider.initialize(context);
+
       // Initialize language preferences
       await context.read<AppLanguage>().fetchLocale();
 
       // Initialize mosque manager
       await context.read<MosqueManager>().init();
-
       MosqueManager.setInstance(context.read<MosqueManager>());
     } on DioError catch (e) {
       if (e.response == null) {
@@ -197,28 +189,17 @@ class _SpashState extends ConsumerState<Splash> with WidgetsBindingObserver {
 
   // Navigate to the appropriate screen
   void _navigateToNextScreen() {
-    if (_isNavigating || !mounted) {
-      return;
-    }
+    if (_isNavigating || !mounted) return;
 
     _isNavigating = true;
 
-    try {
-      final mosqueManager = context.read<MosqueManager>();
-      bool hasNoMosque = mosqueManager.mosqueUUID == null;
+    final mosqueManager = context.read<MosqueManager>();
+    bool hasNoMosque = mosqueManager.mosqueUUID == null;
 
-      if (hasNoMosque || _showBoarding) {
-        AppRouter.pushReplacement(OnBoardingScreen());
-      } else {
-        AppRouter.pushReplacement(OfflineHomeScreen());
-      }
-    } catch (e, stack) {
-      // Fallback navigation
-      try {
-        AppRouter.pushReplacement(OnBoardingScreen());
-      } catch (fallbackError) {
-        // Silent fallback failure
-      }
+    if (hasNoMosque || _showBoarding) {
+      AppRouter.pushReplacement(OnBoardingScreen());
+    } else {
+      AppRouter.pushReplacement(OfflineHomeScreen());
     }
   }
 
