@@ -10,17 +10,15 @@ final TimeShiftManager _timeManager = TimeShiftManager();
 class FeatureManagerProvider {
   static FeatureManager? _featureManager;
 
-  static FeatureManager? get featureManager => _featureManager;
-
-  static bool isFeatureEnabled(String featureName) {
-    return _featureManager?.isFeatureEnabled(featureName) ?? false;
+  static FeatureManager get featureManager {
+    assert(_featureManager != null,
+        'FeatureManager has not been initialized. Call FeatureManagerProvider.initialize() before accessing featureManager.');
+    return _featureManager!;
   }
 
   static void initialize(BuildContext context) {
     _featureManager = Provider.of<FeatureManager>(context, listen: false);
   }
-
-  static bool get isInitialized => _featureManager != null;
 }
 
 class AppDateTime {
@@ -43,19 +41,15 @@ class AppDateTime {
     if (kDebugMode) {
       return DateTime.now().add(_timeDifference);
     } else {
-      // Safe access - use feature flag only if FeatureManager is initialized
-      final shouldApplyTimeshift = FeatureManagerProvider.isInitialized &&
-          FeatureManagerProvider.isFeatureEnabled("timezone_shift") &&
-          _timeManager.deviceModel == "MAWABOX" &&
-          _timeManager.isLauncherInstalled;
-
-      return shouldApplyTimeshift
+      return FeatureManagerProvider.featureManager.isFeatureEnabled("timezone_shift") &&
+              _timeManager.deviceModel == "MAWABOX" &&
+              _timeManager.isLauncherInstalled
           ? DateTime.now().add(Duration(hours: _timeManager.shift, minutes: _timeManager.shiftInMinutes))
           : DateTime.now();
     }
   }
 
-  static DateTime tomorrow() => now().add(const Duration(days: 1));
+  static DateTime tomorrow() => DateTime.now().add(const Duration(days: 1));
 
   static bool get isFriday => now().weekday == DateTime.friday;
 }
