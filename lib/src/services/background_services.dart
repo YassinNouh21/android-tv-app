@@ -3,7 +3,9 @@ import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:audio_session/audio_session.dart';
@@ -120,6 +122,7 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         autoStart: true,
+        autoStartOnBoot: false,
         isForegroundMode: true,
       ),
       iosConfiguration: IosConfiguration(
@@ -243,6 +246,13 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     WidgetsFlutterBinding.ensureInitialized();
+    try {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      Hive.init(appDocDir.path);
+      print('✅ Hive initialized in background service at: ${appDocDir.path}');
+    } catch (e) {
+      print('⚠️ Failed to initialize Hive in background service: $e');
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final langCode = prefs.getString('language_code') ?? 'en';

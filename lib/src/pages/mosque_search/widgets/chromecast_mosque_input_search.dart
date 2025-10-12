@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fpdart/fpdart.dart';
+import 'package:fpdart/fpdart.dart' hide State;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/models/mosque.dart';
+import 'package:mawaqit/src/pages/mosque_search/widgets/permission_screen_with_button.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/permissions_manager.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
 import 'package:mawaqit/src/widgets/mosque_simple_tile.dart';
+import 'package:mawaqit/src/widgets/permissionScreenNavigator.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart' as Provider;
 import '../../../../i18n/AppLanguage.dart';
 import '../../../helpers/AppRouter.dart';
@@ -25,10 +30,12 @@ class ChromeCastMosqueInputSearch extends ConsumerStatefulWidget {
     Key? key,
     this.onDone,
     this.selectedNode = const fp.None(),
+    this.isOnboarding = false,
   }) : super(key: key);
 
   final void Function()? onDone;
   final fp.Option<FocusNode> selectedNode;
+  final bool isOnboarding;
 
   @override
   ConsumerState<ChromeCastMosqueInputSearch> createState() => _ChromeCastMosqueInputSearchState();
@@ -44,15 +51,11 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
   bool noMore = false;
   String? error;
 
-  // Focus nodes
   final FocusNode _searchFocusNode = FocusNode(debugLabel: 'chromecast_search_node');
   final FocusNode _loadMoreFocusNode = FocusNode(debugLabel: 'chromecast_load_more_node');
   final FocusNode _mainFocusNode = FocusNode(debugLabel: 'chromecast_main_focus_node');
 
-  // Create focus nodes for each result item
   List<FocusNode> _resultFocusNodes = [];
-
-  // Current focused index in the result list
   int _currentFocusIndex = -1;
 
   @override
@@ -62,8 +65,6 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
       ref.read(mosqueManagerProvider.notifier).state = None();
       _searchFocusNode.requestFocus();
     });
-
-    // Add listener to load more focus node
     _loadMoreFocusNode.addListener(_onLoadMoreFocus);
   }
 
@@ -74,20 +75,16 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     }
   }
 
-  // Create or update focus nodes for result items
   void _updateFocusNodes() {
-    // Clear old focus nodes
     for (var node in _resultFocusNodes) {
       node.dispose();
     }
 
-    // Create new focus nodes for each result
     _resultFocusNodes = List.generate(
       results.length,
       (index) => FocusNode(debugLabel: 'chromecast_result_${index}_node'),
     );
 
-    // Add listeners to each node
     for (int i = 0; i < _resultFocusNodes.length; i++) {
       _resultFocusNodes[i].addListener(() {
         if (_resultFocusNodes[i].hasFocus) {
@@ -100,11 +97,6 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
   }
 
   void Function()? loadMore;
-
-  onboardingWorkflowDone() {
-    sharedPref.save('boarding', 'true');
-    AppRouter.pushReplacement(OfflineHomeScreen());
-  }
 
   void scrollToTheEndOfTheList() {
     scrollController.animateTo(
@@ -133,7 +125,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
 
     final mosqueManager = Provider.Provider.of<MosqueManager>(context, listen: false);
     await mosqueManager.searchMosques(mosque, page: page).then((value) {
-      if (!mounted) return; // Check if widget is still mounted before updating state
+      if (!mounted) return;
 
       setState(() {
         loading = false;
@@ -143,33 +135,15 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
           _currentFocusIndex = -1;
         }
 
-        // Check if the current batch of results is empty
         noMore = value.isEmpty;
-
-        // Save current results length before adding new results
         final oldResultsLength = results.length;
-
         results = [...results, ...value];
 
-        // Update focus nodes for the new result list
         _updateFocusNodes();
 
-        // If we load more and were on the last item,
-        // update to focus on the first new item
         if (page > 1 && _currentFocusIndex == oldResultsLength - 1 && value.isNotEmpty) {
           _currentFocusIndex = oldResultsLength;
-
-          // Use a timeout to prevent indefinite focus issues
-          final timeout = Future.delayed(Duration(seconds: 2), () {
-            // No focus was requested within timeout, reset to search field as fallback
-            if (mounted && _searchFocusNode.canRequestFocus) {
-              _searchFocusNode.requestFocus();
-            }
-          });
-
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            timeout.ignore(); // Cancel timeout since we're handling it
-
             if (mounted &&
                 _resultFocusNodes.isNotEmpty &&
                 _currentFocusIndex < _resultFocusNodes.length &&
@@ -181,7 +155,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
         }
       });
     }).catchError((e, stack) {
-      if (!mounted) return; // Check if widget is still mounted
+      if (!mounted) return;
 
       setState(() {
         logger.w(e.toString(), stackTrace: stack);
@@ -191,17 +165,30 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     });
   }
 
-  /// handle on mosque tile clicked
-  Future<void> _selectMosque(Mosque mosque) {
-    return context.read<MosqueManager>().setMosqueUUid(mosque.uuid.toString()).then((value) {
-      // !context.read<MosqueManager>().typeIsMosque ? onboardingWorkflowDone() : widget.onDone?.call();
-      if (context.read<MosqueManager>().typeIsMosque) {
-        // Home flow
+  Future<void> _selectMosque(Mosque mosque) async {
+    try {
+      await context.read<MosqueManager>().setMosqueUUid(mosque.uuid.toString());
+
+      final mosqueManager = context.read<MosqueManager>();
+      final hadithLangCode = await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+      ref.read(randomHadithNotifierProvider.notifier).fetchAndCacheHadith(language: hadithLangCode);
+
+      if (mosqueManager.typeIsMosque) {
         ref.read(mosqueManagerProvider.notifier).state = Option.fromNullable(SearchSelectionType.mosque);
       } else {
         ref.read(mosqueManagerProvider.notifier).state = Option.fromNullable(SearchSelectionType.home);
       }
-    }).catchError((e, stack) {
+
+/*       if (!widget.isOnboarding && !mosqueManager.typeIsMosque) {
+        await PermissionScreenNavigator.checkAndShowPermissionScreen(
+          context: context,
+          selectedNode: widget.selectedNode,
+          onComplete: widget.onDone,
+        );
+      } else { */
+      widget.onDone?.call();
+      /* } */
+    } catch (e, stack) {
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
@@ -213,95 +200,56 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
           error = S.of(context).backendError;
         });
       }
-    });
+    }
   }
 
-  // Handle key events for the entire search component
   KeyEventResult _handleKeyEvent(FocusNode node, RawKeyEvent event) {
-    if (event is! RawKeyDownEvent) {
-      return KeyEventResult.ignored;
-    }
-
-    // If there are no results, no special handling is needed
-    if (results.isEmpty) {
-      return KeyEventResult.ignored;
-    }
+    if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+    if (results.isEmpty) return KeyEventResult.ignored;
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       if (_searchFocusNode.hasFocus) {
-        // If search field is focused and user presses up, move to the last result
         if (results.isNotEmpty) {
-          setState(() {
-            _currentFocusIndex = results.length - 1;
-          });
+          setState(() => _currentFocusIndex = results.length - 1);
           _resultFocusNodes[_currentFocusIndex].requestFocus();
           _ensureItemVisible(_currentFocusIndex);
         }
         return KeyEventResult.handled;
       } else if (_currentFocusIndex == 0) {
-        // If at first result and user presses up, move focus to search field
-        setState(() {
-          _currentFocusIndex = -1;
-        });
+        setState(() => _currentFocusIndex = -1);
         _searchFocusNode.requestFocus();
         return KeyEventResult.handled;
       } else if (_currentFocusIndex > 0) {
-        // Normal upward navigation within the list
-        setState(() {
-          _currentFocusIndex--;
-        });
+        setState(() => _currentFocusIndex--);
         _resultFocusNodes[_currentFocusIndex].requestFocus();
         _ensureItemVisible(_currentFocusIndex);
         return KeyEventResult.handled;
       }
     } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       if (_searchFocusNode.hasFocus) {
-        // If search field is focused and user presses down, move to the first result
         if (results.isNotEmpty) {
-          setState(() {
-            _currentFocusIndex = 0;
-          });
+          setState(() => _currentFocusIndex = 0);
           _resultFocusNodes[_currentFocusIndex].requestFocus();
           _ensureItemVisible(_currentFocusIndex);
         }
         return KeyEventResult.handled;
       } else if (_currentFocusIndex == results.length - 1) {
-        // If at last result and user presses down
         if (!noMore && loadMore != null) {
-          // Load more results when reaching the end and there are more to load
           loadMore?.call();
-
-          // Keep the focus on the last item until new results load
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            scrollToTheEndOfTheList();
-          });
-
+          WidgetsBinding.instance.addPostFrameCallback((_) => scrollToTheEndOfTheList());
           return KeyEventResult.handled;
         } else {
-          // If no more results, wrap around to search field
-          setState(() {
-            _currentFocusIndex = -1;
-          });
+          setState(() => _currentFocusIndex = -1);
           _searchFocusNode.requestFocus();
           return KeyEventResult.handled;
         }
       } else if (_currentFocusIndex >= 0 && _currentFocusIndex < results.length - 1) {
-        // Normal downward navigation within the list
-        setState(() {
-          _currentFocusIndex++;
-        });
-
+        setState(() => _currentFocusIndex++);
         _resultFocusNodes[_currentFocusIndex].requestFocus();
-
-        // Auto-scroll to make sure the focused item is visible
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _ensureItemVisible(_currentFocusIndex);
-        });
-
+        WidgetsBinding.instance.addPostFrameCallback((_) => _ensureItemVisible(_currentFocusIndex));
         return KeyEventResult.handled;
       }
     } else if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space) {
-      // If Enter/Space is pressed and we're on a result item, select it
       if (_currentFocusIndex >= 0 && _currentFocusIndex < results.length) {
         _selectMosque(results[_currentFocusIndex]);
         return KeyEventResult.handled;
@@ -314,18 +262,13 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     return KeyEventResult.ignored;
   }
 
-  // Helper method to ensure the item at the given index is visible
   void _ensureItemVisible(int index) {
     if (index < 0 || index >= results.length || !scrollController.hasClients) return;
 
-    // Approximate item height (adjust as needed)
     final double itemHeight = 80.0;
     final double listViewHeight = MediaQuery.of(context).size.height * 0.6;
-
-    // Calculate the approximate position of the item
     double itemPosition = index * itemHeight;
 
-    // Ensure item is visible
     if (itemPosition < scrollController.offset || itemPosition > scrollController.offset + listViewHeight) {
       scrollController.animateTo(
         itemPosition - (listViewHeight / 2) + (itemHeight / 2),
@@ -340,12 +283,9 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     _searchFocusNode.dispose();
     _mainFocusNode.dispose();
     _loadMoreFocusNode.dispose();
-
-    // Dispose all result focus nodes
     for (var node in _resultFocusNodes) {
       node.dispose();
     }
-
     inputController.dispose();
     scrollController.dispose();
     super.dispose();
@@ -385,10 +325,9 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
                   mosque: results[i],
                   selectedNode: widget.selectedNode,
                   focusNode: _resultFocusNodes.isNotEmpty ? _resultFocusNodes[i] : null,
-                  hasFocus: _currentFocusIndex == i, // Pass the focus state for visual indication
+                  hasFocus: _currentFocusIndex == i,
                   onTap: () => _selectMosque(results[i]),
                 ).animate().slideX(delay: 70.milliseconds * (i % 5)).fade(),
-              // to allow user to scroll to the end of list
               if (results.isNotEmpty)
                 Focus(
                   focusNode: _loadMoreFocusNode,
