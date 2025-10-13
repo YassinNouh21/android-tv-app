@@ -11,6 +11,7 @@ import 'package:mawaqit/src/pages/mosque_search/widgets/InputTypeSelector.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputId.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputSearch.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/chromecast_mosque_input_search.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
 import 'package:page_transition/page_transition.dart';
 
 import 'onboarding_navigation_state.dart';
@@ -54,7 +55,10 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
       newFlow.add(OnboardingScreenType.screenType);
       // Then add the announcement screen
       newFlow.add(OnboardingScreenType.announcement);
-    }
+    } /* else if (mosqueType == SearchSelectionType.home && !currentState.isRooted) {
+      // Add permission screen for home type when not in kiosk mode
+      newFlow.add(OnboardingScreenType.permissionAdhanBackgroundNotification);
+    } */
 
     state = AsyncData(
       currentState.copyWith(
@@ -121,7 +125,10 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
         () => false,
         (mosqueType) {
           final shouldComplete = switch ((mosqueType, currentState.screenFlow.last)) {
-            // Complete immediately for home type
+/*             // Complete after permission screen for home type (non-kiosk)
+            (SearchSelectionType.home, OnboardingScreenType.permissionAdhanBackgroundNotification) =>
+              currentState.currentScreen == currentState.screenFlow.length - 1, */
+            // Complete immediately for home type without permission screen (shouldn't happen but safe fallback)
             (SearchSelectionType.home, _) => currentState.currentScreen == currentState.screenFlow.length - 1,
             // Complete after announcement screen for mosque type
             (SearchSelectionType.mosque, OnboardingScreenType.announcement) =>
@@ -132,6 +139,10 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
         },
       );
       if (isCompleted) {
+/*         final currentScreenType = currentState.currentScreenType;
+        if (currentScreenType == OnboardingScreenType.permissionAdhanBackgroundNotification) {
+          await PermissionAdhanScreen.scheduleIfEnabled(context);
+        } */
         completeOnboarding(context);
         state = AsyncData(
           currentState.copyWith(

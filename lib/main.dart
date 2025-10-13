@@ -61,11 +61,11 @@ bool _isAppInForeground = false;
 
 @pragma("vm:entry-point")
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   await CrashlyticsWrapper.init(
     () async {
       try {
-        WidgetsFlutterBinding.ensureInitialized();
-
         final firebaseOptions = FirebaseOptions(
           apiKey: const String.fromEnvironment('mawaqit.firebase.api_key'),
           appId: const String.fromEnvironment('mawaqit.firebase.app_id'),
@@ -130,14 +130,6 @@ Future<void> _safelyInitializeBackgroundServices() async {
 
     developer.log('Starting background services initialization');
 
-    // Initialize permissions using the PermissionsManager
-    try {
-      await PermissionsManager.initializePermissions();
-      developer.log('Permissions initialized successfully');
-    } catch (e) {
-      developer.log('Permissions initialization error', error: e);
-    }
-
     try {
       await WorkManagerService.initialize();
       developer.log('WorkManagerService initialized successfully');
@@ -166,6 +158,8 @@ class MyApp extends riverpod.ConsumerStatefulWidget {
 }
 
 class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObserver {
+  bool _shouldUseBackgroundServices = false;
+
   @override
   void initState() {
     super.initState();
@@ -181,8 +175,17 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
     // Wait to ensure app is in foreground
     await Future.delayed(const Duration(seconds: 3));
 
+    // Check once and store the result
+    _shouldUseBackgroundServices = await PermissionsManager.shouldAutoInitializePermissions();
+
     _isAppInForeground = true;
-    await _safelyInitializeBackgroundServices();
+
+    // Only initialize if we should use background services
+    if (_shouldUseBackgroundServices) {
+      await _safelyInitializeBackgroundServices();
+    } else {
+      developer.log('Background services disabled - device is not rooted');
+    }
   }
 
   @override
@@ -196,11 +199,13 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppInForeground = state == AppLifecycleState.resumed;
 
-    // Only call this if service is initialized
-    try {
-      UnifiedBackgroundService().didChangeAppLifecycleState(state);
-    } catch (e) {
-      // Ignore errors if service not initialized
+    // Only notify background service if it was initialized (rooted devices only)
+    if (_shouldUseBackgroundServices) {
+      try {
+        UnifiedBackgroundService().didChangeAppLifecycleState(state);
+      } catch (e) {
+        developer.log('Error notifying background service of lifecycle change', error: e);
+      }
     }
   }
 

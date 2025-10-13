@@ -4,9 +4,16 @@ import 'package:mawaqit/src/pages/mosque_search/widgets/InputTypeSelector.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputSearch.dart';
 
 class MosqueSearch extends StatefulWidget {
-  MosqueSearch({Key? key, required this.nextButtonFocusNode, this.onDone}) : super(key: key);
+  MosqueSearch({
+    Key? key,
+    required this.nextButtonFocusNode,
+    this.onDone,
+    this.isOnboarding = false,
+  }) : super(key: key);
+
   final void Function()? onDone;
   final fp.Option<FocusNode> nextButtonFocusNode;
+  final bool isOnboarding;
 
   @override
   State<MosqueSearch> createState() => _MosqueSearchState();
@@ -31,6 +38,7 @@ class _MosqueSearchState extends State<MosqueSearch> {
           builder: (context) => InputTypeSelector(
             onDone: widget.onDone,
             nextButtonFocusNode: widget.nextButtonFocusNode,
+            isOnboarding: widget.isOnboarding,
           ),
         ),
       ),

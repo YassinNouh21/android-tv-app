@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
@@ -17,6 +18,7 @@ import 'package:mawaqit/src/pages/LanguageScreen.dart';
 import 'package:mawaqit/src/pages/MosqueSearchScreen.dart';
 import 'package:mawaqit/src/pages/TimezoneScreen.dart';
 import 'package:mawaqit/src/pages/WifiSelectorScreen.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/widgets.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/theme_manager.dart';
@@ -54,6 +56,7 @@ class SettingScreen extends ConsumerStatefulWidget {
 
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool isBoxOrAndroidTV = false;
+  int androidSdkVersion = 0;
 
   @override
   void initState() {
@@ -61,9 +64,11 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await TimeShiftManager().initializeTimes();
       await ref.read(onBoardingProvider.notifier).isDeviceRooted();
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
       final bool deviceIsBoxOrAndroidTV = await DeviceInfoDataSource().isBoxOrAndroidTV();
       setState(() {
         isBoxOrAndroidTV = deviceIsBoxOrAndroidTV;
+        androidSdkVersion = androidInfo.version.sdkInt;
       });
 
       final appLanguage = Provider.of<AppLanguage>(context, listen: false);
@@ -238,7 +243,29 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                       );
                     },
                   ),
-                  SizedBox(height: 30),
+/*                   Consumer(
+                    builder: (context, ref, child) {
+                      final isDeviceRooted = ref.watch(onBoardingProvider).maybeWhen(
+                            orElse: () => false,
+                            data: (value) => value.isRootedDevice,
+                          );
+                      final mosqueManager = context.watch<MosqueManager>();
+                      if (!isDeviceRooted && androidSdkVersion >= 30 && !mosqueManager.typeIsMosque) {
+                        return _SettingItem(
+                          title: S.of(context).prayerTimeNotificationTitle,
+                          subtitle: S.of(context).prayerTimeNotificationDesc,
+                          icon: Icon(Icons.notifications_active, size: 35),
+                          onTap: () async {
+                            AppRouter.push(PermissionAdhanScreen(
+                              showAppBar: true,
+                              useAnimation: true,
+                            ));
+                          },
+                        );
+                      }
+                      return SizedBox.shrink();
+                    },
+                  ), */
                   Divider(),
                   SizedBox(height: 10),
                   Text(
