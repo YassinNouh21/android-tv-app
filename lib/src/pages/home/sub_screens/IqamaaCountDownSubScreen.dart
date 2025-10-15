@@ -25,39 +25,45 @@ class IqamaaCountDownSubScreen extends StatefulWidget {
     this.onDone,
     this.isDebug = false,
     this.currentSalahIndex = 0,
+    this.iqamaTime,
   }) : super(key: key);
+
   final bool isDebug;
   final int currentSalahIndex;
   final VoidCallback? onDone;
+  final DateTime? iqamaTime;
 
   @override
   State<IqamaaCountDownSubScreen> createState() => _IqamaaCountDownSubScreenState();
 }
 
 class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
-  /// The remaining time for the countdown, used for both debug and normal modes
   Duration _remainingTime = Duration.zero;
   Timer? _countdownTimer;
-
+  late DateTime _targetIqamaTime;
   @override
   void initState() {
     super.initState();
     final mosqueManager = context.read<MosqueManager>();
 
     if (widget.isDebug) {
-      // In debug mode, start with a fixed 5 minute countdown
       _remainingTime = Duration(minutes: 5);
       _startCountdown();
     } else {
-      // In normal mode, calculate the time remaining until iqama
-      var currentSalahTime = mosqueManager.actualTimes()[widget.currentSalahIndex];
-      var currentIqamaTime = mosqueManager.actualIqamaTimes()[widget.currentSalahIndex];
+      if (widget.iqamaTime != null) {
+        _targetIqamaTime = widget.iqamaTime!;
+      } else {
+        var currentSalahTime = mosqueManager.actualTimes()[widget.currentSalahIndex];
+        var currentIqamaTime = mosqueManager.actualIqamaTimes()[widget.currentSalahIndex];
+
+        if (currentIqamaTime.isBefore(currentSalahTime)) {
+          currentIqamaTime = currentIqamaTime.add(Duration(days: 1));
+        }
+        _targetIqamaTime = currentIqamaTime;
+      }
+
       final now = mosqueManager.mosqueDate();
-
-      /// if the iqama is comming the next day then add one day to the iqama time
-      if (currentIqamaTime.isBefore(currentSalahTime)) currentIqamaTime = currentIqamaTime.add(Duration(days: 1));
-
-      _remainingTime = currentIqamaTime.difference(now);
+      _remainingTime = _targetIqamaTime.difference(now);
 
       // Schedule the onDone callback to be called when countdown finishes
       WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -154,7 +160,9 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                     builder: (context, snapshot) {
                       // For normal mode, we need to update the remaining time on each tick
                       if (!widget.isDebug) {
-                        _remainingTime = mosqueManager.nextIqamaaAfter();
+                        final now = mosqueManager.mosqueDate();
+                        _remainingTime = _targetIqamaTime.difference(now);
+
                         if (_remainingTime <= Duration.zero) {
                           Future.delayed(Duration(milliseconds: 80), widget.onDone);
                         }
@@ -187,8 +195,6 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
               ],
             ),
           ),
-
-          // Bottom prayer times bar with compact spacing for iqama countdown
           mosqueManager.times!.isTurki
               ? ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
               : ResponsiveMiniSalahBarWidget(useCompactLayout: true),
