@@ -33,23 +33,17 @@ class FajrWakeUpSubScreen extends ConsumerStatefulWidget {
 
 class _FajrWakeUpSubScreenState extends ConsumerState<FajrWakeUpSubScreen> {
   Timer? _fallbackTimer;
-  bool _audioStarted = false;
   bool _closeCalled = false;
 
   @override
   void initState() {
     super.initState();
-    log('FajrWakeUpSubScreen: initState');
     _playFajrAdhan();
     _startFallbackTimer();
   }
 
   void _playFajrAdhan() {
-    log('FajrWakeUpSubScreen: _playFajrAdhan');
     final mosqueManager = context.read<MosqueManager>();
-
-    // Mark audio as started to enable the listener
-    _audioStarted = true;
 
     // Trigger playback on the next frame to ensure build completes first
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -85,6 +79,16 @@ class _FajrWakeUpSubScreenState extends ConsumerState<FajrWakeUpSubScreen> {
     _closeCalled = true;
     log('FajrWakeUpSubScreen: Closing screen safely');
 
+    // Stop audio playback before closing (safe to use ref here, not in dispose)
+    if (mounted) {
+      try {
+        log('FajrWakeUpSubScreen: Stopping audio before close');
+        ref.read(prayerAudioProvider.notifier).stop();
+      } catch (e) {
+        log('FajrWakeUpSubScreen: Error stopping audio', error: e);
+      }
+    }
+
     // Cancel timers
     _cancelTimers();
 
@@ -105,22 +109,22 @@ class _FajrWakeUpSubScreenState extends ConsumerState<FajrWakeUpSubScreen> {
   }
 
   @override
-  void dispose() {
-    log('FajrWakeUpSubScreen: Disposing');
-
-    // Stop audio playback when the screen is disposed prematurely
-    if (_audioStarted) {
-      log('FajrWakeUpSubScreen: Stopping audio in dispose');
+  void deactivate() {
+    log('FajrWakeUpSubScreen: Deactivating');
+    if (!_closeCalled && mounted) {
       try {
-        // Use Future.microtask to avoid calling during build/layout
-        Future.microtask(() {
-          ref.read(prayerAudioProvider.notifier).stop();
-        });
+        log('FajrWakeUpSubScreen: Stopping audio in deactivate');
+        ref.read(prayerAudioProvider.notifier).stop();
       } catch (e) {
-        log('FajrWakeUpSubScreen: Error stopping audio in dispose', error: e);
+        log('FajrWakeUpSubScreen: Error stopping audio in deactivate', error: e);
       }
     }
+    super.deactivate();
+  }
 
+  @override
+  void dispose() {
+    log('FajrWakeUpSubScreen: Disposing');
     _cancelTimers();
     super.dispose();
   }
@@ -130,7 +134,7 @@ class _FajrWakeUpSubScreenState extends ConsumerState<FajrWakeUpSubScreen> {
     log('FajrWakeUpSubScreen: Building UI');
 
     // Set up audio completion listener
-    if (_audioStarted && !_closeCalled) {
+    if (!_closeCalled) {
       ref.listen<PrayerAudioState>(prayerAudioProvider, (previous, next) {
         // Don't act on the initial state
         if (previous == null) return;

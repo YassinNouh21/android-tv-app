@@ -25,6 +25,7 @@ class BackgroundAudioScheduleService {
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         autoStart: true,
+        autoStartOnBoot: false,
         isForegroundMode: true,
       ),
       iosConfiguration: IosConfiguration(

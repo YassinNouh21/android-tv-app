@@ -13,6 +13,7 @@ import 'package:mawaqit/src/pages/home/widgets/workflows/repeating_workflow_widg
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
 import 'package:provider/provider.dart';
 
 import '../sub_screens/AdhanSubScreen.dart';
@@ -99,6 +100,11 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
         ),
         WorkFlowItem(
           builder: (context, next) => AdhanSubScreen(onDone: next),
+          skip: () {
+            final audioState = ref.read(prayerAudioProvider);
+            final adhanDuration = audioState.duration ?? Duration(seconds: 150);
+            return now.isAfter(currentSalahTime.add(adhanDuration));
+          }(),
         ),
         WorkFlowItem(
           builder: (context, next) => AfterAdhanSubScreen(onDone: next),
@@ -130,21 +136,21 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
               mosqueConfig.blackScreenWhenPraying == true ? Container(color: Colors.black) : NormalHomeSubScreen(),
           skip: now.isAfter(salahEndTime),
           duration: mosqueManger.currentSalahDuration,
+          disabled: mosqueConfig.iqamaEnabled == false,
         ),
         WorkFlowItem(
           builder: (context, next) => AfterSalahAzkar(onDone: next),
-          disabled: mosqueConfig.duaAfterPrayerEnabled == false,
+          disabled: mosqueConfig.iqamaEnabled == false,
         ),
         WorkFlowItem(
-          duration: kAzkarDuration,
-          builder: (context, next) => AfterSalahAzkar(
+            duration: kAzkarDuration,
+            builder: (context, next) => AfterSalahAzkar(
 
-              /// this is a redundant parameter as it is always should be (isFajrPray | isAsrPray)
-              isAfterAsrOrFajr: true,
-              isAfterAsr: isAsrPray,
-              azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer),
-          disabled: mosqueConfig.duaAfterPrayerEnabled == false || (!isFajrPray && !isAsrPray),
-        ),
+                /// this is a redundant parameter as it is always should be (isFajrPray | isAsrPray)
+                isAfterAsrOrFajr: true,
+                isAfterAsr: isAsrPray,
+                azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer),
+            disabled: mosqueConfig.iqamaEnabled == false || (!isFajrPray && !isAsrPray)),
       ],
     );
   }

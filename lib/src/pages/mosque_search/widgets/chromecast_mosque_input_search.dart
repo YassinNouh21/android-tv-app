@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fpdart/fpdart.dart';
+import 'package:fpdart/fpdart.dart' hide State;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/models/mosque.dart';
+import 'package:mawaqit/src/pages/mosque_search/widgets/permission_screen_with_button.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/permissions_manager.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
 import 'package:mawaqit/src/widgets/mosque_simple_tile.dart';
+import 'package:mawaqit/src/widgets/permissionScreenNavigator.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart' as Provider;
 import '../../../../i18n/AppLanguage.dart';
 import '../../../helpers/AppRouter.dart';
@@ -25,10 +30,12 @@ class ChromeCastMosqueInputSearch extends ConsumerStatefulWidget {
     Key? key,
     this.onDone,
     this.selectedNode = const fp.None(),
+    this.isOnboarding = false,
   }) : super(key: key);
 
   final void Function()? onDone;
   final fp.Option<FocusNode> selectedNode;
+  final bool isOnboarding;
 
   @override
   ConsumerState<ChromeCastMosqueInputSearch> createState() => _ChromeCastMosqueInputSearchState();
@@ -89,11 +96,6 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
   }
 
   void Function()? loadMore;
-
-  onboardingWorkflowDone() {
-    sharedPref.save('boarding', 'true');
-    AppRouter.pushReplacement(OfflineHomeScreen());
-  }
 
   void scrollToTheEndOfTheList() {
     if (scrollController.hasClients) {
@@ -184,7 +186,17 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
       } else {
         ref.read(mosqueManagerProvider.notifier).state = Option.fromNullable(SearchSelectionType.home);
       }
-    }).catchError((e, stack) {
+
+/*       if (!widget.isOnboarding && !mosqueManager.typeIsMosque) {
+        await PermissionScreenNavigator.checkAndShowPermissionScreen(
+          context: context,
+          selectedNode: widget.selectedNode,
+          onComplete: widget.onDone,
+        );
+      } else { */
+      widget.onDone?.call();
+      /* } */
+    } catch (e, stack) {
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
@@ -196,7 +208,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
           error = S.of(context).backendError;
         });
       }
-    });
+    }
   }
 
   void _ensureItemVisible(int index) {

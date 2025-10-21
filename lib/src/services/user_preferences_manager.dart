@@ -11,6 +11,7 @@ const _webViewModeKey = 'UserPreferencesManager.webView.mode.enabled';
 const _forceStagingKey = 'UserPreferencesManager.api.settings.staging';
 const _screenOrientation = 'UserPreferencesManager.screen.orientation';
 const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
+const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
 
 /// this manager responsible for managing user preferences
 class UserPreferencesManager extends ChangeNotifier {
@@ -126,6 +127,13 @@ class UserPreferencesManager extends ChangeNotifier {
     } else {
       _sharedPref.setInt(_hijriAdjustments, value);
     }
+    notifyListeners();
+  }
+
+  bool get adhanNotificationEnabled => _sharedPref.getBool(_adhanNotificationKey) ?? false;
+
+  set adhanNotificationEnabled(bool value) {
+    _sharedPref.setBool(_adhanNotificationKey, value);
     notifyListeners();
   }
 }

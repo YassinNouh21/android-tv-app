@@ -22,10 +22,12 @@ class InputTypeSelector extends ConsumerStatefulWidget {
     required this.nextButtonFocusNode,
     super.key,
     this.onDone,
+    this.isOnboarding = false,
   });
 
   final void Function()? onDone;
   final fp.Option<FocusNode> nextButtonFocusNode;
+  final bool isOnboarding;
 
   @override
   _InputTypeSelectorState createState() => _InputTypeSelectorState();
@@ -39,10 +41,12 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
   @override
   void initState() {
     super.initState();
-    // Auto-select the 'Yes' option when the screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleYesSelection();
-    });
+    // Only auto-select and navigate during onboarding
+    if (widget.isOnboarding) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleYesSelection();
+      });
+    }
   }
 
   void _handleYesSelection() async {
@@ -65,6 +69,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
               alignment: Alignment.center,
               child: ChromeCastMosqueInputId(
                 onDone: widget.onDone,
+                isOnboarding: widget.isOnboarding,
               ),
             ),
           );
@@ -76,6 +81,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
               alignment: Alignment.center,
               child: MosqueInputId(
                 onDone: widget.onDone,
+                isOnboarding: widget.isOnboarding,
               ),
             ),
           );
@@ -113,6 +119,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
               alignment: Alignment.center,
               child: ChromeCastMosqueInputSearch(
                 onDone: widget.onDone,
+                isOnboarding: widget.isOnboarding,
               ),
             ),
           );
@@ -124,6 +131,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
               alignment: Alignment.center,
               child: MosqueInputSearch(
                 onDone: widget.onDone,
+                isOnboarding: widget.isOnboarding,
               ),
             ),
           );
