@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
+import 'package:mawaqit/src/helpers/StringUtils.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:mawaqit/src/widgets/time_widget.dart';
@@ -19,18 +20,17 @@ class AboveSalahBar extends StatelessWidget {
         stream: Stream.periodic(Duration(seconds: 1)),
         builder: (context, snapshot) {
           var nextSalahTime = mosqueManager.nextSalahAfter();
-
           final now = mosqueManager.mosqueDate();
 
-          String countDownText = [
-            "${mosqueManager.getSalahNameByIndex(
-              mosqueManager.nextSalahIndex(),
-              context,
-            )} ${S.of(context).in1} ",
-            if (nextSalahTime.inMinutes > 0)
-              "${nextSalahTime.inHours.toString().padLeft(2, '0')}:${(nextSalahTime.inMinutes % 60).toString().padLeft(2, '0')}",
-            if (nextSalahTime.inMinutes == 0) "${(nextSalahTime.inSeconds % 60).toString().padLeft(2, '0')} Sec",
-          ].join();
+          var nextSalahName = mosqueManager.getSalahNameByIndex(
+            mosqueManager.nextSalahIndex(),
+            context,
+          );
+          String countDownText = StringManager.getCountDownText(
+            context,
+            nextSalahTime,
+            nextSalahName,
+          );
 
           return Container(
             padding: EdgeInsets.symmetric(horizontal: 2.vwr),
