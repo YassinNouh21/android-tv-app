@@ -26,12 +26,11 @@ class AppWorkflowScreen extends StatelessWidget {
     final featureManager = Provider.of<FeatureManager>(context);
     final userPrefs = context.watch<UserPreferencesManager>();
 
-    ValueKey? key;
-
+    Key? workflowKey;
     if (featureManager.isFeatureEnabled("timezone_shift") &&
         timeManager.deviceModel == "MAWABOX" &&
         timeManager.isLauncherInstalled) {
-      key = ValueKey('${timeManager.shift}_${timeManager.shiftInMinutes}');
+      workflowKey = ValueKey('workflow_${timeManager.shift}_${timeManager.shiftInMinutes}');
     }
     final times =
         mosqueManager.useTomorrowTimes ? mosqueManager.actualTimes(now.add(1.days)) : mosqueManager.actualTimes(now);
@@ -43,7 +42,7 @@ class AppWorkflowScreen extends StatelessWidget {
     final hijri = mosqueManager.mosqueHijriDate(userPrefs.hijriAdjustments);
 
     return RepeatingWorkFlowWidget(
-      key: key,
+      key: workflowKey,
       debugName: "App workflow",
       child: NormalWorkflowScreen(),
       items: [
