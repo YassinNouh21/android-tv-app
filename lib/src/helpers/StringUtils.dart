@@ -41,8 +41,25 @@ class StringManager {
 
 ///////////// Salah count down text in Time widget
   static String getCountDownText(BuildContext context, Duration salahTime, String salahName) {
+    // Get current language code
+    final currentLang = Localizations.localeOf(context).languageCode;
+    final isEnglishOrPortuguese = currentLang == 'en' || currentLang == 'pt';
+
+    // Check if the prayer is Shuruq by comparing the prayer name
+    final isShurukPrayer = salahName == S.of(context).shuruk;
+
+    // Determine which string to use
+    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq
+    // For other languages: use in1 for everything
+    String inString;
+    if (isEnglishOrPortuguese && !isShurukPrayer) {
+      inString = S.of(context).azanIn;
+    } else {
+      inString = S.of(context).in1;
+    }
+
     return [
-      "$salahName ${S.of(context).in1} ",
+      "$salahName $inString ",
       if (salahTime.inMinutes > 0)
         "${salahTime.inHours.toString().padLeft(2, '0')}:${(salahTime.inMinutes % 60).toString().padLeft(2, '0')}",
       if (salahTime.inMinutes == 0) "${(salahTime.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}",
