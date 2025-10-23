@@ -3,13 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/state_management/quran/recite/recite_notifier.dart';
+import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:sizer/sizer.dart';
+
+enum QuranErrorType { reciter, surah }
 
 class ReciterErrorWidget extends ConsumerStatefulWidget {
   final Object error;
   final FocusNode focusNode;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateDown;
+  final QuranErrorType errorType;
+  final VoidCallback? onRetry;
 
   const ReciterErrorWidget({
     super.key,
@@ -17,6 +22,8 @@ class ReciterErrorWidget extends ConsumerStatefulWidget {
     required this.focusNode,
     this.onNavigateUp,
     this.onNavigateDown,
+    this.errorType = QuranErrorType.reciter,
+    this.onRetry,
   });
 
   @override
@@ -65,7 +72,15 @@ class _ReciterErrorWidgetState extends ConsumerState<ReciterErrorWidget> {
   }
 
   void _handleRetry() {
-    ref.invalidate(reciteNotifierProvider);
+    if (widget.onRetry != null) {
+      widget.onRetry!();
+    } else {
+      if (widget.errorType == QuranErrorType.reciter) {
+        ref.invalidate(reciteNotifierProvider);
+      } else {
+        ref.invalidate(quranNotifierProvider);
+      }
+    }
   }
 
   @override
@@ -83,7 +98,9 @@ class _ReciterErrorWidgetState extends ConsumerState<ReciterErrorWidget> {
             ),
             SizedBox(height: 2.h),
             Text(
-              S.of(context).reciterLoadError,
+              widget.errorType == QuranErrorType.reciter
+                  ? S.of(context).reciterLoadError
+                  : S.of(context).surahLoadError,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12.sp,

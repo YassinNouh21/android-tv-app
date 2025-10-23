@@ -221,6 +221,7 @@
   "reciterNetworkError": "Please check your internet connection and try again",
   "reciterServerError": "Server is temporarily unavailable. Please try again later",
   "reciterTimeoutError": "Request timed out. Please try again",
+  "surahLoadError": "Unable to load surahs",
   "timeSetting": "Configuring the time",
   "timeSettingDesc": "Set a custom name",
   "selectedTime": "The current selected time",
