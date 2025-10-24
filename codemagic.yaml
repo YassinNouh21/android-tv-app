@@ -49,7 +49,7 @@ workflows:
             BUILD_NUMBER=$(($(google-play get-latest-build-number --package-name "$PACKAGE_NAME" --tracks="$GOOGLE_PLAY_TRACK") + 1))
           else
             echo "Manual build detected"
-            BUILD_NUMBER=$(date +%s)
+            BUILD_NUMBER="9${BUILD_NUMBER}"
           fi
           
           echo "VERSION=$VERSION" >> $CM_ENV
