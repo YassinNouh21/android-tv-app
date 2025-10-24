@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/pages/quran/widget/surah_card.dart';
+import 'package:mawaqit/src/pages/quran/widget/reciter_error_widget.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 
 import 'package:shimmer/shimmer.dart';
@@ -45,6 +46,7 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
   final ScrollController _scrollController = ScrollController();
   Timer? _debounceTimer;
   bool _isNavigating = false;
+  final FocusNode _errorFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -60,6 +62,7 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _errorFocusNode.dispose();
     super.dispose();
   }
 
@@ -107,6 +110,12 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
 
   String _getKey() {
     return "${widget.reciterId}:${widget.selectedMoshaf.id.toString()}";
+  }
+
+  void _handleRetry() {
+    ref.read(quranNotifierProvider.notifier).getSuwarByReciter(
+          selectedMoshaf: widget.selectedMoshaf,
+        );
   }
 
   @override
@@ -301,10 +310,11 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
                   },
                   error: (error, stack) {
                     log('Error: $error\n$stack');
-                    return Center(
-                      child: Text(
-                        'Error: $error',
-                      ),
+                    return ReciterErrorWidget(
+                      error: error,
+                      focusNode: _errorFocusNode,
+                      errorType: QuranErrorType.surah,
+                      onRetry: _handleRetry,
                     );
                   },
                   loading: () => _buildShimmerGrid(),
