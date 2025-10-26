@@ -25,6 +25,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/widget/reciter_list_view.dart';
+import 'package:mawaqit/src/pages/quran/widget/reciter_error_widget.dart';
 import '../reading/quran_reading_screen.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
 
@@ -93,7 +94,7 @@ class AudioControlWidget extends ConsumerWidget {
             );
           },
           loading: () => const CircularProgressIndicator(),
-          error: (error, _) => Text('Error: $error'),
+          error: (error, _) => const SizedBox.shrink(),
         );
   }
 }
@@ -124,6 +125,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   late FocusNode searchFocusScopeNode;
   late FocusNode changeIntoReadingMode;
   late FocusNode playPauseSchedule;
+  late FocusNode errorRetryFocusNode;
 
   late StreamSubscription<bool> keyboardSubscription;
 
@@ -154,6 +156,21 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     changeIntoReadingMode = FocusNode(debugLabel: 'change_into_reading_mode_focus_node');
     playPauseSchedule = FocusNode(debugLabel: 'pla_pause_schedule');
     searchListFocusNode = FocusScopeNode(debugLabel: 'search_list_focus_scope_node');
+    errorRetryFocusNode = FocusNode(debugLabel: 'error_retry_focus_node');
+
+    // Setup search field key handler for navigation
+    searchFocusScopeNode.onKey = (node, event) {
+      if (event is RawKeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        final state = ref.read(reciteNotifierProvider);
+        // If there's an error, navigate to the retry button
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    };
+
     var keyboardVisibilityController = KeyboardVisibilityController();
 
     keyboardSubscription = keyboardVisibilityController.onChange.listen((bool visible) {
@@ -175,6 +192,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     allRecitersListFocusNode.dispose();
     changeReadingModeFocusNode.dispose();
     searchListFocusNode.dispose();
+    errorRetryFocusNode.dispose();
   }
 
   void _setupKeyboardListener() {
@@ -228,6 +246,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     favoritesListFocusNode.onKey = _handleFavoritesListKeyEvent;
     allRecitersListFocusNode.onKey = _handleAllRecitersListKeyEvent;
     changeReadingModeFocusNode.onKey = _handleChangeReadingModeKeyEvent;
+    changeIntoReadingMode.onKey = _handleChangeIntoReadingModeKeyEvent;
     playPauseSchedule.onKey = _handlePlayPauseScheduleKeyEvent;
     searchListFocusNode.onKey = _handleSearchListKeyEvent;
   }
@@ -266,6 +285,13 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   KeyEventResult _handleChangeReadingModeKeyEvent(FocusNode node, RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        // Check if there's an error state first
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+
         if (_foundReciters && !ref.read(reciteNotifierProvider.notifier).isQueryEmpty) {
           searchListFocusNode.requestFocus();
         } else {
@@ -277,11 +303,41 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         }
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Check if there's an error state first
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+
         if (!_foundReciters && !changeIntoReadingMode.hasFocus) {
           searchFocusScopeNode.requestFocus();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleChangeIntoReadingModeKeyEvent(FocusNode node, RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Check if there's an error state
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        // Otherwise go to search or reciters list
+        searchFocusScopeNode.requestFocus();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        // Try to focus on the play/pause schedule button if it exists
+        if (playPauseSchedule.canRequestFocus) {
+          playPauseSchedule.requestFocus();
+          return KeyEventResult.handled;
+        }
       }
     }
     return KeyEventResult.ignored;
@@ -375,11 +431,11 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
                             _buildReciterListShimmer(true),
                           ],
                         ),
-                        error: (error, stackTrace) => Center(
-                          child: Text(
-                            'Error: $error',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                        error: (error, stackTrace) => ReciterErrorWidget(
+                          error: error,
+                          focusNode: errorRetryFocusNode,
+                          onNavigateUp: () => searchFocusScopeNode.requestFocus(),
+                          onNavigateDown: () => changeReadingModeFocusNode.requestFocus(),
                         ),
                       ),
                 ),

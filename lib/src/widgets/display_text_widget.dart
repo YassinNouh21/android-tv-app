@@ -159,27 +159,32 @@ class DisplayTextWidget extends ConsumerWidget {
   }) {
     return isHadith
         ? Expanded(
-            child: Container(
-              width: double.infinity,
-              child: Padding(
-                key: ValueKey(text),
-                padding: EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: isHadith ? 16.0 : 0.0,
+            child: Center(
+              child: Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  maxWidth: 90.vw,
                 ),
-                child: AutoSizeText(
-                  text,
-                  style: isHadith
-                      ? _getHadithTextStyle(context, hadithLanguage)
-                      : TextStyle(
-                          fontSize: 32.sp,
-                          color: Colors.white,
-                          shadows: kIqamaCountDownTextShadow,
-                        ),
-                  textAlign: TextAlign.center,
-                  textDirection: textDirection,
-                  maxLines: isHadith ? null : 1,
-                ).animate().fadeIn(delay: delay).addRepaintBoundary(),
+                child: Padding(
+                  key: ValueKey(text),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 3.vw,
+                    vertical: 2.vh,
+                  ),
+                  child: AutoSizeText(
+                    text,
+                    style: isHadith
+                        ? _getHadithTextStyle(context, hadithLanguage)
+                        : TextStyle(
+                            fontSize: 32.sp,
+                            color: Colors.white,
+                            shadows: kIqamaCountDownTextShadow,
+                          ),
+                    textAlign: TextAlign.center,
+                    textDirection: textDirection,
+                    maxLines: isHadith ? null : 1,
+                  ).animate().fadeIn(delay: delay).addRepaintBoundary(),
+                ),
               ),
             ),
           )

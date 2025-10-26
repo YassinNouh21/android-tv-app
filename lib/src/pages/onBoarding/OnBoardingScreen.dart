@@ -11,6 +11,7 @@ import 'package:mawaqit/src/helpers/SharedPref.dart';
 import 'package:mawaqit/src/pages/home/OfflineHomeScreen.dart';
 import 'package:mawaqit/src/pages/mosque_search/MosqueSearch.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/widgets.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/widgets.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
@@ -158,6 +159,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
         animation: 'search',
         widget: MosqueSearch(
           nextButtonFocusNode: Some(nextButtonFocusNode),
+          isOnboarding: true,
           onDone: () {},
         ),
         enableNextButton: true,
@@ -168,6 +170,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
         widget: MosqueInputId(
           onDone: () {},
           selectedNode: Some(nextButtonFocusNode),
+          isOnboarding: true,
         ),
         enableNextButton: true,
         enablePreviousButton: true,
@@ -208,6 +211,15 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
         enablePreviousButton: true,
         skip: () => !context.read<MosqueManager>().typeIsMosque,
       ),
+/*       OnboardingScreenType.permissionAdhanBackgroundNotification: OnBoardingItem(
+        animation: 'settings', // Or whatever animation you prefer
+        widget: PermissionAdhanScreen(
+          isOnboarding: true,
+          nextButtonFocusNode: Some(nextButtonFocusNode),
+        ),
+        enableNextButton: true,
+        enablePreviousButton: true,
+      ), */
       OnboardingScreenType.announcement: OnBoardingItem(
         animation: 'search',
         widget: OnBoardingAnnouncementScreens(
