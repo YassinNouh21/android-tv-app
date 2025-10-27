@@ -35,8 +35,6 @@ class SalahWorkflowScreen extends ConsumerStatefulWidget {
 }
 
 class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
-  List<WorkFlowItem>? _workFlowItems;
-
   Widget beforeSalahTime(
     MosqueManager mosqueManger,
     int currentSalah,
@@ -63,83 +61,81 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
     final mosqueConfig = mosqueManger.mosqueConfig!;
     final userPrefs = context.watch<UserPreferencesManager>();
 
-    if (_workFlowItems == null) {
-      final hijri = mosqueManger.mosqueHijriDate(userPrefs.hijriAdjustments);
-      final currentSalah = widget.salahIndex;
-      final now = mosqueManger.mosqueDate();
-      final currentSalahTime = mosqueManger.actualTimes()[currentSalah];
-      final currentIqamaTime = mosqueManger.actualIqamaTimes()[currentSalah];
-      final isFajrPray = currentSalah == 0;
-      final isAsrPray = currentSalah == 2;
-      final iqamaEndTime = currentIqamaTime.add(Duration(minutes: 1));
-      final salahTime = mosqueConfig.duaAfterPrayerShowTimes[currentSalah];
-      final salahEndTime = iqamaEndTime.add(
-        Duration(minutes: int.tryParse(salahTime) ?? 0),
-      );
+    final hijri = mosqueManger.mosqueHijriDate(userPrefs.hijriAdjustments);
+    final currentSalah = widget.salahIndex;
+    final now = mosqueManger.mosqueDate();
+    final currentSalahTime = mosqueManger.actualTimes()[currentSalah];
+    final currentIqamaTime = mosqueManger.actualIqamaTimes()[currentSalah];
+    final isFajrPray = currentSalah == 0;
+    final isAsrPray = currentSalah == 2;
+    final iqamaEndTime = currentIqamaTime.add(Duration(minutes: 1));
+    final salahTime = mosqueConfig.duaAfterPrayerShowTimes[currentSalah];
+    final salahEndTime = iqamaEndTime.add(
+      Duration(minutes: int.tryParse(salahTime) ?? 0),
+    );
 
-      _workFlowItems = [
-        WorkFlowItem(
-          duration: mosqueManger.nextSalahAfter(),
-          skip: mosqueManger.nextSalahAfter() > Duration(minutes: 6),
-          builder: (context, next) => beforeSalahTime(mosqueManger, currentSalah, hijri),
+    final workFlowItems = [
+      WorkFlowItem(
+        duration: mosqueManger.nextSalahAfter(),
+        skip: mosqueManger.nextSalahAfter() > Duration(minutes: 6),
+        builder: (context, next) => beforeSalahTime(mosqueManger, currentSalah, hijri),
+      ),
+      WorkFlowItem(
+        builder: (context, next) => AdhanSubScreen(onDone: next),
+        skip: () {
+          final audioState = ref.read(prayerAudioProvider);
+          final adhanDuration = audioState.duration ?? Duration(seconds: 150);
+          return now.isAfter(currentSalahTime.add(adhanDuration));
+        }(),
+      ),
+      WorkFlowItem(
+        builder: (context, next) => AfterAdhanSubScreen(onDone: next),
+        disabled: mosqueConfig.duaAfterAzanEnabled == false,
+      ),
+      WorkFlowItem(
+        builder: (context, next) => DuaaBetweenAdhanAndIqamaaScreen(
+          onDone: next,
         ),
-        WorkFlowItem(
-          builder: (context, next) => AdhanSubScreen(onDone: next),
-          skip: () {
-            final audioState = ref.read(prayerAudioProvider);
-            final adhanDuration = audioState.duration ?? Duration(seconds: 150);
-            return now.isAfter(currentSalahTime.add(adhanDuration));
-          }(),
+        disabled: mosqueConfig.duaAfterAzanEnabled == false,
+        skip: true,
+      ),
+      WorkFlowItem(
+        builder: (context, next) =>
+            IqamaaCountDownSubScreen(onDone: next, currentSalahIndex: currentSalah, iqamaTime: currentIqamaTime),
+        skip: now.isAfter(currentIqamaTime),
+        disabled: mosqueManger.mosqueConfig?.iqamaEnabled == false,
+      ),
+      WorkFlowItem(
+        builder: (context, next) => IqamaSubScreen(),
+        duration: Duration(seconds: mosqueConfig.iqamaDisplayTime ?? 30),
+        skip: now.isAfter(iqamaEndTime),
+        disabled: mosqueManger.mosqueConfig?.iqamaEnabled == false,
+      ),
+      WorkFlowItem(
+        builder: (context, next) =>
+            mosqueConfig.blackScreenWhenPraying == true ? Container(color: Colors.black) : NormalHomeSubScreen(),
+        skip: now.isAfter(salahEndTime),
+        duration: mosqueManger.currentSalahDuration,
+        disabled: mosqueConfig.iqamaEnabled == false,
+      ),
+      WorkFlowItem(
+        builder: (context, next) => AfterSalahAzkar(onDone: next),
+        disabled: mosqueConfig.iqamaEnabled == false,
+      ),
+      WorkFlowItem(
+        duration: kAzkarDuration,
+        builder: (context, next) => AfterSalahAzkar(
+          isAfterAsrOrFajr: true,
+          isAfterAsr: isAsrPray,
+          azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer,
         ),
-        WorkFlowItem(
-          builder: (context, next) => AfterAdhanSubScreen(onDone: next),
-          disabled: mosqueConfig.duaAfterAzanEnabled == false,
-        ),
-        WorkFlowItem(
-          builder: (context, next) => DuaaBetweenAdhanAndIqamaaScreen(
-            onDone: next,
-          ),
-          disabled: mosqueConfig.duaAfterAzanEnabled == false,
-          skip: true,
-        ),
-        WorkFlowItem(
-          builder: (context, next) =>
-              IqamaaCountDownSubScreen(onDone: next, currentSalahIndex: currentSalah, iqamaTime: currentIqamaTime),
-          skip: now.isAfter(currentIqamaTime),
-          disabled: mosqueManger.mosqueConfig?.iqamaEnabled == false,
-        ),
-        WorkFlowItem(
-          builder: (context, next) => IqamaSubScreen(),
-          duration: Duration(seconds: mosqueConfig.iqamaDisplayTime ?? 30),
-          skip: now.isAfter(iqamaEndTime),
-          disabled: mosqueManger.mosqueConfig?.iqamaEnabled == false,
-        ),
-        WorkFlowItem(
-          builder: (context, next) =>
-              mosqueConfig.blackScreenWhenPraying == true ? Container(color: Colors.black) : NormalHomeSubScreen(),
-          skip: now.isAfter(salahEndTime),
-          duration: mosqueManger.currentSalahDuration,
-          disabled: mosqueConfig.iqamaEnabled == false,
-        ),
-        WorkFlowItem(
-          builder: (context, next) => AfterSalahAzkar(onDone: next),
-          disabled: mosqueConfig.iqamaEnabled == false,
-        ),
-        WorkFlowItem(
-          duration: kAzkarDuration,
-          builder: (context, next) => AfterSalahAzkar(
-            isAfterAsrOrFajr: true,
-            isAfterAsr: isAsrPray,
-            azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer,
-          ),
-          disabled: mosqueConfig.iqamaEnabled == false || (!isFajrPray && !isAsrPray),
-        ),
-      ];
-    }
+        disabled: mosqueConfig.iqamaEnabled == false || (!isFajrPray && !isAsrPray),
+      ),
+    ];
 
     return ContinuesWorkFlowWidget(
       onDone: widget.onDone,
-      workFlowItems: _workFlowItems!,
+      workFlowItems: workFlowItems,
     );
   }
 }
