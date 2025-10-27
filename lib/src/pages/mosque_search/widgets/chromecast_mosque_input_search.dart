@@ -196,7 +196,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
       } else { */
       widget.onDone?.call();
       /* } */
-    } catch (e, stack) {
+    }).catchError((e, stack) {
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
@@ -208,7 +208,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
           error = S.of(context).backendError;
         });
       }
-    }
+    });
   }
 
   void _ensureItemVisible(int index) {

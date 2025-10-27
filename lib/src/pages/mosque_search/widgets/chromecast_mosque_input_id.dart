@@ -210,44 +210,12 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
                   return KeyEventResult.ignored;
                 },
                 child: MosqueSimpleTile(
-                  focusNode: _mosqueTileFocusNode,
-                  key: ValueKey(searchOutput!.uuid),
-                  autoFocus: false,
-                  mosque: searchOutput!,
-                  selectedNode: widget.selectedNode,
-                  onTap: () {
-                    return context
-                        .read<MosqueManager>()
-                        .setMosqueUUid(searchOutput!.uuid.toString())
-                        .then((value) async {
-                      final mosqueManager = context.read<MosqueManager>();
-                      final hadithLangCode = await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
-                      ref.read(randomHadithNotifierProvider.notifier).fetchAndCacheHadith(language: hadithLangCode);
-                      !context.read<MosqueManager>().typeIsMosque ? onboardingWorkflowDone() : widget.onDone?.call();
-                      if (searchOutput != null) {
-                        if (searchOutput?.type == "MOSQUE") {
-                          ref.read(mosqueManagerProvider.notifier).state =
-                              fp.Option.fromNullable(SearchSelectionType.mosque);
-                        } else {
-                          ref.read(mosqueManagerProvider.notifier).state =
-                              fp.Option.fromNullable(SearchSelectionType.home);
-                        }
-                      }
-                    }).catchError((e, stack) {
-                      if (e is InvalidMosqueId) {
-                        setState(() {
-                          loading = false;
-                          error = S.of(context).slugError;
-                        });
-                      } else {
-                        setState(() {
-                          loading = false;
-                          error = S.of(context).backendError;
-                        });
-                      }
-                    });
-                  },
-                ),
+                    focusNode: _mosqueTileFocusNode,
+                    key: ValueKey(searchOutput!.uuid),
+                    autoFocus: false,
+                    mosque: searchOutput!,
+                    selectedNode: widget.selectedNode,
+                    onTap: _handleMosqueSelection),
               ).animate().slideY(begin: 1).fade(),
           ],
         ),
