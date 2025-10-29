@@ -49,7 +49,7 @@ class AppWorkflowScreen extends StatelessWidget {
       items: [
         ...times.mapIndexed((index, elem) => RepeatingWorkflowItem(
               debugName: 'SalahWorkflowScreen $index',
-              builder: (context, next) => SalahWorkflowScreen(onDone: next),
+              builder: (context, next) => SalahWorkflowScreen(salahIndex: index, onDone: next),
               repeatingDuration: 1.days,
 
               dateTime: hijri.islamicMonth == 8 ? elem.add(-2.minutes) : elem,
