@@ -152,6 +152,17 @@ abstract class PrayerAudioConstant {
   static const String kHttpsPrefix = 'https:';
 }
 
+abstract class DeviceDetectionConstant {
+  static const chromeCastDeviceKeywords = {
+    'chromecast',
+    'haier',
+    'condor',
+    'xiaomi',
+    'hyundai',
+    'iris',
+  };
+}
+
 abstract class LiveStreamConstants {
   /// Regular expression to match YouTube URLs
   static final RegExp youtubeUrlRegex = RegExp(

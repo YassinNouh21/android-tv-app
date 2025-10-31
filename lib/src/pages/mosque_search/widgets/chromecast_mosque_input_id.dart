@@ -47,37 +47,26 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
   final inputController = TextEditingController();
   Mosque? searchOutput;
   SharedPref sharedPref = SharedPref();
-  bool showKeyboard = true;
-  bool inputHasFocus = false;
   bool loading = false;
   String? error;
-  bool isKeyboardVisible = false;
-  FocusNode _focus = FocusNode();
+
+  FocusNode _inputFocusNode = FocusNode();
+  FocusNode _mosqueTileFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _focus.addListener(_onFocusChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _inputFocusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
+    _inputFocusNode.dispose();
+    _mosqueTileFocusNode.dispose();
+    inputController.dispose();
     super.dispose();
-    _focus.removeListener(_onFocusChange);
-    _focus.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focus.hasFocus && isKeyboardVisible) {
-      isKeyboardVisible = false;
-      showKeyboard = false;
-      inputHasFocus = false;
-      FocusScope.of(context).focusInDirection(TraversalDirection.up);
-    } else if (_focus.hasFocus && !isKeyboardVisible) {
-      isKeyboardVisible = true;
-      showKeyboard = true;
-      inputHasFocus = true;
-    }
   }
 
   void _setMosqueId(String mosqueId) async {
@@ -85,22 +74,33 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
       return setState(() => error = S.of(context).missingMosqueId);
     }
     if (int.tryParse(mosqueId) == null) {
-      return setState(() => S.of(context).mosqueIdIsNotValid(mosqueId));
+      return setState(() => error = S.of(context).mosqueIdIsNotValid(mosqueId));
     }
 
     setState(() {
       error = null;
       loading = true;
     });
+
     final mosqueManager = context.read<MosqueManager>();
 
     await mosqueManager.searchMosqueWithId(mosqueId).then((value) {
+      if (!mounted) return;
+
       setState(() {
-        showKeyboard = false;
         searchOutput = value;
         loading = false;
       });
+
+      // Move focus to the mosque tile after result appears
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _mosqueTileFocusNode.requestFocus();
+        }
+      });
     }).catchError((e, stack) {
+      if (!mounted) return;
+
       debugPrintStack(stackTrace: stack, label: e.toString());
       if (e is InvalidMosqueId) {
         setState(() {
@@ -165,6 +165,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final showKeyboard = searchOutput == null;
 
     return Material(
       child: Align(
@@ -182,22 +183,39 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
             ),
             SizedBox(height: 10),
             buildInputWidget(context, theme),
-            showKeyboard || inputHasFocus
-                ? KeyboardCustom(
-                    keyboardType: KeyboardType.numeric,
-                    controller: inputController,
-                    applyMask: applyNameMask,
-                    onSubmit: _setMosqueId,
-                  ).animate().slideY(begin: 1).fade()
-                : SizedBox(),
+            if (showKeyboard)
+              KeyboardCustom(
+                keyboardType: KeyboardType.numeric,
+                controller: inputController,
+                applyMask: applyNameMask,
+                onSubmit: _setMosqueId,
+              ).animate().slideY(begin: 1).fade()
+            else
+              SizedBox(),
             if (searchOutput != null)
-              MosqueSimpleTile(
-                focusNode: _focus,
-                key: ValueKey(searchOutput!.uuid),
-                autoFocus: true,
-                mosque: searchOutput!,
-                selectedNode: widget.selectedNode,
-                onTap: _handleMosqueSelection,
+              Focus(
+                onKeyEvent: (node, event) {
+                  if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                    setState(() {
+                      searchOutput = null;
+                      error = null;
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        _inputFocusNode.requestFocus();
+                      }
+                    });
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: MosqueSimpleTile(
+                    focusNode: _mosqueTileFocusNode,
+                    key: ValueKey(searchOutput!.uuid),
+                    autoFocus: false,
+                    mosque: searchOutput!,
+                    selectedNode: widget.selectedNode,
+                    onTap: _handleMosqueSelection),
               ).animate().slideY(begin: 1).fade(),
           ],
         ),
@@ -232,6 +250,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
           onKey: _handleKeyEvent,
           child: TextFormField(
             controller: inputController,
+            focusNode: _inputFocusNode,
             style: GoogleFonts.inter(
               color: theme.brightness == Brightness.dark ? null : theme.primaryColor,
               fontSize: 12.sp,

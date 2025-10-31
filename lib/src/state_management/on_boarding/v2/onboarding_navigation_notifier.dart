@@ -1,8 +1,10 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mawaqit/main.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/helpers/Api.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/SharedPref.dart';
@@ -167,7 +169,8 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
 
   Future<void> _handleMosqueSearchNavigation(OnboardingNavigationState currentState) async {
     final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.contains('chromecast');
+    final isChromeCast =
+        DeviceDetectionConstant.chromeCastDeviceKeywords.any((keyword) => deviceModel.toLowerCase().contains(keyword));
     final selectionType = ref.read(mosqueInputTypeSelectorProvider);
 
     // Determine the next screen based on device type and user selection
@@ -179,7 +182,17 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
     };
 
     final newFlow = [...currentState.screenFlow];
-    newFlow.insert(currentState.currentScreen + 1, screenType);
+
+    // Check if there's already a mosque search screen at the next position
+    final nextIndex = currentState.currentScreen + 1;
+
+    // Remove any existing mosque search screens that come after the current screen
+    if (nextIndex < newFlow.length) {
+      newFlow.removeRange(nextIndex, newFlow.length);
+    }
+
+    // Now add the correct screen type
+    newFlow.add(screenType);
 
     state = AsyncData(
       currentState.copyWith(
@@ -293,13 +306,11 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
 
   Future<String?> _fetchDeviceModel() async {
     try {
-      final userData = await Api.prepareUserData();
-      if (userData != null) {
-        return userData.$2['model'];
-      }
-      return null;
+      logger.d('Fetching device model for onboarding');
+      final hardware = await DeviceInfoPlugin().androidInfo;
+      return hardware.model;
     } catch (e, stackTrace) {
-      logger.e('Error fetching user data: $e', stackTrace: stackTrace);
+      logger.e('Error fetching device model: $e', stackTrace: stackTrace);
       return null;
     }
   }

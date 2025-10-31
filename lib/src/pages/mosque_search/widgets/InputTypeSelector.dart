@@ -1,7 +1,9 @@
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart' as fp;
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/chromecast_mosque_input_search.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputId.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputSearch.dart';
@@ -54,7 +56,8 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     });
 
     final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.contains('chromecast');
+    final isChromeCast =
+        DeviceDetectionConstant.chromeCastDeviceKeywords.any((keyword) => deviceModel.toLowerCase().contains(keyword));
 
     widget.nextButtonFocusNode.fold(
       () {
@@ -102,7 +105,9 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     });
 
     final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.contains('chromecast');
+    final isChromeCast = deviceModel.toLowerCase().contains("chromecast") ||
+        deviceModel.toLowerCase().contains("haier") ||
+        deviceModel.toLowerCase().contains("aosp");
 
     widget.nextButtonFocusNode.fold(
       () {
@@ -287,13 +292,10 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
 
   Future<String?> _fetchDeviceModel() async {
     try {
-      final userData = await Api.prepareUserData();
-      if (userData != null) {
-        return userData.$2['model'];
-      }
-      return null;
+      final hardware = await DeviceInfoPlugin().androidInfo;
+      return hardware.model;
     } catch (e, stackTrace) {
-      logger.e('Error fetching user data: $e', stackTrace: stackTrace);
+      logger.e('Error fetching device model: $e', stackTrace: stackTrace);
       return null;
     }
   }
