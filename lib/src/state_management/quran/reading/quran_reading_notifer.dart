@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mawaqit/src/const/constants.dart';
@@ -36,6 +37,15 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
       link.close();
       rethrow;
     }
+  }
+
+  /// Toggles rotation (software rotation using RotatedBox)
+  /// Called when user presses the rotation button
+  void toggleRotation() {
+    state.whenData((data) {
+      final newRotation = !data.isRotated;
+      state = AsyncValue.data(data.copyWith(isRotated: newRotation));
+    });
   }
 
   void nextPage({bool isPortrait = false}) async {
@@ -205,20 +215,6 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
     }
 
     return "";
-  }
-
-  Future<void> toggleRotation() async {
-    state = await AsyncValue.guard(() async {
-      final currentPage = state.value!.currentPage;
-      state.value!.pageController.dispose();
-
-      return state.value!.copyWith(
-        isRotated: !state.value!.isRotated,
-        pageController:
-            PageController(initialPage: !state.value!.isRotated ? currentPage : currentPage ~/ 2, keepPage: true),
-        currentPage: currentPage,
-      );
-    });
   }
 
   Future<List<SvgPicture>> _loadSvgs({required MoshafType moshafType}) async {

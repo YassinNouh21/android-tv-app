@@ -215,6 +215,7 @@ class _FontSizeControls extends ConsumerWidget {
 }
 
 // Add new Exit button widget
+
 class _ExitButton extends ConsumerStatefulWidget {
   final bool isPortrait;
   final QuranReadingState quranReadingState;
@@ -231,6 +232,7 @@ class _ExitButton extends ConsumerStatefulWidget {
 
 class __ExitButtonState extends ConsumerState<_ExitButton> {
   late FocusNode exitFocusNode;
+
   @override
   void initState() {
     exitFocusNode = FocusNode(debugLabel: 'exit_focus_node');
@@ -248,9 +250,14 @@ class __ExitButtonState extends ConsumerState<_ExitButton> {
       isPortrait: widget.isPortrait,
       icon: Icons.close,
       onPressed: () {
-        ref
-            .read(autoScrollNotifierProvider.notifier)
-            .stopAutoScroll(isPortairt: widget.isPortrait, quranReadingState: widget.quranReadingState);
+        final deviceOrientation = MediaQuery.of(context).orientation;
+        final shouldShowVertical = (deviceOrientation == Orientation.portrait && !widget.isPortrait) ||
+            (deviceOrientation == Orientation.landscape && widget.isPortrait);
+
+        ref.read(autoScrollNotifierProvider.notifier).stopAutoScroll(
+              isPortairt: shouldShowVertical,
+              quranReadingState: widget.quranReadingState,
+            );
       },
       tooltip: 'Exit Auto-Scroll',
     );

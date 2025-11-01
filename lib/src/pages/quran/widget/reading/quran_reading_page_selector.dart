@@ -22,33 +22,21 @@ class QuranReadingPageSelector extends ConsumerStatefulWidget {
 }
 
 class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelector> {
-  // late FocusNode _initialFocusNode;
-
   @override
   void initState() {
     super.initState();
-    // _initialFocusNode = FocusNode(debugLabel: 'node_page_${widget.currentPage}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // _scrollToIndex(widget.currentPage);
-      // FocusScope.of(context).requestFocus(_initialFocusNode);
+      // Optional: Add scroll to current page logic if needed
     });
   }
 
   @override
-  void dispose() {
-    // _initialFocusNode.dispose();
-    super.dispose();
-  }
-
-  // void _scrollToIndex(int index) {
-  //   final itemHeight = 60.h / 4;
-  //   final rowIndex = index ~/ 6;
-  //   final offset = rowIndex * itemHeight;
-  //   widget.scrollController.jumpTo(offset);
-  // }
-
-  @override
   Widget build(BuildContext context) {
+    // Determine actual orientation considering both device and software rotation
+    final deviceOrientation = MediaQuery.of(context).orientation;
+    final isActuallyPortrait = (deviceOrientation == Orientation.portrait && !widget.isPortrait) ||
+        (deviceOrientation == Orientation.landscape && widget.isPortrait);
+
     return RotatedBox(
       quarterTurns: widget.isPortrait ? -1 : 0,
       child: AlertDialog(
@@ -69,7 +57,7 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
           child: GridView.builder(
             controller: widget.scrollController,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: widget.isPortrait ? 4 : 6,
+              crossAxisCount: isActuallyPortrait ? 4 : 6,
               childAspectRatio: 3 / 2,
             ),
             itemCount: widget.totalPages,
@@ -77,10 +65,12 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
               final isSelected = index == widget.currentPage;
               return InkWell(
                 onTap: () {
-                  widget.isPortrait
-                      ? ref.read(quranReadingNotifierProvider.notifier).updatePage(index, isPortairt: true)
-                      : ref.read(quranReadingNotifierProvider.notifier).updatePage(index);
-                  Navigator.of(context).pop(); // Close the dialog after selection
+                  // Use actual orientation to determine correct page navigation
+                  ref.read(quranReadingNotifierProvider.notifier).updatePage(
+                        index,
+                        isPortairt: isActuallyPortrait,
+                      );
+                  Navigator.of(context).pop();
                 },
                 child: Container(
                   alignment: Alignment.center,

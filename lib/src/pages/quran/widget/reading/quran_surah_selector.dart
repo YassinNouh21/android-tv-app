@@ -19,11 +19,6 @@ class SurahSelectorWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Don't show the widget in portrait mode
-    if (isPortrait) {
-      return const SizedBox.shrink();
-    }
-
     final quranReadingState = ref.watch(quranReadingNotifierProvider);
     final screenHeight = MediaQuery.of(context).size.height;
     final topPosition = screenHeight * 0.015; // 1.5% of screen height
@@ -107,6 +102,12 @@ class SurahSelectorWidget extends ConsumerWidget {
                       controller.scrollToIndex(currentSurahIndex, preferPosition: AutoScrollPosition.begin);
                     });
 
+                    // Determine if we're in portrait or landscape mode
+                    // Check both device orientation and software rotation (isPortrait)
+                    final deviceOrientation = MediaQuery.of(context).orientation;
+                    final isActuallyPortrait = (deviceOrientation == Orientation.portrait && !isPortrait) ||
+                        (deviceOrientation == Orientation.landscape && isPortrait);
+
                     return GridView.builder(
                       controller: controller,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -118,7 +119,17 @@ class SurahSelectorWidget extends ConsumerWidget {
                       itemCount: suwar.length,
                       itemBuilder: (BuildContext context, int index) {
                         final surah = suwar[index];
-                        final page = surah.startPage % 2 == 0 ? surah.startPage - 1 : surah.startPage;
+
+                        // Calculate the correct page based on orientation
+                        final int page;
+                        if (isActuallyPortrait) {
+                          // Portrait: Show one page at a time, use exact start page
+                          page = surah.startPage - 1;
+                        } else {
+                          // Landscape: Show two pages at a time, adjust for even pages
+                          page = surah.startPage % 2 == 0 ? surah.startPage - 1 : surah.startPage;
+                        }
+
                         return AutoScrollTag(
                           key: ValueKey(index),
                           controller: controller,
@@ -126,7 +137,10 @@ class SurahSelectorWidget extends ConsumerWidget {
                           child: InkWell(
                             autofocus: index == currentSurahIndex,
                             onTap: () {
-                              ref.read(quranReadingNotifierProvider.notifier).updatePage(page);
+                              ref.read(quranReadingNotifierProvider.notifier).updatePage(
+                                    page,
+                                    isPortairt: isActuallyPortrait,
+                                  );
                               Navigator.of(context).pop();
                             },
                             child: Container(
@@ -139,15 +153,32 @@ class SurahSelectorWidget extends ConsumerWidget {
                                   width: 1,
                                 ),
                               ),
-                              child: Text(
-                                "${surah.id}- ${surah.name}",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.normal,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (surah.arabicName != surah.name)
+                                    Text(
+                                      surah.arabicName,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 8.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  if (surah.arabicName != surah.name) SizedBox(height: 1),
+                                  Text(
+                                    "${surah.id}- ${surah.name}",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 8.sp,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
