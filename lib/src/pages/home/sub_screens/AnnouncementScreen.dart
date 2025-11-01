@@ -160,6 +160,9 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
   /// return the widget of the announcement based on its type
   Widget announcementWidgets(Announcement activeAnnouncement, {VoidCallback? nextAnnouncement}) {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final mosqueProvider = context.read<MosqueManager>();
+    final isIqamaMoreImportant = mosqueProvider.mosqueConfig!.iqamaMoreImportant == true;
+
     if (activeAnnouncement.content != null) {
       return isPortrait
           ? _TextAnnouncement.portrait(
@@ -169,6 +172,7 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
           : _TextAnnouncement.landscape(
               title: activeAnnouncement.title,
               content: activeAnnouncement.content!,
+              isIqamaMoreImportant: isIqamaMoreImportant,
             );
     } else if (activeAnnouncement.image != null) {
       return _ImageAnnouncement(
@@ -193,6 +197,7 @@ class _TextAnnouncement extends StatelessWidget {
     required this.title,
     required this.content,
     required this.isPortrait,
+    required this.isIqamaMoreImportant,
   }) : super(key: key);
 
   factory _TextAnnouncement.portrait({
@@ -205,6 +210,7 @@ class _TextAnnouncement extends StatelessWidget {
       title: title,
       content: content,
       isPortrait: true,
+      isIqamaMoreImportant: false,
     );
   }
 
@@ -212,18 +218,21 @@ class _TextAnnouncement extends StatelessWidget {
     Key? key,
     required String title,
     required String content,
+    required bool isIqamaMoreImportant,
   }) {
     return _TextAnnouncement._internal(
       key: key,
       title: title,
       content: content,
       isPortrait: false,
+      isIqamaMoreImportant: isIqamaMoreImportant,
     );
   }
 
   final String title;
   final String content;
   final bool isPortrait;
+  final bool isIqamaMoreImportant;
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +253,7 @@ class _TextAnnouncement extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       shadows: kAnnouncementTextShadow,
-                      fontSize: 6.vwr,
+                      fontSize: isIqamaMoreImportant ? 4.vwr : 6.vwr,
                       fontWeight: FontWeight.bold,
                       color: Colors.amber,
                       letterSpacing: 1,
@@ -255,7 +264,7 @@ class _TextAnnouncement extends StatelessWidget {
               // content
               SizedBox(height: 5.vh),
               Flexible(
-                flex: 24,
+                flex: isIqamaMoreImportant ? 12 : 24,
                 child: AutoSizeText(
                   content,
                   stepGranularity: 1,
