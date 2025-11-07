@@ -1,5 +1,7 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
+import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/state_management/manual_app_update/manual_update_state.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
@@ -56,6 +58,19 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
   ) async {
     state = const AsyncLoading();
     try {
+      // Check if device is ONVO first
+      final deviceModel = await _getDeviceModel();
+      if (_isOnvoDevice(deviceModel)) {
+        await _openOnvoStore();
+        state = AsyncData(UpdateState(
+          status: UpdateStatus.notAvailable,
+          message: 'Redirected to ONVO Store',
+          currentVersion: currentVersion,
+        ));
+        return;
+      }
+
+      // For non-ONVO devices, proceed with normal update check
       final hasUpdate = isDeviceRooted
           ? await _isUpdateAvailableForRootedDevice(currentVersion)
           : await _isUpdateAvailableStandard(languageCode);
@@ -80,6 +95,25 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       }
     } catch (e, st) {
       state = AsyncError(e, st);
+    }
+  }
+
+  /// Check if device is ONVO
+  bool _isOnvoDevice(String deviceModel) {
+    return RegExp(r'ONVO.*').hasMatch(deviceModel);
+  }
+
+  Future<String> _getDeviceModel() async {
+    final hardware = await DeviceInfoPlugin().androidInfo;
+    return hardware.model;
+  }
+
+  Future<void> _openOnvoStore() async {
+    try {
+      await MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel).invokeMethod('openOnvoStore');
+    } catch (e) {
+      logger.e('Failed to open ONVO store', error: e);
+      rethrow;
     }
   }
 
