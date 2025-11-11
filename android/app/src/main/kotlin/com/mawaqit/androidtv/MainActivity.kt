@@ -186,7 +186,6 @@ class MainActivity : FlutterActivity() {
   private fun openOnvoStore(): Boolean {
     return try {
       val processBuilder = ProcessBuilder()
-      val command = "sh -c am start com.stark.store"
 
       processBuilder.command(
         "sh", "-c", """
