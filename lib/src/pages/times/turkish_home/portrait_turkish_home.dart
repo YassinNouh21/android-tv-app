@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -47,8 +45,6 @@ class _PortraitTurkishHomeState extends riverpod.ConsumerState<PortraitTurkishHo
     }
   }
 
-  late Timer _updateTimer;
-
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,7 +58,6 @@ class _PortraitTurkishHomeState extends riverpod.ConsumerState<PortraitTurkishHo
 
   @override
   void dispose() {
-    _updateTimer.cancel();
     super.dispose();
   }
 
