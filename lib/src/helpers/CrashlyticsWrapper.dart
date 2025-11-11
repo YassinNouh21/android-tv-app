@@ -13,7 +13,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// this is a wrapper class for all crashlytics related functions
 class CrashlyticsWrapper {
   static StreamSubscription? _subscription;
-  
+
   static init(FutureOr<void>? Function() appRunner) async {
     await SentryFlutter.init(
       (options) async {
@@ -22,14 +22,14 @@ class CrashlyticsWrapper {
         // Initialize FeatureManager to check the feature flag
         // Use the singleton instance to avoid context dependency during init
         final featureManager = FeatureManager.instance;
-        
+
         // Check if Session Replay feature flag is enabled
         final isReplayEnabled = featureManager.isFeatureEnabled('sentry_session_replay');
-        
+
         if (isReplayEnabled) {
           // Enable error-only replay when feature flag is ON
-          options.replay.sessionSampleRate = 0.0;      // No normal sessions
-          options.replay.onErrorSampleRate = 1.0;      // All error sessions
+          options.replay.sessionSampleRate = 0.0; // No normal sessions
+          options.replay.onErrorSampleRate = 1.0; // All error sessions
           options.privacy.maskAllText = false;
           options.privacy.maskAllImages = false;
         }
@@ -123,7 +123,7 @@ class CrashlyticsWrapper {
   static Future<void> sendException(dynamic exception, StackTrace stackTrace) async {
     await Sentry.captureException(exception, stackTrace: stackTrace);
   }
-  
+
   /// Helper method to check if replay is currently enabled
   static bool isReplayEnabled() {
     final featureManager = FeatureManager.instance;
