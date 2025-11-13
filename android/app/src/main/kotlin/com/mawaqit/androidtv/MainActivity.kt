@@ -71,6 +71,10 @@ class MainActivity : FlutterActivity() {
             val isSuccess = grantOnvoOverlayPermission()
             result.success(isSuccess)
           }
+          "openOnvoStore" -> {
+            val isSuccess = openOnvoStore()
+            result.success(isSuccess)
+          }
           "requestExactAlarmPermission" -> {
             if (VERSION.SDK_INT >= VERSION_CODES.S) {
               val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -166,6 +170,26 @@ class MainActivity : FlutterActivity() {
       processBuilder.command(
         "sh", "-c", """
             appops set com.mawaqit.androidtv SYSTEM_ALERT_WINDOW allow
+        """.trimIndent()
+      )
+
+      val process = processBuilder.start()
+      val exitCode = process.waitFor()
+
+      exitCode == 0
+    } catch (e: Exception) {
+      e.printStackTrace()
+      false
+    }
+  }
+  
+  private fun openOnvoStore(): Boolean {
+    return try {
+      val processBuilder = ProcessBuilder()
+
+      processBuilder.command(
+        "sh", "-c", """
+            am start com.stark.store
         """.trimIndent()
       )
 
