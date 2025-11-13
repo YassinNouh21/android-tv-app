@@ -4,6 +4,7 @@ import 'package:mawaqit/i18n/AppLanguage.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/helpers/Api.dart';
 import 'package:mawaqit/src/helpers/StreamGenerator.dart';
+import 'package:mawaqit/src/services/FeatureManager.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,15 +13,26 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// this is a wrapper class for all crashlytics related functions
 class CrashlyticsWrapper {
   static StreamSubscription? _subscription;
+
   static init(FutureOr<void>? Function() appRunner) async {
     await SentryFlutter.init(
       (options) async {
         options.dsn = kSentryDns;
 
-        options.replay.sessionSampleRate = 0.0;
-        options.replay.onErrorSampleRate = 1.0;
-        options.privacy.maskAllText = false;
-        options.privacy.maskAllImages = false;
+        // Initialize FeatureManager to check the feature flag
+        // Use the singleton instance to avoid context dependency during init
+        final featureManager = FeatureManager.instance;
+
+        // Check if Session Replay feature flag is enabled
+        final isReplayEnabled = featureManager.isFeatureEnabled('sentry_session_replay');
+
+        if (isReplayEnabled) {
+          // Enable error-only replay when feature flag is ON
+          options.replay.sessionSampleRate = 0.0; // No normal sessions
+          options.replay.onErrorSampleRate = 1.0; // All error sessions
+          options.privacy.maskAllText = false;
+          options.privacy.maskAllImages = false;
+        }
 
         // Defer PackageInfo call to avoid binding initialization error
         try {
@@ -107,8 +119,14 @@ class CrashlyticsWrapper {
     });
   }
 
-  /// function to report an exception to crashlytics if
+  /// function to report an exception to crashlytics
   static Future<void> sendException(dynamic exception, StackTrace stackTrace) async {
     await Sentry.captureException(exception, stackTrace: stackTrace);
+  }
+
+  /// Helper method to check if replay is currently enabled
+  static bool isReplayEnabled() {
+    final featureManager = FeatureManager.instance;
+    return featureManager.isFeatureEnabled('sentry_session_replay');
   }
 }
