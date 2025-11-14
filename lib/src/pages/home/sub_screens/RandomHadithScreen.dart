@@ -69,7 +69,7 @@ class _RandomHadithScreenState extends ConsumerState<RandomHadithScreen> {
                 return DisplayTextWidget.hadith(
                   translatedText: hadith.hadith,
                   textDirection: StringManager.getTextDirectionOfLocal(
-                    Locale(mosqueManager.mosqueConfig!.hadithLang ?? 'en'),
+                    Locale(mosqueManager.mosqueConfig?.hadithLang ?? 'en'),
                   ),
                 );
               },
@@ -84,7 +84,7 @@ class _RandomHadithScreenState extends ConsumerState<RandomHadithScreen> {
               },
             ),
           ),
-          mosqueManager.times!.isTurki ? ResponsiveMiniSalahBarTurkishWidget() : ResponsiveMiniSalahBarWidget(),
+          (mosqueManager.times?.isTurki ?? false) ? ResponsiveMiniSalahBarTurkishWidget() : ResponsiveMiniSalahBarWidget(),
           SizedBox(height: 10),
         ],
       ),
