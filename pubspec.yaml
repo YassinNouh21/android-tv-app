@@ -110,7 +110,7 @@ dependencies:
   wifi_scan: ^0.4.1
 
   #  media
-  youtube_player_flutter: 9.1.1
+  youtube_player_flutter: 9.1.2
   youtube_explode_dart: ^2.4.0
   unique_identifier: 0.4.0
   collection: any
