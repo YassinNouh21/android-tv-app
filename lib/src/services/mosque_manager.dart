@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -193,10 +194,31 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
     onItemError(e, stack) async {
       logger.e(e, stackTrace: stack);
       bool hasCachedMosque = await sharedPref.read(MosqueManagerConstant.khasCachedMosque) ?? false;
+
+      // Check if this is a network/connection error
+      bool isNetworkError = false;
+      if (e is DioException) {
+        isNetworkError = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.unknown;
+      }
+
+      // If it's a network error and we have cached data, just log and continue
+      if (isNetworkError && hasCachedMosque) {
+        logger.w('Network error occurred, using cached mosque data. Error: $e');
+        // Don't throw the error, let the app continue with cached data
+        return;
+      }
+
+      // If no cached data, clear the mosque and notify
       if (!hasCachedMosque) {
         mosque = null;
         notifyListeners();
       }
+
+      // Only throw for non-network errors or when no cache is available
       throw e;
     }
 

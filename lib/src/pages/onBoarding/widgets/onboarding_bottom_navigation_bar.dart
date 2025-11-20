@@ -118,7 +118,8 @@ class OnboardingBottomNavigationBar extends ConsumerWidget {
                                 SizedBox(width: 2.w),
                               ],
                               // Next/Skip/Finish button
-                              if (data.enableNextButton) _buildPrimaryButton(context, data, isMosqueSearchSelected, shouldShowFinish),
+                              if (data.enableNextButton)
+                                _buildPrimaryButton(context, data, isMosqueSearchSelected, shouldShowFinish),
                             ],
                           ),
                         ),
