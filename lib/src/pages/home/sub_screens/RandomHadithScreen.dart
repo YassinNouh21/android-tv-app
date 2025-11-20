@@ -84,7 +84,9 @@ class _RandomHadithScreenState extends ConsumerState<RandomHadithScreen> {
               },
             ),
           ),
-          (mosqueManager.times?.isTurki ?? false) ? ResponsiveMiniSalahBarTurkishWidget() : ResponsiveMiniSalahBarWidget(),
+          (mosqueManager.times?.isTurki ?? false)
+              ? ResponsiveMiniSalahBarTurkishWidget()
+              : ResponsiveMiniSalahBarWidget(),
           SizedBox(height: 10),
         ],
       ),
