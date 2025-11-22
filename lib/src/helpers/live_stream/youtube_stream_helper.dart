@@ -31,61 +31,88 @@ class YouTubeStreamHelper {
   String? extractVideoId(String url) {
     dev.log('🔍 [YOUTUBE_HELPER] Extracting video ID from URL: $url');
 
-    // Handle live URLs in the format youtube.com/live/VIDEO_ID
-    if (url.contains('youtube.com/live/')) {
-      try {
-        final id = url.split('youtube.com/live/')[1].split('?').first;
-        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from live URL: $id');
-        return id;
-      } catch (e) {
-        dev.log('⚠️ [YOUTUBE_HELPER] Error extracting ID from live URL: $e');
-        // Fall through to standard extraction
+    // Try standard YouTube URL extraction first
+    final regularId = YoutubePlayer.convertUrlToId(url);
+    if (regularId != null && regularId.isNotEmpty) {
+      dev.log('✅ [YOUTUBE_HELPER] Extracted ID using standard method: $regularId');
+      return regularId;
+    }
+
+    dev.log('🔍 [YOUTUBE_HELPER] Standard extraction failed, trying manual extraction');
+
+    // Manual extraction for various YouTube URL formats
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      dev.log('⚠️ [YOUTUBE_HELPER] Could not parse URL');
+      return null;
+    }
+
+    // Handle youtu.be short URLs (e.g., https://youtu.be/VIDEO_ID)
+    if (uri.host == 'youtu.be') {
+      if (uri.pathSegments.isNotEmpty) {
+        final videoId = uri.pathSegments[0].split('?').first;
+        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from youtu.be URL: $videoId');
+        return videoId;
       }
     }
 
-    // Standard youtube URL extraction
-    final regularId = YoutubePlayer.convertUrlToId(url);
-    dev.log('🔍 [YOUTUBE_HELPER] Standard YouTube ID extraction result: $regularId');
+    // Handle youtube.com URLs
+    if (uri.host == 'youtube.com' || uri.host == 'www.youtube.com' || uri.host == 'm.youtube.com') {
+      final pathSegments = uri.pathSegments;
 
-    // If the URL format is different, try manual extraction
-    if (regularId == null) {
-      final uri = Uri.tryParse(url);
-      if (uri != null && (uri.host == 'youtube.com' || uri.host == 'www.youtube.com')) {
-        final pathSegments = uri.pathSegments;
-        if (pathSegments.isNotEmpty) {
-          if (pathSegments.contains('live')) {
-            final liveIndex = pathSegments.indexOf('live');
-            if (liveIndex < pathSegments.length - 1) {
-              final potentialId = pathSegments[liveIndex + 1];
-              dev.log('🔍 [YOUTUBE_HELPER] Manual extraction from pathSegments: $potentialId');
-              return potentialId;
-            }
-          }
-          // Try to find the ID in other path segments
-          for (final segment in pathSegments) {
-            if (segment.length > 8) {
-              // Most YouTube IDs are longer than 8 chars
-              dev.log('🔍 [YOUTUBE_HELPER] Trying path segment as ID: $segment');
-              return segment;
-            }
-          }
+      // Handle /live/VIDEO_ID format
+      if (pathSegments.contains('live') && pathSegments.length > 1) {
+        final liveIndex = pathSegments.indexOf('live');
+        if (liveIndex < pathSegments.length - 1) {
+          final videoId = pathSegments[liveIndex + 1].split('?').first;
+          dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /live/ URL: $videoId');
+          return videoId;
         }
       }
+
+      // Handle /watch?v=VIDEO_ID format
+      if (uri.queryParameters.containsKey('v')) {
+        final videoId = uri.queryParameters['v'];
+        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from query parameter: $videoId');
+        return videoId;
+      }
+
+      // Handle /embed/VIDEO_ID format
+      if (pathSegments.isNotEmpty && pathSegments[0] == 'embed' && pathSegments.length > 1) {
+        final videoId = pathSegments[1].split('?').first;
+        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /embed/ URL: $videoId');
+        return videoId;
+      }
+
+      // Handle /v/VIDEO_ID format
+      if (pathSegments.isNotEmpty && pathSegments[0] == 'v' && pathSegments.length > 1) {
+        final videoId = pathSegments[1].split('?').first;
+        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /v/ URL: $videoId');
+        return videoId;
+      }
     }
 
-    return regularId;
+    dev.log('❌ [YOUTUBE_HELPER] Could not extract video ID from URL');
+    return null;
   }
 
   /// Validate if a YouTube video is a live stream
-  Future<bool> validateLiveStream(String videoId) async {
+  /// 
+  /// [videoId] The YouTube video ID to validate
+  /// [strictValidation] If true, throws an exception when validation fails.
+  ///                    If false, returns false on validation errors (useful for graceful degradation)
+  Future<bool> validateLiveStream(
+    String videoId, {
+    bool strictValidation = false,
+  }) async {
     try {
-      dev.log('🔍 [YOUTUBE_HELPER] Validating YouTube video with YoutubeExplode');
+      dev.log('🔍 [YOUTUBE_HELPER] Validating YouTube video with YoutubeExplode (strict: $strictValidation)');
       final yt = YoutubeExplode();
 
       try {
         // First check if the video exists and we can get its metadata
         final video = await yt.videos.get(videoId).timeout(
-          const Duration(seconds: 5),
+          const Duration(seconds: 10), // Increased timeout from 5 to 10 seconds
           onTimeout: () {
             dev.log('⏰ [YOUTUBE_HELPER] Timeout validating YouTube video');
             throw TimeoutException('Timed out attempting to validate YouTube video');
@@ -107,7 +134,14 @@ class YouTubeStreamHelper {
       }
     } catch (e) {
       dev.log('⚠️ [YOUTUBE_HELPER] Error checking if YouTube video is live: $e');
-      throw LiveStreamInitializationException('Unable to verify if YouTube video is a live stream: $e');
+      
+      if (strictValidation) {
+        throw LiveStreamInitializationException('Unable to verify if YouTube video is a live stream: $e');
+      } else {
+        // In non-strict mode, log the error but allow the video to proceed
+        dev.log('⚠️ [YOUTUBE_HELPER] Validation failed but continuing in non-strict mode');
+        return false; // Return false but don't throw
+      }
     }
   }
 
@@ -135,9 +169,17 @@ class YouTubeStreamHelper {
   }
 
   /// Process a YouTube URL and return a valid video ID
-  /// Throws an exception if the URL is invalid or not a live stream
-  Future<String> processYouTubeUrl(String url) async {
-    dev.log('🔍 [YOUTUBE_HELPER] Processing YouTube URL: $url');
+  /// 
+  /// [url] The YouTube URL to process
+  /// [validateLive] If true, validates that the video is a live stream (may be slow/fail)
+  ///                If false, skips validation and returns the video ID directly
+  /// 
+  /// Throws an exception if the URL is invalid
+  Future<String> processYouTubeUrl(
+    String url, {
+    bool validateLive = false,
+  }) async {
+    dev.log('🔍 [YOUTUBE_HELPER] Processing YouTube URL: $url (validateLive: $validateLive)');
 
     // Extract video ID
     final videoId = extractVideoId(url);
@@ -146,14 +188,29 @@ class YouTubeStreamHelper {
       throw InvalidStreamUrlException('Could not extract valid video ID from YouTube URL');
     }
 
-    // Validate live stream
-    final isLive = await validateLiveStream(videoId);
-    if (!isLive) {
-      dev.log('❌ [YOUTUBE_HELPER] YouTube video is not a live stream: $videoId');
-      throw InvalidStreamUrlException('This YouTube URL is not a live stream. Only live streams can be used.');
+    dev.log('✅ [YOUTUBE_HELPER] Extracted video ID: $videoId');
+
+    // Skip validation if not required
+    if (!validateLive) {
+      dev.log('⏭️ [YOUTUBE_HELPER] Skipping live stream validation');
+      return videoId;
     }
 
-    // Return standardized URL format
+    // Validate live stream (non-strict mode - won't throw on validation errors)
+    try {
+      final isLive = await validateLiveStream(videoId, strictValidation: false);
+      
+      if (!isLive) {
+        dev.log('⚠️ [YOUTUBE_HELPER] Video may not be a live stream, but proceeding anyway');
+      } else {
+        dev.log('✅ [YOUTUBE_HELPER] Confirmed video is a live stream');
+      }
+    } catch (e) {
+      // If validation fails, log it but continue anyway
+      dev.log('⚠️ [YOUTUBE_HELPER] Validation failed but proceeding: $e');
+    }
+
+    // Return video ID
     return videoId;
   }
 }
