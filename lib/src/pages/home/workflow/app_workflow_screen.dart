@@ -17,6 +17,7 @@ import '../widgets/workflows/repeating_workflow_widget.dart';
 /// which is responsible for showing the correct workflow [NormalWorkflowScreen] or [JumuaaWorkflowScreen] or [SalahWorkflowScreen]
 class AppWorkflowScreen extends StatelessWidget {
   const AppWorkflowScreen({super.key});
+  static final GlobalKey _workflowKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +27,12 @@ class AppWorkflowScreen extends StatelessWidget {
     final featureManager = Provider.of<FeatureManager>(context);
     final userPrefs = context.watch<UserPreferencesManager>();
 
-    ValueKey? key;
+    Key? workflowKey = _workflowKey;
 
     if (featureManager.isFeatureEnabled("timezone_shift") &&
         timeManager.deviceModel == "MAWABOX" &&
         timeManager.isLauncherInstalled) {
-      key = ValueKey('${timeManager.shift}_${timeManager.shiftInMinutes}');
+      workflowKey = ValueKey('workflow_${timeManager.shift}_${timeManager.shiftInMinutes}');
     }
     final times =
         mosqueManager.useTomorrowTimes ? mosqueManager.actualTimes(now.add(1.days)) : mosqueManager.actualTimes(now);
@@ -43,7 +44,7 @@ class AppWorkflowScreen extends StatelessWidget {
     final hijri = mosqueManager.mosqueHijriDate(userPrefs.hijriAdjustments);
 
     return RepeatingWorkFlowWidget(
-      key: key,
+      key: workflowKey,
       debugName: "App workflow",
       child: NormalWorkflowScreen(),
       items: [
