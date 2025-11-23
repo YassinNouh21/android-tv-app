@@ -99,8 +99,19 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     bool jumuaaDisableInMosque,
     LiveStreamViewerState streamState,
   ) {
-    // If jumuaa is disabled in mosque, show only time screen (exit to prayer times)
+    // If jumuaa is disabled in mosque, check for dhikr/black screen
     if (jumuaaDisableInMosque) {
+      // Priority 2: Hadith reminder if enabled
+      if (mosqueManager.mosqueConfig!.jumuaDhikrReminderEnabled == true) {
+        return JumuaHadithSubScreen(onDone: widget.onDone);
+      }
+
+      // Priority 3: Black screen if enabled
+      if (mosqueManager.mosqueConfig!.jumuaBlackScreenEnabled == true) {
+        return const Scaffold(backgroundColor: Colors.black);
+      }
+
+      // Priority 4: Exit to prayer times
       widget.onDone?.call();
       return const SizedBox.shrink();
     }
