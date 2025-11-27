@@ -192,23 +192,6 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                       );
                     },
                   ),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      return _SettingSwitchItem(
-                        title: S.of(context).automaticUpdate,
-                        subtitle: S.of(context).automaticUpdateDescription,
-                        icon: Icon(Icons.update, size: 35),
-                        onChanged: (value) {
-                          logger.d('setting: disable the update $value');
-                          ref.read(appUpdateProvider.notifier).toggleAutoUpdateChecking();
-                        },
-                        value: ref.watch(appUpdateProvider).maybeWhen(
-                              orElse: () => false,
-                              data: (data) => data.isAutoUpdateChecking,
-                            ),
-                      );
-                    },
-                  ),
                   _SettingItem(
                     title: S.of(context).rtspCameraSettingTitle,
                     subtitle: S.of(context).rtspCameraSettingDesc,
