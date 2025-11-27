@@ -51,20 +51,16 @@ class RandomHadithImpl implements RandomHadithRepository {
   @override
   Future<String> getRandomHadith({required String language}) async {
     log('random_hadith: RandomHadithImpl: Fetching random Hadith');
-
-    final hadithLanguageLocal = sharedPreferences.getString(RandomHadithConstant.kHadithLanguage) ?? language;
-    log('random_hadith: RandomHadithImpl: hadithLanguageLocal: $language || $hadithLanguageLocal');
-
-    language = RandomHadithHelper.changeLanguageFormat(hadithLanguageLocal);
+    language = RandomHadithHelper.changeLanguageFormat(language);
     log('random_hadith: RandomHadithImpl: Formatted language: $language');
 
     final isConnected = await connectivityService.connectionStatus == ConnectivityStatus.connected;
     log('random_hadith: RandomHadithImpl: Internet connection status: $isConnected');
 
     if (isConnected) {
-      return await _handleOnlineMode(hadithLanguageLocal);
+      return await _handleOnlineMode(language);
     } else {
-      return await _handleOfflineMode(hadithLanguageLocal);
+      return await _handleOfflineMode(language);
     }
   }
 

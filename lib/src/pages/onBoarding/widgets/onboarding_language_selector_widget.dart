@@ -158,7 +158,10 @@ class _LanguageTileState extends State<LanguageTile> {
                   ? flagIcon(LocaleHelper.transformLocaleToString(widget.locale), size: 10.w)
                   : null,
               title: Text(
-                appLanguage.combinedLanguageName(LocaleHelper.transformLocaleToString(widget.locale)),
+                appLanguage.combinedLanguageName(
+                  LocaleHelper.transformLocaleToString(widget.locale),
+                  context: context,
+                ),
                 style: TextStyle(
                   fontSize: 13.sp, // Responsive font size
                   fontWeight: FontWeight.normal,
@@ -180,6 +183,21 @@ class _LanguageTileState extends State<LanguageTile> {
 
   Widget flagIcon(String languageCode, {double? size}) {
     final s = size ?? 16.0.sp;
+    if (languageCode == 'auto') {
+      return SizedBox(
+        width: s,
+        height: s,
+        child: CircleAvatar(
+          backgroundColor: Colors.white,
+          child: Icon(
+            Icons.sync,
+            size: s * 0.6,
+            color: Color(0xff490094),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       width: s,
       height: s,

@@ -29,7 +29,12 @@ class AppLanguage extends ChangeNotifier {
 
   /// return the language name of the combined language
   /// Example: 'en-ar' will be 'English & Arabic'
-  String combinedLanguageName(String languageCode) {
+  String combinedLanguageName(String languageCode, {BuildContext? context}) {
+    // Handle special case for "auto" - return localized string
+    if (languageCode == RandomHadithConstant.kUseMosqueDefaultLanguage && context != null) {
+      return hadithLocalizedLanguage[languageCode]?.call(context) ?? languageCode;
+    }
+
     // Handle special cases for Portuguese variants and other single locale codes with underscores
     if (Config.isoLang.containsKey(languageCode)) {
       return Config.isoLang[languageCode]?['nativeName'] ?? languageCode;
@@ -97,6 +102,7 @@ class AppLanguage extends ChangeNotifier {
   }
 
   Map<String, String Function(BuildContext)> hadithLocalizedLanguage = {
+    'auto': (context) => S.of(context).mosqueDefault, // Special "Auto" option
     'en': (context) => S.of(context).en,
     'fr': (context) => S.of(context).fr,
     'ar': (context) => S.of(context).ar,
@@ -118,30 +124,43 @@ class AppLanguage extends ChangeNotifier {
   /// set the language of the hadith in shared preference
   Future<void> setHadithLanguage(String language) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    _hadithLanguage = language;
     await prefs.setString(RandomHadithConstant.kHadithLanguage, language);
     notifyListeners();
   }
 
   /// get the language of the hadith from shared preference
-  /// if there is no language saved, return the api default language
+  /// Logic:
+  /// 1. First fetch: use backoffice language and set to "auto"
+  /// 2. User selects "auto": always use backoffice language
+  /// 3. User selects specific language: use that language
   Future<String> getHadithLanguage(MosqueManager mosqueManager) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? hadithLanguage = prefs.getString(RandomHadithConstant.kHadithLanguage);
-    if (hadithLanguage != null && hadithLanguage.isNotEmpty) {
-      _hadithLanguage = hadithLanguage;
+    final userPreferenceLang = prefs.getString(RandomHadithConstant.kHadithLanguage);
+    final mosqueConfigLang = mosqueManager.mosqueConfig?.hadithLang ?? 'ar';
+
+    if (userPreferenceLang == null || userPreferenceLang.isEmpty) {
+      _hadithLanguage = mosqueConfigLang;
+      await prefs.setString(RandomHadithConstant.kHadithLanguage, RandomHadithConstant.kUseMosqueDefaultLanguage);
       notifyListeners();
-      return hadithLanguage;
-    } else {
-      final fallbackLang = mosqueManager.mosqueConfig?.hadithLang ?? "ar";
-      _hadithLanguage = fallbackLang;
-      // Save the fallback language to shared preferences so it persists
-      await prefs.setString(RandomHadithConstant.kHadithLanguage, fallbackLang);
-      notifyListeners();
-      return fallbackLang;
+      return mosqueConfigLang;
     }
+
+    if (userPreferenceLang == RandomHadithConstant.kUseMosqueDefaultLanguage) {
+      _hadithLanguage = mosqueConfigLang;
+      notifyListeners();
+      return mosqueConfigLang;
+    }
+    _hadithLanguage = userPreferenceLang;
+    notifyListeners();
+    return userPreferenceLang;
   }
 
-  /// getters for the hadith language
+  /// getters for the hadith language (resolved actual language)
   String get hadithLanguage => _hadithLanguage;
+
+  /// Get the user's hadith language preference (may be "auto" or specific language)
+  Future<String> getHadithLanguagePreference() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(RandomHadithConstant.kHadithLanguage) ?? RandomHadithConstant.kUseMosqueDefaultLanguage;
+  }
 }
