@@ -183,6 +183,8 @@ class _LanguageTileState extends State<LanguageTile> {
 
   Widget flagIcon(String languageCode, {double? size}) {
     final s = size ?? 16.0.sp;
+    final themeData = Theme.of(context);
+
     if (languageCode == 'auto') {
       return SizedBox(
         width: s,
@@ -192,7 +194,7 @@ class _LanguageTileState extends State<LanguageTile> {
           child: Icon(
             Icons.sync,
             size: s * 0.6,
-            color: Color(0xff490094),
+            color: themeData.primaryColor,
           ),
         ),
       );

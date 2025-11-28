@@ -186,14 +186,18 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                   );
                                 } else {
                                   await context.read<AppLanguage>().setHadithLanguage(langCode);
+                                  if (!mounted) return;
 
                                   final mosqueManager = context.read<MosqueManager>();
                                   final actualLanguage =
                                       await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+                                  if (!mounted) return;
 
                                   await ref
                                       .read(randomHadithNotifierProvider.notifier)
                                       .getRandomHadith(language: actualLanguage);
+                                  if (!mounted) return;
+
                                   AppRouter.pop();
                                 }
                               },

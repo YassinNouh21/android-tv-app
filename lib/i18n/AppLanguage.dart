@@ -31,8 +31,11 @@ class AppLanguage extends ChangeNotifier {
   /// Example: 'en-ar' will be 'English & Arabic'
   String combinedLanguageName(String languageCode, {BuildContext? context}) {
     // Handle special case for "auto" - return localized string
-    if (languageCode == RandomHadithConstant.kUseMosqueDefaultLanguage && context != null) {
-      return hadithLocalizedLanguage[languageCode]?.call(context) ?? languageCode;
+    if (languageCode == RandomHadithConstant.kUseMosqueDefaultLanguage) {
+      if (context != null) {
+        return hadithLocalizedLanguage[languageCode]?.call(context) ?? languageCode;
+      }
+      return 'Default';
     }
 
     // Handle special cases for Portuguese variants and other single locale codes with underscores
@@ -138,21 +141,22 @@ class AppLanguage extends ChangeNotifier {
     final userPreferenceLang = prefs.getString(RandomHadithConstant.kHadithLanguage);
     final mosqueConfigLang = mosqueManager.mosqueConfig?.hadithLang ?? 'ar';
 
+    String resolvedLanguage;
     if (userPreferenceLang == null || userPreferenceLang.isEmpty) {
-      _hadithLanguage = mosqueConfigLang;
+      resolvedLanguage = mosqueConfigLang;
       await prefs.setString(RandomHadithConstant.kHadithLanguage, RandomHadithConstant.kUseMosqueDefaultLanguage);
-      notifyListeners();
-      return mosqueConfigLang;
+    } else if (userPreferenceLang == RandomHadithConstant.kUseMosqueDefaultLanguage) {
+      resolvedLanguage = mosqueConfigLang;
+    } else {
+      resolvedLanguage = userPreferenceLang;
     }
 
-    if (userPreferenceLang == RandomHadithConstant.kUseMosqueDefaultLanguage) {
-      _hadithLanguage = mosqueConfigLang;
+    if (_hadithLanguage != resolvedLanguage) {
+      _hadithLanguage = resolvedLanguage;
       notifyListeners();
-      return mosqueConfigLang;
     }
-    _hadithLanguage = userPreferenceLang;
-    notifyListeners();
-    return userPreferenceLang;
+
+    return resolvedLanguage;
   }
 
   /// getters for the hadith language (resolved actual language)
