@@ -35,7 +35,7 @@ class AppLanguage extends ChangeNotifier {
       if (context != null) {
         return hadithLocalizedLanguage[languageCode]?.call(context) ?? languageCode;
       }
-      return 'Default';
+      return RandomHadithConstant.kDefaultLanguageFallback;
     }
 
     // Handle special cases for Portuguese variants and other single locale codes with underscores
