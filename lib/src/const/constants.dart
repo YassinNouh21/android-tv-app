@@ -38,6 +38,8 @@ abstract class RandomHadithConstant {
   static const String kBoxName = "random_hadith_list";
   static const String kHadithLanguage = "hadith_language";
   static const String kLastHadithXMLFetchLanguage = "last_hadith_xml_language";
+  static const String kUseMosqueDefaultLanguage = "auto";
+  static const String kDefaultLanguageFallback = "Default";
 }
 
 class TurnOnOffTvConstant {
