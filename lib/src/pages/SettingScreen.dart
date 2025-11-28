@@ -147,7 +147,11 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     title: S.of(context).randomHadithLanguage,
                     subtitle: S.of(context).hadithLangDesc,
                     icon: Icon(Icons.language, size: 35),
-                    onTap: () {
+                    onTap: () async {
+                      final userPreference = await appLanguage.getHadithLanguagePreference();
+
+                      if (!mounted) return;
+
                       AppRouter.push(
                         LanguageScreen(
                           isIconActivated: true,
@@ -155,7 +159,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                           description: S.of(context).descLang,
                           languages: appLanguage.hadithLocalizedLanguage.keys.toList(),
                           isSelected: (langCode) {
-                            return appLanguage.hadithLanguage == langCode;
+                            return userPreference == langCode;
                           },
                           onSelect: (langCode) async {
                             await ref.read(connectivityProvider.notifier).checkInternetConnection();
@@ -170,7 +174,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                   content: hadithLanguage,
                                 );
                               },
-                              data: (isConnectedToInternet) {
+                              data: (isConnectedToInternet) async {
                                 if (isConnectedToInternet == ConnectivityStatus.disconnected) {
                                   showCheckInternetDialog(
                                     context: context,
@@ -181,8 +185,19 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                     content: hadithLanguage,
                                   );
                                 } else {
-                                  context.read<AppLanguage>().setHadithLanguage(langCode);
-                                  ref.read(randomHadithNotifierProvider.notifier).setHadithLanguage(langCode);
+                                  await context.read<AppLanguage>().setHadithLanguage(langCode);
+                                  if (!mounted) return;
+
+                                  final mosqueManager = context.read<MosqueManager>();
+                                  final actualLanguage =
+                                      await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+                                  if (!mounted) return;
+
+                                  await ref
+                                      .read(randomHadithNotifierProvider.notifier)
+                                      .getRandomHadith(language: actualLanguage);
+                                  if (!mounted) return;
+
                                   AppRouter.pop();
                                 }
                               },
