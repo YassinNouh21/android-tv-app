@@ -32,10 +32,10 @@ class RandomHadithNotifier extends AsyncNotifier<RandomHadithState> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final randomHadithUseCase = await ref.read(randomHadithUseCaseProvider.future);
-      final hadith = await randomHadithUseCase.getRandomHadith(language: language);
-      final cleanedHadith = _cleanHadithText(hadith);
+      final hadithModel = await randomHadithUseCase.getRandomHadith(language: language);
+      final cleanedHadith = _cleanHadithText(hadithModel.hadith);
 
-      return RandomHadithState(hadith: cleanedHadith, language: language);
+      return RandomHadithState(hadith: cleanedHadith, language: hadithModel.language);
     });
   }
 

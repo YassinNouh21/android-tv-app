@@ -124,6 +124,40 @@ class CrashlyticsWrapper {
     await Sentry.captureException(exception, stackTrace: stackTrace);
   }
 
+  /// Reports a hadith-related exception with detailed context for debugging.
+  ///
+  /// This method captures information about why hadith display failed,
+  /// allowing filtering in Sentry dashboard by:
+  /// - `hadith_failure_reason`: 'api_failed_no_cache' | 'offline_no_cache'
+  /// - `hadith_language`: The requested language (e.g., 'fr', 'ar')
+  /// - `had_cached_value`: Whether cache was available
+  /// - `is_online`: Whether device was online when failure occurred
+  static Future<void> sendHadithException({
+    required String reason,
+    required String language,
+    required bool hadCachedValue,
+    required bool isOnline,
+    dynamic originalError,
+  }) async {
+    await Sentry.captureException(
+      Exception('Hadith unavailable: $reason'),
+      stackTrace: StackTrace.current,
+      withScope: (scope) {
+        scope.setTag('hadith_failure_reason', reason);
+        scope.setTag('hadith_language', language);
+        scope.setTag('had_cached_value', hadCachedValue.toString());
+        scope.setTag('is_online', isOnline.toString());
+        scope.setContexts('hadith_debug', {
+          'reason': reason,
+          'language': language,
+          'had_cached_value': hadCachedValue,
+          'is_online': isOnline,
+          'original_error': originalError?.toString(),
+        });
+      },
+    );
+  }
+
   /// Helper method to check if replay is currently enabled
   static bool isReplayEnabled() {
     final featureManager = FeatureManager.instance;

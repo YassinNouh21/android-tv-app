@@ -42,6 +42,13 @@ abstract class RandomHadithConstant {
   static const String kDefaultLanguageFallback = "Default";
 }
 
+/// Constants for bilingual language separator patterns (e.g., 'fr-ar', 'en_ar')
+abstract class LanguageConstants {
+  static const String separatorDash = '-';
+  static const String separatorUnderscore = '_';
+  static const String separatorPattern = r'[-_]';
+}
+
 class TurnOnOffTvConstant {
   static const String kActivateToggleFeature = 'activate_toggle_feature';
   static const String kisFajrIshaOnly = 'is_fajr_isha_only';

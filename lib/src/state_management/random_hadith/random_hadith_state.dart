@@ -24,5 +24,5 @@ class RandomHadithState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [hadith];
+  List<Object?> get props => [hadith, language];
 }
