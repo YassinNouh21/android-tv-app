@@ -55,11 +55,13 @@ mixin RandomHadithMixin on ChangeNotifier {
   /// case1: if the app is online, fetch the hadith from the server
   /// case2: if the app is offline, fetch the hadith from the cache
   Future<void> _fetchHadith() async {
-    // Fetch the hadith language from shared preferences
     try {
       // Determine the language to use
-      String language = _hadithLanguage.isNotEmpty ? _hadithLanguage : mosqueConfig?.hadithLang ?? 'ar';
-      _hadithLanguage = _hadithLanguage.replaceAll('_', '-');
+      // Priority: mosque config (backoffice), then shared preferences, then default 'ar'
+      String language = mosqueConfig?.hadithLang ?? _hadithLanguage;
+      if (language.isEmpty) language = 'ar';
+
+      language = language.replaceAll('_', '-');
       // Fetch the hadith
       _hadith =
           isOnline ? await Api.randomHadith(language: language) : await Api.randomHadithCached(language: language);

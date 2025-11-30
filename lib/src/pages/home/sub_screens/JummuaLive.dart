@@ -93,33 +93,40 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     );
   }
 
+  /// Returns fallback widget based on priority:
+  /// 1. Hadith reminder if enabled
+  /// 2. Black screen if enabled
+  /// 3. Exit to prayer times screen
+  Widget _buildFallbackWidget(MosqueManager mosqueManager) {
+    // Priority 1: Hadith reminder if enabled
+    if (mosqueManager.mosqueConfig!.jumuaDhikrReminderEnabled == true) {
+      return JumuaHadithSubScreen(onDone: widget.onDone);
+    }
+
+    // Priority 2: Black screen if enabled
+    if (mosqueManager.mosqueConfig!.jumuaBlackScreenEnabled == true) {
+      return const Scaffold(backgroundColor: Colors.black);
+    }
+
+    // Priority 3: Exit to prayer times screen
+    widget.onDone?.call();
+    return const SizedBox.shrink();
+  }
+
   Widget _switchStreamWidget(
     ConnectivityStatus connectivityStatus,
     MosqueManager mosqueManager,
     bool jumuaaDisableInMosque,
     LiveStreamViewerState streamState,
   ) {
-    // If jumuaa is disabled in mosque, show only time screen (exit to prayer times)
+    // If jumuaa is disabled in mosque, check for dhikr/black screen
     if (jumuaaDisableInMosque) {
-      widget.onDone?.call();
-      return const SizedBox.shrink();
+      return _buildFallbackWidget(mosqueManager);
     }
 
-    // If disconnected, go to priority hadith
+    // If disconnected, go to fallback priority
     if (connectivityStatus == ConnectivityStatus.disconnected) {
-      // Priority 2: Hadith reminder if enabled
-      if (mosqueManager.mosqueConfig!.jumuaDhikrReminderEnabled == true) {
-        return JumuaHadithSubScreen(onDone: widget.onDone);
-      }
-
-      // Priority 3: Black screen if enabled
-      if (mosqueManager.mosqueConfig!.jumuaBlackScreenEnabled == true) {
-        return const Scaffold(backgroundColor: Colors.black);
-      }
-
-      // Priority 4: Nothing - exit to prayer times screen
-      widget.onDone?.call();
-      return const Scaffold(backgroundColor: Colors.black); // temporary while transitioning
+      return _buildFallbackWidget(mosqueManager);
     }
 
     // For connected state with jumuaa enabled, follow priority:
@@ -179,18 +186,7 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
       );
     }
 
-    // Priority 2: Hadith reminder if enabled
-    if (mosqueManager.mosqueConfig!.jumuaDhikrReminderEnabled == true) {
-      return JumuaHadithSubScreen(onDone: widget.onDone);
-    }
-
-    // Priority 3: Black screen if enabled
-    if (mosqueManager.mosqueConfig!.jumuaBlackScreenEnabled == true) {
-      return const Scaffold(backgroundColor: Colors.black);
-    }
-
-    // Priority 4: Nothing - exit to prayer times screen
-    widget.onDone?.call();
-    return const SizedBox.shrink();
+    // No stream available, use fallback priority
+    return _buildFallbackWidget(mosqueManager);
   }
 }
