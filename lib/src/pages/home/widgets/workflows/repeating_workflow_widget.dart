@@ -96,6 +96,10 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
   DateTime? _activeItemStartTime;
   DateTime? _activeItemScheduledEnd;
 
+  /// Track the pending next item trigger to cancel it if needed
+  int? _pendingNextItemIndex;
+  bool _pendingNextItemCancelled = false;
+
   @override
   void initState() {
     super.initState();
@@ -241,12 +245,28 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
     /// if the item has past his time will do nothing
     if (nextActiveItemDuration?.isNegative ?? true) return;
 
+    // Cancel any pending next item trigger if it's for a different item
+    if (_pendingNextItemIndex != null && _pendingNextItemIndex != nextItemIndex) {
+      _pendingNextItemCancelled = true;
+    }
+
+    _pendingNextItemIndex = nextItemIndex;
+    _pendingNextItemCancelled = false;
+
     print(
       '[Repeating ${widget.debugName ?? 'workflow'}] [Next] ${firstItem.debugName ?? nextItemIndex} in $nextActiveItemDuration',
     );
 
     /// add the trigger
-    Future.delayed(nextActiveItemDuration!, () => startItem(nextItemIndex));
+    Future.delayed(nextActiveItemDuration!, () {
+      // Check if this trigger was cancelled before starting the item
+      if (_pendingNextItemCancelled || _pendingNextItemIndex != nextItemIndex) {
+        print('[Repeating ${widget.debugName ?? 'workflow'}] [Cancelled] ${firstItem.debugName ?? nextItemIndex}');
+        return;
+      }
+      _pendingNextItemIndex = null;
+      startItem(nextItemIndex);
+    });
   }
 
   /// return the next repeat time for this item
