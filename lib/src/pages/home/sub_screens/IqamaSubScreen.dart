@@ -71,9 +71,11 @@ class _IqamaSubScreenState extends ConsumerState<IqamaSubScreen> {
     if (_audioStarted) {
       log('IqamaSubScreen: Stopping audio in dispose');
       try {
+        // Get the notifier reference before disposal
+        final notifier = ref.read(prayerAudioProvider.notifier);
         // Use Future.microtask to avoid calling during build/layout
         Future.microtask(() {
-          ref.read(prayerAudioProvider.notifier).stop();
+          notifier.stop();
         });
       } catch (e) {
         log('IqamaSubScreen: Error stopping audio in dispose', error: e);
