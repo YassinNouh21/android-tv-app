@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:mawaqit/src/helpers/LocaleHelper.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -55,7 +56,8 @@ class CurrentTimeWidget extends StatelessWidget {
                     constraints: BoxConstraints(maxWidth: 8.vwr),
                     child: FittedBox(
                       child: Text(
-                        '${DateFormat('a', Localizations.localeOf(context).languageCode).format(now)}',
+                        DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode))
+                            .format(now),
                         style: TextStyle(
                           color: Colors.white54,
                           fontWeight: FontWeight.bold,
