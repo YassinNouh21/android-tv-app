@@ -169,6 +169,7 @@ abstract class DeviceDetectionConstant {
     'xiaomi',
     'hyundai',
     'iris',
+    'stream',
   };
 }
 

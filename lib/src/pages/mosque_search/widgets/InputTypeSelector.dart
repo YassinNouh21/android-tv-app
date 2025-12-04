@@ -105,9 +105,8 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     });
 
     final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.toLowerCase().contains("chromecast") ||
-        deviceModel.toLowerCase().contains("haier") ||
-        deviceModel.toLowerCase().contains("aosp");
+    final isChromeCast =
+        DeviceDetectionConstant.chromeCastDeviceKeywords.any((keyword) => deviceModel.toLowerCase().contains(keyword));
 
     widget.nextButtonFocusNode.fold(
       () {
