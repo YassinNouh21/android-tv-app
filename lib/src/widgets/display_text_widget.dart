@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
+import 'package:mawaqit/src/helpers/StringUtils.dart';
 import 'package:mawaqit/src/services/theme_manager.dart';
 import 'package:mawaqit/src/state_management/random_hadith/random_hadith_notifier.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -230,6 +231,13 @@ class DisplayTextWidget extends ConsumerWidget {
       return baseStyle.copyWith(
         fontFamily: null,
         fontFamilyFallback: null,
+      );
+    }
+
+    // For non-Arabic languages, add Kufi as fallback for Arabic words
+    if (hadithLanguage.languageCode != 'ar') {
+      return baseStyle.copyWith(
+        fontFamilyFallback: [StringManager.fontFamilyKufi],
       );
     }
 
