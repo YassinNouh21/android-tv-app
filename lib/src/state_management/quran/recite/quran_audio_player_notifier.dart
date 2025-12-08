@@ -73,16 +73,45 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
         reciterId: reciterId,
       );
 
-      await refreshPlaylist();
+      // Swap source to local file if this surah is NOT currently playing
+      await _swapToLocalSourceIfNotPlaying(
+        surahId: surahId,
+        reciterId: reciterId,
+        moshafId: moshafId,
+      );
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
     }
   }
 
-  Future<void> refreshPlaylist() async {
+  Future<void> _swapToLocalSourceIfNotPlaying({
+    required int surahId,
+    required String reciterId,
+    required String moshafId,
+  }) async {
     final currentIndex = audioPlayer.currentIndex;
-    await audioPlayer.setAudioSource(playlist, initialIndex: currentIndex);
-    await _updatePlayerState();
+    final surahIndex = localSuwar.indexWhere((s) => s.id == surahId);
+
+    // Only swap if surah is in playlist and NOT currently playing
+    if (surahIndex != -1 && surahIndex != currentIndex) {
+      try {
+        final audioRepository = await ref.read(reciteImplProvider.future);
+        final localPath = await audioRepository.getLocalSurahPath(
+          reciterId: reciterId,
+          surahNumber: surahId.toString(),
+          moshafId: moshafId,
+        );
+
+        // Remove old remote source and insert local source at same position
+        await playlist.removeAt(surahIndex);
+        await playlist.insert(surahIndex, AudioSource.uri(Uri.file(localPath)));
+
+        log('quran: Swapped surah $surahId to local file: $localPath');
+      } catch (e) {
+        log('quran: Failed to swap surah $surahId to local: $e');
+        // Non-fatal: surah will still work from remote or next session
+      }
+    }
   }
 
   Future<void> _updatePlayerState() async {
@@ -170,7 +199,6 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
     required String moshafId,
   }) async {
     final audioRepository = await ref.read(reciteImplProvider.future);
-    state = AsyncLoading();
     try {
       final downloadedAudioList = await audioRepository.getDownloadedSuwarByReciterAndRiwayah(
         reciterId: reciterId,
