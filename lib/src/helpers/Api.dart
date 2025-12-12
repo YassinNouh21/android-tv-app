@@ -139,9 +139,13 @@ class Api {
   }
 
   static Future<MosqueConfig> getMosqueConfig(String id) async {
-    final response = await dio.get('/3.0/mosque/$id/config');
-
-    return MosqueConfig.fromMap(response.data);
+    try {
+      final response = await dio.get('/3.0/mosque/$id/config');
+      return MosqueConfig.fromMap(response.data);
+    } on DioException catch (e) {
+      log('Error fetching mosque config: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
+    }
   }
 
   /// re check the mosque config if there are any updated data
@@ -158,14 +162,19 @@ class Api {
   /// It also fetches the hijri date configuration associated with the mosque
   /// and merges this information into the `Times` model.
   static Future<Times> getMosqueTimes(String id) async {
-    final response = await dio.get('/3.1/mosque/$id/times');
-    final hijriDateConfig = await _getHijriDate(id);
+    try {
+      final response = await dio.get('/3.1/mosque/$id/times');
+      final hijriDateConfig = await _getHijriDate(id);
 
-    // Adds hijri date adjustment details to the response data.
-    response.data['hijriAdjustment'] = hijriDateConfig.hijriAdjustment;
-    response.data['hijriDateForceTo30'] = hijriDateConfig.hijriDateForceTo30;
+      // Adds hijri date adjustment details to the response data.
+      response.data['hijriAdjustment'] = hijriDateConfig.hijriAdjustment;
+      response.data['hijriDateForceTo30'] = hijriDateConfig.hijriDateForceTo30;
 
-    return Times.fromMap(response.data);
+      return Times.fromMap(response.data);
+    } on DioException catch (e) {
+      log('Error fetching mosque times: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
+    }
   }
 
   /// [_getHijriDate] Fetches the Hijri date configuration for a mosque.
@@ -174,8 +183,13 @@ class Api {
   /// identified by [id]. The settings include whether there is an adjustment
   /// to the Hijri date and if the Hijri date should be forced to 30 days.
   static Future<HijriDateConfigModel> _getHijriDate(String id) async {
-    final response = await dio.get('/3.0/mosque/$id/hijri-date');
-    return HijriDateConfigModel.fromJson(response.data);
+    try {
+      final response = await dio.get('/3.0/mosque/$id/hijri-date');
+      return HijriDateConfigModel.fromJson(response.data);
+    } on DioException catch (e) {
+      log('Error fetching hijri date: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
+    }
   }
 
   static Future<Mosque> searchMosqueWithId(String mosqueId) async {
@@ -229,20 +243,32 @@ class Api {
 
   /// get the hadith from the server directly
   static Future<String> randomHadith({String language = 'ar'}) async {
-    final response = await dio.get('/2.0/hadith/random',
+    try {
+      final response = await dio.get(
+        '/2.0/hadith/random',
         queryParameters: {'lang': language},
-        options: Options(extra: {'disableCache': true, "bypassJsonInterceptor": true}));
+        options: Options(extra: {'disableCache': true, "bypassJsonInterceptor": true}),
+      );
 
-    return response.data['text'];
+      return response.data['text'];
+    } on DioException catch (e) {
+      log('Error fetching random hadith: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
+    }
   }
 
   static Future<dynamic> getWeather(String mosqueUUID) async {
-    final response = await dio.get(
-      '/2.0/mosque/$mosqueUUID/weather',
-      options: Options(extra: {'disableCache': true, "bypassJsonInterceptor": true}),
-    );
+    try {
+      final response = await dio.get(
+        '/2.0/mosque/$mosqueUUID/weather',
+        options: Options(extra: {'disableCache': true, "bypassJsonInterceptor": true}),
+      );
 
-    return Weather.fromMap(response.data);
+      return Weather.fromMap(response.data);
+    } on DioException catch (e) {
+      log('Error fetching weather: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
+    }
   }
 
   static Stream<void> updateUserStatusStream() async* {
@@ -315,8 +341,8 @@ class Api {
     final (uuid, data) = userData;
 
     await dio
-        .post('/3.0/mosque/${uuid}/androidtv-life-status', data: data)
+        .post('/3.0/mosque/$uuid/androidtv-life-status', data: data)
         .then((value) => logger.d(value))
-        .catchError((e) => logger.d((e as DioError).requestOptions.uri));
+        .catchError((e) => logger.d((e as DioException).requestOptions.uri));
   }
 }

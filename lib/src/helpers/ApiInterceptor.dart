@@ -65,28 +65,37 @@ class ApiCacheInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (_isConnectionError(err)) {
+    final statusCode = err.response?.statusCode;
+
+    // Try cache fallback for connection errors and server errors (5xx)
+    if (_isConnectionError(err) || _isServerError(err)) {
       final cacheKey = getCacheKey(err.requestOptions);
       try {
         final cachedData = await cacheManager.getCachedData(cacheKey);
         if (cachedData != null) {
+          logger.i('ApiInterceptor: Using cached data for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
           final responseData = json.decode(cachedData['data']);
           final cachedResponse = Response(
             data: responseData,
             headers: Headers.fromMap({
-              'last-modified': [cachedData['lastModified']]
+              'last-modified': [cachedData['lastModified']],
             }),
             statusCode: 200,
             requestOptions: err.requestOptions,
           );
           return handler.resolve(cachedResponse);
+        } else {
+          logger.w('ApiInterceptor: No cached data available for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
         }
       } catch (e, s) {
         logger.e('Error retrieving cached data: $e');
         CrashlyticsWrapper.sendException(e, s);
       }
     }
-    if (err.response?.statusCode == 404) return handler.next(err);
+
+    // Let 404 errors pass through (they're handled specifically in API methods)
+    if (statusCode == 404) return handler.next(err);
+
     return handler.next(err);
   }
 
@@ -100,6 +109,11 @@ class ApiCacheInterceptor extends Interceptor {
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.sendTimeout ||
         err.type == DioExceptionType.connectionError;
+  }
+
+  bool _isServerError(DioException err) {
+    final statusCode = err.response?.statusCode;
+    return statusCode != null && statusCode >= 500 && statusCode < 600;
   }
 }
 

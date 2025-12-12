@@ -195,20 +195,31 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       logger.e(e, stackTrace: stack);
       bool hasCachedMosque = await sharedPref.read(MosqueManagerConstant.khasCachedMosque) ?? false;
 
-      // Check if this is a network/connection error
-      bool isNetworkError = false;
+      // Check if this is a network/connection error or server error
+      bool isRecoverableError = false;
+      int? statusCode;
+
       if (e is DioException) {
-        isNetworkError = e.type == DioExceptionType.connectionTimeout ||
+        statusCode = e.response?.statusCode;
+        isRecoverableError = e.type == DioExceptionType.connectionTimeout ||
             e.type == DioExceptionType.receiveTimeout ||
             e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.connectionError ||
-            e.type == DioExceptionType.unknown;
+            e.type == DioExceptionType.unknown ||
+            (statusCode != null && statusCode >= 500 && statusCode < 600); // Server errors (5xx)
       }
 
-      // If it's a network error and we have cached data, just log and continue
-      if (isNetworkError && hasCachedMosque) {
-        logger.w('Network error occurred, using cached mosque data. Error: $e');
+      // If it's a recoverable error (network/server) and we have cached data, just log and continue
+      if (isRecoverableError && hasCachedMosque) {
+        logger.w('Recoverable error occurred (${statusCode ?? 'network issue'}), using cached mosque data. Error: $e');
         // Don't throw the error, let the app continue with cached data
+        return;
+      }
+
+      // Handle 404 errors specifically - if mosque not found but we have cache, use cache
+      if (statusCode == 404 && hasCachedMosque) {
+        logger.w('Mosque not found (404), but using cached data. Mosque may be temporarily unavailable.');
+        // Don't throw - continue with cached data
         return;
       }
 
@@ -218,7 +229,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
         notifyListeners();
       }
 
-      // Only throw for non-network errors or when no cache is available
+      // Only throw for unrecoverable errors when no cache is available
       throw e;
     }
 
