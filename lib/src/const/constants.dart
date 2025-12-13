@@ -216,3 +216,20 @@ abstract class LiveStreamConstants {
   /// Timeout for auto-detection of live camera in minutes
   static const int autoDetectionTimeoutMinutes = 3;
 }
+
+abstract class AlarmManagerConstants {
+  /// Maximum time difference in minutes for stale alarm detection
+  /// If an alarm is scheduled to run more than this many minutes in the past,
+  /// it will be considered stale and skipped
+  static const int staleAlarmThresholdMinutes = 5;
+}
+
+abstract class BackgroundServiceConstants {
+  /// Maximum time to wait for service to stop (in milliseconds)
+  /// Used when polling for service shutdown completion
+  static const int serviceStopTimeoutMs = 3000;
+
+  /// Interval between service status checks (in milliseconds)
+  /// Used when polling to verify service has stopped
+  static const int serviceStopPollIntervalMs = 100;
+}

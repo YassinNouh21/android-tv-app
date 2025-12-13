@@ -7,12 +7,12 @@ import 'package:mawaqit/src/domain/model/quran/moshaf_model.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/state_management/quran/recite/quran_audio_player_state.dart';
 
-import '../../../data/repository/quran/recite_impl.dart';
-import '../../../domain/model/quran/audio_file_model.dart';
-import '../../../helpers/connectivity_provider.dart';
-import '../../../models/address_model.dart';
-import 'download_audio_quran/download_audio_quran_notifier.dart';
-import 'download_audio_quran/download_audio_quran_state.dart';
+import 'package:mawaqit/src/data/repository/quran/recite_impl.dart';
+import 'package:mawaqit/src/domain/model/quran/audio_file_model.dart';
+import 'package:mawaqit/src/helpers/connectivity_provider.dart';
+import 'package:mawaqit/src/models/address_model.dart';
+import 'package:mawaqit/src/state_management/quran/recite/download_audio_quran/download_audio_quran_notifier.dart';
+import 'package:mawaqit/src/state_management/quran/recite/download_audio_quran/download_audio_quran_state.dart';
 
 class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -20,12 +20,14 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   int index = 0;
   List<SurahModel> localSuwar = [];
   late StreamSubscription<int?> currentIndexSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
 
   @override
   QuranAudioPlayerState build() {
     ref.onDispose(() {
       audioPlayer.dispose();
       currentIndexSubscription.cancel();
+      _playerStateSubscription?.cancel();
       log('quran: QuranAudioPlayer: disposed');
     });
     log('quran: QuranAudioPlayer: build');
@@ -210,7 +212,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
 
       final downloadStateNotifier = ref.read(downloadStateProvider(
         DownloadStateProviderParameter(reciterId: reciterId, moshafId: moshafId),
-      ).notifier);
+      ).notifier,);
 
       downloadStateNotifier.initializeDownloadedSuwar(downloadedSurahIds);
     } catch (e, s) {
@@ -244,7 +246,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
           );
           audioSources.add(AudioSource.uri(Uri.file(localPath)));
           localSuwar.add(s);
-          log('quran: QuranAudioPlayer: isDownloaded: ${s.name}, path: ${localPath}');
+          log('quran: QuranAudioPlayer: isDownloaded: ${s.name}, path: $localPath');
         } else if (ref.read(connectivityProvider).hasValue &&
             ref.read(connectivityProvider).value == ConnectivityStatus.connected) {
           audioSources.add(AudioSource.uri(Uri.parse(s.getSurahUrl(moshaf.server))));
@@ -267,7 +269,9 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
         _updatePlayerState();
       });
 
-      audioPlayer.playerStateStream.listen((playerState) {
+      // Cancel existing subscription before creating a new one
+      await _playerStateSubscription?.cancel();
+      _playerStateSubscription = audioPlayer.playerStateStream.listen((playerState) {
         _updatePlayerState();
       });
 

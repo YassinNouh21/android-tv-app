@@ -6,7 +6,7 @@ import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_cont
 import 'package:mawaqit/src/state_management/quran/schedule_listening/schedule_listening_notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../const/constants.dart';
+import 'package:mawaqit/src/const/constants.dart';
 
 /// Provider for the AudioControlNotifier
 final audioControlProvider = AsyncNotifierProvider<AudioControlNotifier, AudioControlState>(
@@ -19,11 +19,22 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   final FlutterBackgroundService _service;
   Timer? _stateCheckTimer;
 
+  // Store subscriptions for cleanup
+  StreamSubscription? _audioStateSubscription;
+  StreamSubscription? _scheduleUpdateSubscription;
+
   /// Creates an AudioControlNotifier with an optional background service
   AudioControlNotifier({FlutterBackgroundService? service}) : _service = service ?? FlutterBackgroundService();
 
   @override
   Future<AudioControlState> build() async {
+    // Register cleanup when the provider is disposed
+    ref.onDispose(() {
+      _stateCheckTimer?.cancel();
+      _audioStateSubscription?.cancel();
+      _scheduleUpdateSubscription?.cancel();
+    });
+
     await _initializeListeners();
     _startPeriodicStateCheck();
     return _getInitialState();
@@ -45,8 +56,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
 
   /// Sets up the listener for audio state changes from the background service
   void _setupAudioStateListener() {
-    _service.on('kAudioStateChanged').listen((event) {
-      if (event != null && event is Map<String, dynamic>) {
+    // Cancel existing subscriptions before creating new ones
+    _audioStateSubscription?.cancel();
+    _scheduleUpdateSubscription?.cancel();
+
+    _audioStateSubscription = _service.on('kAudioStateChanged').listen((event) {
+      if (event != null) {
         final isPlaying = event['isPlaying'] as bool?;
         if (isPlaying != null) {
           _updatePlaybackState(isPlaying);
@@ -55,7 +70,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     });
 
     // Listen for schedule updates
-    _service.on('update_schedule').listen((_) {
+    _scheduleUpdateSubscription = _service.on('update_schedule').listen((_) {
       _checkPlaybackState();
     });
   }
@@ -74,7 +89,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       state = AsyncData(state.value!.copyWith(
         status: isPlaying ? AudioStatus.playing : AudioStatus.paused,
         isLoading: false,
-      ));
+      ),);
     } catch (e) {
       _handleError('Failed to update playback state: $e');
     }
@@ -97,7 +112,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
         state = AsyncData(state.value!.copyWith(
           shouldShowControls: scheduleState.isScheduleEnabled,
           isConfigured: isConfigured,
-        ));
+        ),);
       } catch (e) {
         _handleError('Failed to update controls visibility: $e');
       }
@@ -161,7 +176,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       state = AsyncData(state.value!.copyWith(
         isLoading: false,
         error: errorMessage,
-      ));
+      ),);
     } catch (e) {
       // If we can't even update the error state, log it
       print('Critical error: Unable to update error state: $e');
@@ -180,7 +195,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       state = AsyncData(state.value!.copyWith(
         status: newStatus,
         isLoading: true,
-      ));
+      ),);
 
       // Invoke service method
       if (newStatus == AudioStatus.paused) {
@@ -204,14 +219,14 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       state = AsyncData(state.value!.copyWith(
         status: status,
         isLoading: true,
-      ));
+      ),);
 
       // Simulate a small delay for UI feedback
       await Future.delayed(const Duration(milliseconds: 100));
 
       state = AsyncData(state.value!.copyWith(
         isLoading: false,
-      ));
+      ),);
     } catch (e) {
       _handleError('Failed to update playback state: $e');
     }

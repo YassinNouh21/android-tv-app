@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:isolate';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -12,24 +12,9 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/const/constants.dart';
-import 'package:notification_overlay/notification_overlay.dart';
 import 'package:mawaqit/src/services/notification/notification_service.dart';
 import 'package:mawaqit/src/services/notification/prayer_audio_service.dart';
 
-/// Unified background service that handles both audio scheduling and prayer notifications
-import 'dart:async';
-import 'dart:isolate';
-import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:audio_session/audio_session.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/src/const/constants.dart';
-import 'package:mawaqit/src/services/notification/notification_service.dart';
-import 'package:mawaqit/src/services/notification/prayer_audio_service.dart';
 
 class UnifiedBackgroundService with WidgetsBindingObserver {
   static final UnifiedBackgroundService _instance = UnifiedBackgroundService._internal();
@@ -37,6 +22,12 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   static bool _shouldShowNotification = false;
   static AudioPlayer? _audioPlayer;
   static Duration? _savedPosition;
+
+  // Store subscriptions for cleanup
+  static final List<StreamSubscription> _eventSubscriptions = [];
+  static StreamSubscription? _playbackEventSubscription;
+  static StreamSubscription? _playerStateSubscription;
+  static Timer? _scheduleCheckTimer;
 
   factory UnifiedBackgroundService() => _instance;
 
@@ -48,17 +39,39 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   static AudioPlayer? get player => _audioPlayer;
 
   /// Initialize the unified background service
+  ///
+  /// Note: The _isInitialized flag is isolate-local and serves as an optimization
+  /// to avoid redundant configuration calls within the same isolate. The actual
+  /// service lifecycle is managed by FlutterBackgroundService and checked via
+  /// service.isRunning(), which queries the platform service state.
   static Future<void> initializeService() async {
-    if (_isInitialized) return;
-
     try {
       final service = FlutterBackgroundService();
+
+      // Always check if service is running and stop it first
+      final isRunning = await service.isRunning();
+
+      // If already initialized in this isolate and the service is running,
+      // don't reinitialize. This is safe because:
+      // 1. service.isRunning() checks the actual platform service state
+      // 2. _isInitialized prevents redundant configuration in this isolate
+      if (_isInitialized && isRunning) {
+        developer.log('UnifiedBackgroundService already initialized and running');
+        return;
+      }
+
+      // Stop existing service if running
       await _stopExistingService(service);
+
+      // Configure and start fresh
       await _configureAndStartService(service);
       await NotificationService.dismissNotification();
+
       _isInitialized = true;
-    } catch (e) {
+      developer.log('UnifiedBackgroundService initialized successfully');
+    } catch (e, stackTrace) {
       _isInitialized = false;
+      developer.log('UnifiedBackgroundService initialization failed', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -111,9 +124,35 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
     return true;
   }
 
+  /// Stop existing service and wait for it to complete shutdown
+  ///
+  /// Uses polling instead of a fixed delay to ensure the service has actually
+  /// stopped before proceeding. This adapts to different device speeds and
+  /// ensures cleanup is complete.
   static Future<void> _stopExistingService(FlutterBackgroundService service) async {
-    if (await service.isRunning()) {
-      service.invoke('stopService');
+    if (!await service.isRunning()) {
+      return;
+    }
+
+    developer.log('Stopping existing background service...');
+    service.invoke('stopService');
+
+    // Poll for service shutdown with timeout
+    final stopwatch = Stopwatch()..start();
+    const timeout = Duration(milliseconds: BackgroundServiceConstants.serviceStopTimeoutMs);
+    const pollInterval = Duration(milliseconds: BackgroundServiceConstants.serviceStopPollIntervalMs);
+
+    while (await service.isRunning()) {
+      if (stopwatch.elapsed > timeout) {
+        developer.log('Warning: Service stop timed out after ${timeout.inMilliseconds}ms');
+        break;
+      }
+      await Future.delayed(pollInterval);
+    }
+
+    stopwatch.stop();
+    if (!await service.isRunning()) {
+      developer.log('Service stopped successfully in ${stopwatch.elapsedMilliseconds}ms');
     }
   }
 
@@ -158,7 +197,7 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
 
   static Future<void> stopPlayback() async {
     try {
-      _savedPosition = await _audioPlayer?.position;
+      _savedPosition = _audioPlayer?.position;
       await _audioPlayer?.pause();
       FlutterBackgroundService().invoke('kAudioStateChanged', {'isPlaying': false});
     } catch (e) {
@@ -182,7 +221,7 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
       ),
       androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
       androidWillPauseWhenDucked: true,
-    ));
+    ),);
     await session.setActive(true);
     await _audioPlayer?.setVolume(1.0);
   }
@@ -221,7 +260,12 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
 
   static Future<void> _startPlayback(bool createPlaylist) async {
     await _audioPlayer?.play();
-    _audioPlayer?.playbackEventStream.listen((event) {
+
+    // Cancel existing subscriptions before creating new ones
+    await _playbackEventSubscription?.cancel();
+    await _playerStateSubscription?.cancel();
+
+    _playbackEventSubscription = _audioPlayer?.playbackEventStream.listen((event) {
       if (event.processingState == ProcessingState.completed && !createPlaylist) {
         _audioPlayer?.seek(Duration.zero);
         _audioPlayer?.play();
@@ -230,7 +274,7 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
       }
     });
 
-    _audioPlayer?.playerStateStream.listen((playerState) {
+    _playerStateSubscription = _audioPlayer?.playerStateStream.listen((playerState) {
       final isPlaying = playerState.playing;
       FlutterBackgroundService().invoke('kAudioStateChanged', {'isPlaying': isPlaying});
     });
@@ -267,78 +311,134 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   }
 
   static void _setupServiceListeners(ServiceInstance service) {
+    // Clear existing subscriptions before setting up new ones
+    _cleanupEventSubscriptions();
+
     bool isPaused = false;
     bool shouldShowNotification = _shouldShowNotification;
 
     if (service is AndroidServiceInstance) {
-      service.on('setAsForeground').listen((_) => service.setAsForegroundService());
-      service.on('setAsBackground').listen((_) => service.setAsBackgroundService());
+      _eventSubscriptions.add(
+        service.on('setAsForeground').listen((_) => service.setAsForegroundService()),
+      );
+      _eventSubscriptions.add(
+        service.on('setAsBackground').listen((_) => service.setAsBackgroundService()),
+      );
     }
-    service.on('updateLocalization').listen((event) async {
-      if (event != null && event.containsKey('language_code')) {
-        final langCode = event['language_code'];
-        final locale = Locale(langCode);
+    _eventSubscriptions.add(
+      service.on('updateLocalization').listen((event) async {
+        if (event != null && event.containsKey('language_code')) {
+          final langCode = event['language_code'];
+          final locale = Locale(langCode);
 
-        final localizations = await AppLocalizations.delegate.load(locale);
-        S.setCurrent(localizations);
-      }
-    });
+          final localizations = await AppLocalizations.delegate.load(locale);
+          S.setCurrent(localizations);
+        }
+      }),
+    );
     // Notification-related listeners
-    service.on('stopService').listen((_) => service.stopSelf());
-    service.on('updateNotificationVisibility').listen((event) {
-      if (event?['shouldShow'] != null) {
-        shouldShowNotification = event!['shouldShow'] as bool;
-      }
-    });
-    service.on('pauseOperations').listen((_) {
-      isPaused = true;
-      PrayerAudioService.stopAudio();
-      NotificationService.dismissNotification();
-    });
-    service.on('resumeOperations').listen((_) => isPaused = false);
-    service.on('prayerTime').listen((event) async {
-      print("called service prayerTime $shouldShowNotification");
+    _eventSubscriptions.add(
+      service.on('stopService').listen((_) async {
+        await _cleanupAllResources();
+        service.stopSelf();
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('updateNotificationVisibility').listen((event) {
+        if (event?['shouldShow'] != null) {
+          shouldShowNotification = event!['shouldShow'] as bool;
+        }
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('pauseOperations').listen((_) {
+        isPaused = true;
+        PrayerAudioService.stopAudio();
+        NotificationService.dismissNotification();
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('resumeOperations').listen((_) => isPaused = false),
+    );
+    _eventSubscriptions.add(
+      service.on('prayerTime').listen((event) async {
+        print("called service prayerTime $shouldShowNotification");
 
-      if (event != null && !isPaused && shouldShowNotification) {
-        await _handlePrayerTime(event);
-      }
-    });
+        if (event != null && !isPaused && shouldShowNotification) {
+          await _handlePrayerTime(event);
+        }
+      }),
+    );
 
     // Audio-related listeners
-    service.on('update_schedule').listen((_) async {
-      await ScheduleManager.checkSchedule();
-    });
-    service.on('restart_schedule').listen((_) async {
-      if (isPlaying()) {
-        await stopPlayback();
-      }
-      _audioPlayer?.dispose();
-      _audioPlayer = null;
-      await ScheduleManager.checkSchedule();
-    });
-    service.on('kStopAudio').listen((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, true);
-      await stopPlayback();
-      service.invoke('kAudioStateChanged', {'isPlaying': false});
-    });
-    service.on('kGetPlaybackState').listen((_) async {
-      service.invoke('kAudioStateChanged', {'isPlaying': isPlaying()});
-    });
-    service.on('kResumeAudio').listen((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, false);
-      if (isPlaying()) {
-        await player?.play();
-        service.invoke('kAudioStateChanged', {'isPlaying': true});
-      } else {
+    _eventSubscriptions.add(
+      service.on('update_schedule').listen((_) async {
         await ScheduleManager.checkSchedule();
-      }
-    });
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('restart_schedule').listen((_) async {
+        if (isPlaying()) {
+          await stopPlayback();
+        }
+        _audioPlayer?.dispose();
+        _audioPlayer = null;
+        await ScheduleManager.checkSchedule();
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('kStopAudio').listen((_) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, true);
+        await stopPlayback();
+        service.invoke('kAudioStateChanged', {'isPlaying': false});
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('kGetPlaybackState').listen((_) async {
+        service.invoke('kAudioStateChanged', {'isPlaying': isPlaying()});
+      }),
+    );
+    _eventSubscriptions.add(
+      service.on('kResumeAudio').listen((_) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, false);
+        if (isPlaying()) {
+          await player?.play();
+          service.invoke('kAudioStateChanged', {'isPlaying': true});
+        } else {
+          await ScheduleManager.checkSchedule();
+        }
+      }),
+    );
+  }
+
+  /// Cleanup all event subscriptions
+  static void _cleanupEventSubscriptions() {
+    for (var subscription in _eventSubscriptions) {
+      subscription.cancel();
+    }
+    _eventSubscriptions.clear();
+  }
+
+  /// Cleanup all resources (timers, subscriptions, audio player)
+  static Future<void> _cleanupAllResources() async {
+    _cleanupEventSubscriptions();
+    await _playbackEventSubscription?.cancel();
+    await _playerStateSubscription?.cancel();
+    _scheduleCheckTimer?.cancel();
+    await _audioPlayer?.dispose();
+    _playbackEventSubscription = null;
+    _playerStateSubscription = null;
+    _scheduleCheckTimer = null;
+    _audioPlayer = null;
   }
 
   static void _setupPeriodicScheduleCheck(ServiceInstance service) {
-    Timer.periodic(Duration(minutes: 1), (timer) async {
+    // Cancel existing timer before creating a new one
+    _scheduleCheckTimer?.cancel();
+
+    _scheduleCheckTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
       print("Checking schedule: ${DateTime.now()}");
       await ScheduleManager.checkSchedule();
     });
