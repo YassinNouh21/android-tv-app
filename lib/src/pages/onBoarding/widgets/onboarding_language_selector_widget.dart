@@ -200,12 +200,62 @@ class _LanguageTileState extends State<LanguageTile> {
       );
     }
 
+    // Check if it's a bilingual language code (e.g., 'fr_ar' or 'fr-ar')
+    if (languageCode.contains('_') || languageCode.contains('-')) {
+      final languages = languageCode.split(RegExp(r'[-_]'));
+
+      final flagSize = s * 0.65;
+
+      // Show both flags side by side
+      return SizedBox(
+        width: s * 1.4,
+        height: s,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: CircleAvatar(
+                  radius: flagSize / 2,
+                  foregroundImage: AssetImage(
+                    'assets/img/flag/${languages[0].toLowerCase()}.png',
+                  ),
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            ),
+            Positioned(
+              left: flagSize * 0.7,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: CircleAvatar(
+                  radius: flagSize / 2,
+                  foregroundImage: AssetImage(
+                    'assets/img/flag/${languages[1].toLowerCase()}.png',
+                  ),
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Single language - show one flag
     return SizedBox(
       width: s,
       height: s,
       child: CircleAvatar(
         foregroundImage: AssetImage(
-          'assets/img/flag/$languageCode.png',
+          'assets/img/flag/${languageCode.toLowerCase()}.png',
         ),
         backgroundColor: Colors.white,
       ),
