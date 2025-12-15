@@ -73,7 +73,8 @@ class ApiCacheInterceptor extends Interceptor {
       try {
         final cachedData = await cacheManager.getCachedData(cacheKey);
         if (cachedData != null) {
-          logger.i('ApiInterceptor: Using cached data for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
+          logger.i(
+              'ApiInterceptor: Using cached data for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
           final responseData = json.decode(cachedData['data']);
           final cachedResponse = Response(
             data: responseData,
@@ -85,7 +86,8 @@ class ApiCacheInterceptor extends Interceptor {
           );
           return handler.resolve(cachedResponse);
         } else {
-          logger.w('ApiInterceptor: No cached data available for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
+          logger.w(
+              'ApiInterceptor: No cached data available for ${err.requestOptions.path} after error (${statusCode ?? 'connection error'})');
         }
       } catch (e, s) {
         logger.e('Error retrieving cached data: $e');

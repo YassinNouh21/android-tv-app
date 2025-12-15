@@ -129,7 +129,9 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
           isAfterAsr: isAsrPray,
           azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer,
         ),
-        disabled: mosqueConfig.iqamaEnabled == false || (!isFajrPray && !isAsrPray) || mosqueConfig.duaAfterPrayerEnabled == false,
+        disabled: mosqueConfig.iqamaEnabled == false ||
+            (!isFajrPray && !isAsrPray) ||
+            mosqueConfig.duaAfterPrayerEnabled == false,
       ),
     ];
 

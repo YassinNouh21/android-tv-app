@@ -97,7 +97,7 @@ class YouTubeStreamHelper {
   }
 
   /// Validate if a YouTube video is a live stream
-  /// 
+  ///
   /// [videoId] The YouTube video ID to validate
   /// [strictValidation] If true, throws an exception when validation fails.
   ///                    If false, returns false on validation errors (useful for graceful degradation)
@@ -134,7 +134,7 @@ class YouTubeStreamHelper {
       }
     } catch (e) {
       dev.log('⚠️ [YOUTUBE_HELPER] Error checking if YouTube video is live: $e');
-      
+
       if (strictValidation) {
         throw LiveStreamInitializationException('Unable to verify if YouTube video is a live stream: $e');
       } else {
@@ -169,11 +169,11 @@ class YouTubeStreamHelper {
   }
 
   /// Process a YouTube URL and return a valid video ID
-  /// 
+  ///
   /// [url] The YouTube URL to process
   /// [validateLive] If true, validates that the video is a live stream (may be slow/fail)
   ///                If false, skips validation and returns the video ID directly
-  /// 
+  ///
   /// Throws an exception if the URL is invalid
   Future<String> processYouTubeUrl(
     String url, {
@@ -199,7 +199,7 @@ class YouTubeStreamHelper {
     // Validate live stream (non-strict mode - won't throw on validation errors)
     try {
       final isLive = await validateLiveStream(videoId, strictValidation: false);
-      
+
       if (!isLive) {
         dev.log('⚠️ [YOUTUBE_HELPER] Video may not be a live stream, but proceeding anyway');
       } else {
