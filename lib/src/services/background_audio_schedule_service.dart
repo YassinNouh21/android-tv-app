@@ -250,7 +250,10 @@ class ScheduleManager {
 
   /// Handle schedule execution
   static Future<void> _handleScheduleExecution(
-      TimeOfDay currentTime, ScheduleData scheduleData, SharedPreferences prefs,) async {
+    TimeOfDay currentTime,
+    ScheduleData scheduleData,
+    SharedPreferences prefs,
+  ) async {
     final service = FlutterBackgroundService();
 
     if (_isTimeInRange(currentTime, scheduleData.startTime, scheduleData.endTime)) {

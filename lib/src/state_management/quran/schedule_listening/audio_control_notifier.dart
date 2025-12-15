@@ -86,10 +86,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   /// Updates the playback state in the notifier
   void _updatePlaybackState(bool isPlaying) {
     try {
-      state = AsyncData(state.value!.copyWith(
-        status: isPlaying ? AudioStatus.playing : AudioStatus.paused,
-        isLoading: false,
-      ),);
+      state = AsyncData(
+        state.value!.copyWith(
+          status: isPlaying ? AudioStatus.playing : AudioStatus.paused,
+          isLoading: false,
+        ),
+      );
     } catch (e) {
       _handleError('Failed to update playback state: $e');
     }
@@ -109,10 +111,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
             scheduleState.selectedMoshaf != null &&
             (scheduleState.selectedSurahId != null || scheduleState.isRandomEnabled);
 
-        state = AsyncData(state.value!.copyWith(
-          shouldShowControls: scheduleState.isScheduleEnabled,
-          isConfigured: isConfigured,
-        ),);
+        state = AsyncData(
+          state.value!.copyWith(
+            shouldShowControls: scheduleState.isScheduleEnabled,
+            isConfigured: isConfigured,
+          ),
+        );
       } catch (e) {
         _handleError('Failed to update controls visibility: $e');
       }
@@ -173,10 +177,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   /// Handles errors by updating the state with the error message
   void _handleError(String errorMessage) {
     try {
-      state = AsyncData(state.value!.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      ),);
+      state = AsyncData(
+        state.value!.copyWith(
+          isLoading: false,
+          error: errorMessage,
+        ),
+      );
     } catch (e) {
       // If we can't even update the error state, log it
       print('Critical error: Unable to update error state: $e');
@@ -192,10 +198,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       final newStatus = currentStatus == AudioStatus.playing ? AudioStatus.paused : AudioStatus.playing;
 
       // Update state optimistically
-      state = AsyncData(state.value!.copyWith(
-        status: newStatus,
-        isLoading: true,
-      ),);
+      state = AsyncData(
+        state.value!.copyWith(
+          status: newStatus,
+          isLoading: true,
+        ),
+      );
 
       // Invoke service method
       if (newStatus == AudioStatus.paused) {
@@ -216,17 +224,21 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   /// Updates the playback state with loading indicator
   Future<void> _updatePlaybackStateWithLoading(AudioStatus status) async {
     try {
-      state = AsyncData(state.value!.copyWith(
-        status: status,
-        isLoading: true,
-      ),);
+      state = AsyncData(
+        state.value!.copyWith(
+          status: status,
+          isLoading: true,
+        ),
+      );
 
       // Simulate a small delay for UI feedback
       await Future.delayed(const Duration(milliseconds: 100));
 
-      state = AsyncData(state.value!.copyWith(
-        isLoading: false,
-      ),);
+      state = AsyncData(
+        state.value!.copyWith(
+          isLoading: false,
+        ),
+      );
     } catch (e) {
       _handleError('Failed to update playback state: $e');
     }

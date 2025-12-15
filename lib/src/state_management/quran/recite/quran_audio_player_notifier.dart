@@ -210,9 +210,11 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       final downloadedSurahIds =
           downloadedAudioList.map((file) => int.parse(file.path.split('/').last.split('.').first)).toSet();
 
-      final downloadStateNotifier = ref.read(downloadStateProvider(
-        DownloadStateProviderParameter(reciterId: reciterId, moshafId: moshafId),
-      ).notifier,);
+      final downloadStateNotifier = ref.read(
+        downloadStateProvider(
+          DownloadStateProviderParameter(reciterId: reciterId, moshafId: moshafId),
+        ).notifier,
+      );
 
       downloadStateNotifier.initializeDownloadedSuwar(downloadedSurahIds);
     } catch (e, s) {
