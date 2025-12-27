@@ -467,5 +467,6 @@
   "prayerTimeNotificationTitle":"Prayer Time Notifications",
   "prayerTimeNotificationDesc":"Get the adan at prayer times, even when the app is closed",
   "enablePrayerReminders":"Enable Prayer Reminders",
-  "enablePrayerRemindersDesc":"Works automatically in the background"
+  "enablePrayerRemindersDesc":"Works automatically in the background",
+  "testCrowdinCI": "Test string to verify Crowdin CI workflow on develop"
 }

@@ -7,7 +7,6 @@ on:
     branches:
       - main
       - develop
-      - feat/crowdin-pretranslation-ci
   workflow_dispatch:
 
 permissions:
