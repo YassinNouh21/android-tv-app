@@ -7,7 +7,7 @@ import 'package:mawaqit/src/domain/model/quran/moshaf_model.dart';
 import 'package:mawaqit/src/domain/model/quran/reciter_model.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockHiveBox extends Mock implements Box<ReciterModel> {}
+class MockHiveLazyBox extends Mock implements LazyBox<ReciterModel> {}
 
 class MockHiveFavoriteBox extends Mock implements Box<int> {}
 
@@ -15,12 +15,12 @@ class MockHiveTimestampBox extends Mock implements Box<DateTime> {}
 
 void main() {
   late ReciteLocalDataSource dataSource;
-  late MockHiveBox mockBox;
+  late MockHiveLazyBox mockBox;
   late MockHiveFavoriteBox mockFavoriteBox;
   late MockHiveTimestampBox mockTimestampBox;
 
   setUp(() {
-    mockBox = MockHiveBox();
+    mockBox = MockHiveLazyBox();
     mockFavoriteBox = MockHiveFavoriteBox();
     mockTimestampBox = MockHiveTimestampBox();
     dataSource = ReciteLocalDataSource(mockBox, mockFavoriteBox, mockTimestampBox);
@@ -41,14 +41,16 @@ void main() {
         createReciter(2, [1, 2, 3])
       ];
 
-      // Mock both box operations
+      // Mock all box operations including compact
       when(() => mockBox.putAll(any<Map<dynamic, ReciterModel>>())).thenAnswer((_) async => Future<void>.value());
+      when(() => mockBox.compact()).thenAnswer((_) async => Future<void>.value());
       when(() => mockTimestampBox.put(any(), any())).thenAnswer((_) async => Future<void>.value());
 
       await dataSource.saveReciters(reciters);
 
-      // Verify both operations were called
+      // Verify all operations were called
       verify(() => mockBox.putAll(any<Map<dynamic, ReciterModel>>())).called(1);
+      verify(() => mockBox.compact()).called(1);
       verify(() => mockTimestampBox.put(QuranConstant.kQuranReciterRetentionTime, any<DateTime>())).called(1);
     });
 
@@ -64,11 +66,13 @@ void main() {
       final largeList = List.generate(10000, (index) => createReciter(index, [1, 2, 3]));
 
       when(() => mockBox.putAll(any<Map<dynamic, ReciterModel>>())).thenAnswer((_) async => Future<void>.value());
+      when(() => mockBox.compact()).thenAnswer((_) async => Future<void>.value());
       when(() => mockTimestampBox.put(any(), any())).thenAnswer((_) async => Future<void>.value());
 
       await dataSource.saveReciters(largeList);
 
       verify(() => mockBox.putAll(any<Map<dynamic, ReciterModel>>())).called(1);
+      verify(() => mockBox.compact()).called(1);
       verify(() => mockTimestampBox.put(QuranConstant.kQuranReciterRetentionTime, any<DateTime>())).called(1);
     });
   });
@@ -79,7 +83,9 @@ void main() {
         createReciter(1, [1, 2, 3]),
         createReciter(2, [1, 2, 3])
       ];
-      when(() => mockBox.values).thenReturn(reciters);
+      when(() => mockBox.keys).thenReturn([1, 2]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciters[0]);
+      when(() => mockBox.get(2)).thenAnswer((_) async => reciters[1]);
 
       final result = await dataSource.getReciters();
 
@@ -87,7 +93,7 @@ void main() {
     });
 
     test('Handles empty Hive box', () async {
-      when(() => mockBox.values).thenReturn([]);
+      when(() => mockBox.keys).thenReturn([]);
 
       final result = await dataSource.getReciters();
 
@@ -96,7 +102,10 @@ void main() {
 
     test('Handles very large number of reciters', () async {
       final largeList = List.generate(10000, (index) => createReciter(index, [1, 2, 3]));
-      when(() => mockBox.values).thenReturn(largeList);
+      when(() => mockBox.keys).thenReturn(List.generate(10000, (i) => i));
+      for (int i = 0; i < 10000; i++) {
+        when(() => mockBox.get(i)).thenAnswer((_) async => largeList[i]);
+      }
 
       final result = await dataSource.getReciters();
 
@@ -104,7 +113,7 @@ void main() {
     });
 
     test('Throws FetchRecitersException on corrupted data', () async {
-      when(() => mockBox.values).thenThrow(HiveError('Corrupted data'));
+      when(() => mockBox.keys).thenThrow(HiveError('Corrupted data'));
 
       expect(() => dataSource.getReciters(), throwsA(isA<FetchRecitersException>()));
     });
@@ -117,7 +126,10 @@ void main() {
         createReciter(2, [2, 3, 4]),
         createReciter(3, [3, 4, 5]),
       ];
-      when(() => mockBox.values).thenReturn(reciters);
+      when(() => mockBox.keys).thenReturn([1, 2, 3]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciters[0]);
+      when(() => mockBox.get(2)).thenAnswer((_) async => reciters[1]);
+      when(() => mockBox.get(3)).thenAnswer((_) async => reciters[2]);
 
       final result = await dataSource.getReciterBySurah(3);
 
@@ -126,7 +138,7 @@ void main() {
     });
 
     test('Handles invalid surah ID (negative number)', () async {
-      when(() => mockBox.values).thenReturn([]);
+      when(() => mockBox.keys).thenReturn([]);
 
       final result = await dataSource.getReciterBySurah(-1);
 
@@ -134,7 +146,7 @@ void main() {
     });
 
     test('Handles invalid surah ID (larger than total number of surahs)', () async {
-      when(() => mockBox.values).thenReturn([]);
+      when(() => mockBox.keys).thenReturn([]);
 
       final result = await dataSource.getReciterBySurah(115); // Assuming 114 surahs in total
 
@@ -145,7 +157,8 @@ void main() {
       final reciters = [
         createReciter(1, [1, 2, 3])
       ];
-      when(() => mockBox.values).thenReturn(reciters);
+      when(() => mockBox.keys).thenReturn([1]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciters[0]);
 
       final result = await dataSource.getReciterBySurah(4);
 
@@ -158,7 +171,10 @@ void main() {
         createReciter(2, [1, 2, 3]),
         createReciter(3, [1, 2, 3]),
       ];
-      when(() => mockBox.values).thenReturn(reciters);
+      when(() => mockBox.keys).thenReturn([1, 2, 3]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciters[0]);
+      when(() => mockBox.get(2)).thenAnswer((_) async => reciters[1]);
+      when(() => mockBox.get(3)).thenAnswer((_) async => reciters[2]);
 
       final result = await dataSource.getReciterBySurah(2);
 
@@ -171,7 +187,8 @@ void main() {
         createMoshaf(1, [1, 2, 3]),
         createMoshaf(2, [4, 5, 6]),
       ]);
-      when(() => mockBox.values).thenReturn([reciter]);
+      when(() => mockBox.keys).thenReturn([1]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciter);
 
       final result1 = await dataSource.getReciterBySurah(2);
       final result2 = await dataSource.getReciterBySurah(5);
@@ -184,7 +201,10 @@ void main() {
 
     test('Handles very large number of reciters or moshafs', () async {
       final largeList = List.generate(10000, (index) => createReciter(index, List.generate(114, (i) => i + 1)));
-      when(() => mockBox.values).thenReturn(largeList);
+      when(() => mockBox.keys).thenReturn(List.generate(10000, (i) => i));
+      for (int i = 0; i < 10000; i++) {
+        when(() => mockBox.get(i)).thenAnswer((_) async => largeList[i]);
+      }
 
       final result = await dataSource.getReciterBySurah(50);
 
@@ -257,13 +277,13 @@ void main() {
 
   group('General Hive-related issues', () {
     test('Hive box is not initialized before use', () {
-      when(() => mockBox.values).thenThrow(HiveError('Box not opened'));
+      when(() => mockBox.keys).thenThrow(HiveError('Box not opened'));
 
       expect(() => dataSource.getReciters(), throwsA(isA<FetchRecitersException>()));
     });
 
     test('Hive box becomes corrupted', () {
-      when(() => mockBox.values).thenThrow(HiveError('Corrupted box'));
+      when(() => mockBox.keys).thenThrow(HiveError('Corrupted box'));
 
       expect(() => dataSource.getReciters(), throwsA(isA<FetchRecitersException>()));
     });
@@ -285,7 +305,7 @@ void main() {
 
       when(() => mockFavoriteBox.add(any())).thenAnswer((_) async => 0);
       when(() => mockFavoriteBox.values).thenReturn([1]);
-      when(() => mockBox.values).thenReturn([reciter]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => reciter);
 
       await dataSource.addFavoriteReciter(1);
       await dataSource.addFavoriteReciter(1);
@@ -361,8 +381,8 @@ void main() {
       // Mock favorite box values
       when(() => mockFavoriteBox.values).thenReturn([999]);
 
-      // Mock main reciter box to be empty
-      when(() => mockBox.values).thenReturn([]);
+      // Mock main reciter box to return null for non-existent key
+      when(() => mockBox.get(999)).thenAnswer((_) async => null);
 
       await dataSource.addFavoriteReciter(999);
       final favorites = await dataSource.getFavoriteReciters();
@@ -376,10 +396,11 @@ void main() {
       final updatedReciter = ReciterModel(1, 'Updated Reciter 1', 'B', []);
 
       // Mock the main reciter box
-      when(() => mockBox.values).thenReturn([oldReciter]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => oldReciter);
 
       // Use only one definition for putAll - choose the style that works in other tests
       when(() => mockBox.putAll(any<Map<dynamic, ReciterModel>>())).thenAnswer((_) => Future<void>.value());
+      when(() => mockBox.compact()).thenAnswer((_) => Future<void>.value());
       when(() => mockTimestampBox.put(any(), any())).thenAnswer((_) => Future<void>.value());
 
       // Mock the favorite box
@@ -388,7 +409,7 @@ void main() {
       await dataSource.saveReciters([updatedReciter]);
 
       // Update the mock to return the updated reciter
-      when(() => mockBox.values).thenReturn([updatedReciter]);
+      when(() => mockBox.get(1)).thenAnswer((_) async => updatedReciter);
 
       final favorites = await dataSource.getFavoriteReciters();
 
