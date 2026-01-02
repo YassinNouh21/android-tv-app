@@ -45,8 +45,9 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
   String? mosqueUUID;
 
   bool _flashEnabled = false;
+  bool _hideFlashTemporarily = false;
 
-  bool get flashEnabled => _flashEnabled;
+  bool get flashEnabled => _flashEnabled && !_hideFlashTemporarily;
 
   void _updateFlashEnabled() {
     if (mosque != null) {
@@ -72,6 +73,20 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       }
       notifyListeners();
     }
+  }
+
+  /// Temporarily hide the flash message (used during prayer workflow)
+  void hideFlashTemporarily() {
+    if (_hideFlashTemporarily) return;
+    _hideFlashTemporarily = true;
+    notifyListeners();
+  }
+
+  /// Show the flash message again (reset temporary hide)
+  void showFlashAgain() {
+    if (!_hideFlashTemporarily) return;
+    _hideFlashTemporarily = false;
+    notifyListeners();
   }
 
   bool get loaded => mosque != null && times != null && mosqueConfig != null;

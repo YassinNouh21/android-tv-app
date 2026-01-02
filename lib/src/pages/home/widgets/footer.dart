@@ -17,7 +17,7 @@ class Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mosqueManager = context.read<MosqueManager>();
+    final mosqueManager = context.watch<MosqueManager>();
     final Mosque? mosque = mosqueManager.mosque;
     final mosqueConfig = mosqueManager.mosqueConfig;
     final TextDirection textDirection = Directionality.of(context);
@@ -27,7 +27,8 @@ class Footer extends StatelessWidget {
     }
 
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    final showMosqueInfo = !isPortrait && mosque.flash == null && mosqueConfig.footer == true;
+    final showFlash = mosqueManager.flashEnabled && mosque.flash != null;
+    final showMosqueInfo = !isPortrait && !showFlash && mosqueConfig.footer == true;
     final qrCodeSection = Expanded(
       flex: showMosqueInfo ? 2 : 1,
       child: Row(
@@ -60,7 +61,7 @@ class Footer extends StatelessWidget {
     Widget middleSection;
     if (isPortrait) {
       middleSection = Spacer(flex: 6);
-    } else if (mosque.flash != null) {
+    } else if (showFlash) {
       middleSection = flashWidget;
     } else if (showMosqueInfo) {
       middleSection = mosqueInfoSection;
@@ -70,7 +71,7 @@ class Footer extends StatelessWidget {
 
     return Column(
       children: [
-        if (isPortrait && mosque.flash != null)
+        if (isPortrait && showFlash)
           Container(
             color: Colors.black26,
             height: 5.h,

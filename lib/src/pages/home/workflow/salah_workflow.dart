@@ -35,6 +35,24 @@ class SalahWorkflowScreen extends ConsumerStatefulWidget {
 }
 
 class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
+  late final MosqueManager _mosqueManager;
+
+  @override
+  void initState() {
+    super.initState();
+    _mosqueManager = context.read<MosqueManager>();
+  }
+
+  @override
+  void dispose() {
+    _mosqueManager.showFlashAgain();
+    super.dispose();
+  }
+
+  void _onWorkflowComplete() {
+    widget.onDone();
+  }
+
   Widget beforeSalahTime(
     MosqueManager mosqueManger,
     int currentSalah,
@@ -136,7 +154,7 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
     ];
 
     return ContinuesWorkFlowWidget(
-      onDone: widget.onDone,
+      onDone: _onWorkflowComplete,
       workFlowItems: workFlowItems,
     );
   }

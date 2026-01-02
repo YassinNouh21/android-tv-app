@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/mawaqit_icons_icons.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
 import 'package:mawaqit/src/pages/home/widgets/FlashAnimation.dart';
+import 'package:mawaqit/src/pages/home/widgets/footer.dart';
 import 'package:mawaqit/src/pages/home/widgets/mosque_background_screen.dart';
+import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
@@ -41,11 +42,13 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   Timer? _noAdhanDisplayTimer;
   bool _audioStarted = false;
   bool _closeCalled = false;
+  late final MosqueManager _mosqueManager;
 
   @override
   void initState() {
     super.initState();
     log('AdhanSubScreen: initState');
+    _mosqueManager = context.read<MosqueManager>();
     _initializeAdhan();
     _startFallbackTimer();
   }
@@ -53,7 +56,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   void _initializeAdhan() {
     log('AdhanSubScreen: _initializeAdhan');
     // Access MosqueManager via provider
-    final mosqueManager = context.read<MosqueManager>();
+    final mosqueManager = _mosqueManager;
     final mosqueConfig = mosqueManager.mosqueConfig;
 
     // Stop Quran player if running
@@ -116,6 +119,12 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     _cancelTimers();
 
     if (mounted) {
+      // Hide flash if Iqama is disabled (so it won't be shown during dua after prayer)
+      if (_mosqueManager.mosqueConfig?.iqamaEnabled == false) {
+        log('AdhanSubScreen: Iqama disabled, hiding flash');
+        _mosqueManager.hideFlashTemporarily();
+      }
+
       log('AdhanSubScreen: Calling onDone callback');
       widget.onDone?.call();
     } else {
@@ -177,6 +186,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     // Watch MosqueManager for UI updates
     final mosqueProvider = context.watch<MosqueManager>();
     final mosque = mosqueProvider.mosque!;
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
     // Debug current audio state
     final audioStateValue = ref.watch(prayerAudioProvider);
@@ -229,7 +239,10 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
           mosqueProvider.times!.isTurki
               ? ResponsiveMiniSalahBarTurkishWidget(activeItem: mosqueProvider.salahIndex)
               : ResponsiveMiniSalahBarWidget(activeItem: mosqueProvider.salahIndex),
-          SizedBox(height: 2.vh),
+          if (mosqueProvider.flashEnabled && mosque.flash != null) ...[
+            if (isPortrait) SizedBox(height: 1.vh),
+            isPortrait ? PortraitFooterWidget(mosque: mosque) : Footer(),
+          ],
         ],
       ),
     );
