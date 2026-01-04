@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HandshakeException;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -220,8 +221,15 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
             e.type == DioExceptionType.receiveTimeout ||
             e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.badCertificate ||
             e.type == DioExceptionType.unknown ||
             (statusCode != null && statusCode >= 500 && statusCode < 600); // Server errors (5xx)
+
+        // Check for underlying HandshakeException (SSL issues)
+        // Fixes: ANDROIDTV-3E - "HandshakeException: Connection terminated during handshake"
+        if (e.error is HandshakeException) {
+          isRecoverableError = true;
+        }
       }
 
       // If it's a recoverable error (network/server) and we have cached data, just log and continue
