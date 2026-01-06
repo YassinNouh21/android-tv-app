@@ -48,14 +48,32 @@ class ReciteImpl implements ReciteRepository {
       }
 
       // If not cached or cache is outdated, fetch from the remote API
-      log('ReciteImpl: Fetching reciters from remote API');
+      log('ReciteImpl: Fetching reciters from remote API in both languages');
+
+      // Fetch reciters in the current language
       final reciters = await _remoteDataSource.getReciters(language: language);
-      reciters.sort((a, b) => a.name.compareTo(b.name));
 
-      // Save the fetched reciters to the local cache
-      await _localDataSource.saveReciters(reciters);
+      // Fetch reciters in the alternate language to get bilingual names
+      final alternateLanguage = language == 'ar' ? 'eng' : 'ar';
+      final alternateReciters = await _remoteDataSource.getReciters(language: alternateLanguage);
 
-      return reciters;
+      // Create a map of alternate reciters by ID for quick lookup
+      final alternateReciterMap = {
+        for (var reciter in alternateReciters) reciter.id: reciter.name,
+      };
+
+      // Merge the alternate names with the main reciters
+      final mergedReciters = reciters.map((reciter) {
+        final alternateName = alternateReciterMap[reciter.id];
+        return reciter.copyWith(nameAlternate: alternateName);
+      }).toList();
+
+      mergedReciters.sort((a, b) => a.name.compareTo(b.name));
+
+      // Save the merged reciters to the local cache
+      await _localDataSource.saveReciters(mergedReciters);
+
+      return mergedReciters;
     } catch (e) {
       // If an error occurs, try to return cached data as a fallback
       log('ReciteImpl: Error fetching reciters: $e');
