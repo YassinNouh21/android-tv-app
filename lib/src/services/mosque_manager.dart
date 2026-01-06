@@ -76,6 +76,31 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
     }
   }
 
+  /// Sync stream URL from backoffice to LiveStream feature
+  Future<void> _syncStreamUrlToLiveStream(String? streamUrl) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (streamUrl == null || streamUrl.isEmpty) {
+        // Remove backoffice URL if not provided
+        await prefs.remove(LiveStreamConstants.prefKeyBackofficeUrl);
+      } else {
+        // Convert bare YouTube channel IDs to full URLs
+        String processedUrl = streamUrl;
+        if (!streamUrl.startsWith('http://') &&
+            !streamUrl.startsWith('https://') &&
+            !streamUrl.startsWith('rtsp://')) {
+          // Assume it's a YouTube channel ID and convert to full URL
+          processedUrl = 'https://www.youtube.com/channel/$streamUrl';
+        }
+
+        await prefs.setString(LiveStreamConstants.prefKeyBackofficeUrl, processedUrl);
+      }
+    } catch (e) {
+      debugPrint('Error syncing stream URL to LiveStream: $e');
+    }
+  }
+
   /// Temporarily hide the flash message (used during prayer workflow)
   void hideFlashTemporarily() {
     if (_hideFlashTemporarily) return;
@@ -287,6 +312,10 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
         mosque = e;
         await sharedPref.save(MosqueManagerConstant.khasCachedMosque, true);
         _updateFlashEnabled();
+
+        // Sync stream URL to LiveStream feature
+        await _syncStreamUrlToLiveStream(e.streamUrl);
+
         notifyListeners();
       },
       onError: onItemError,

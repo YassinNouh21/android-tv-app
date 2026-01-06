@@ -199,7 +199,7 @@
   "recommended": "Recommandé",
   "sabah": "Sabah",
   "randomHadithLanguage": "Langue des hadiths aléatoires",
-  "mosqueDefault": "Depuis votre configuration en ligne",
+  "mosqueDefault": "Depuis les paramètres de votre compte mawaqit.net",
   "en": "Anglais",
   "fr": "Français",
   "ar": "Arabe",
@@ -405,6 +405,7 @@
   "updateFailed": "Échec de la mise à jour",
   "updateFailed": "Échec de la mise à jour",
   "checkInternetUpdate": "Vous devez être connecté à Internet pour vérifier les nouvelles mises à jour",
+  "urlManagedByMosqueAdmin": "URL gérée par l'administrateur de la mosquée",
   "appUpdateAvailable": "Votre application utilise la version {currentVersion}. Une nouvelle mise à jour (version {updatedVersion}) est disponible avec les dernières fonctionnalités et améliorations.",
   "@appUpdateAvailable": {
     "description": "Texte de remplacement pour afficher le message de mise à jour disponible",

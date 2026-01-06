@@ -186,6 +186,12 @@ abstract class LiveStreamConstants {
   /// Key for the URL preference in SharedPreferences
   static const String prefKeyUrl = 'livestream_url';
 
+  /// Key for the backoffice URL preference in SharedPreferences
+  static const String prefKeyBackofficeUrl = 'livestream_backoffice_url';
+
+  /// Key for the use backoffice stream toggle in SharedPreferences
+  static const String prefKeyUseBackofficeStream = 'livestream_use_backoffice_stream';
+
   /// Key for the replace workflow preference in SharedPreferences
   static const String prefKeyReplaceWorkflow = 'livestream_replace_workflow';
 

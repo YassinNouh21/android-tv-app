@@ -1,6 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:media_kit_video/media_kit_video.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 /// Enumeration of stream types supported by the livestream viewer
 enum LiveStreamType { rtsp, youtubeLive }
@@ -20,17 +18,17 @@ class LiveStreamViewerState extends Equatable {
   /// Whether livestream is enabled
   final bool isEnabled;
 
-  /// URL of the stream
+  /// URL of the stream (user-configured)
   final String? streamUrl;
+
+  /// URL of the stream from backoffice (fallback when user doesn't configure one)
+  final String? backofficeStreamUrl;
+
+  /// Whether to use backoffice stream URL (toggle)
+  final bool useBackofficeStream;
 
   /// Type of stream (RTSP or YouTube)
   final LiveStreamType? streamType;
-
-  /// Controller for RTSP video8
-  final VideoController? videoController;
-
-  /// Controller for YouTube video
-  final YoutubePlayerController? youtubeController;
 
   /// Whether URL is invalid
   final bool isInvalidUrl;
@@ -43,6 +41,21 @@ class LiveStreamViewerState extends Equatable {
 
   /// Current status of the stream
   final LiveStreamStatus streamStatus;
+
+  /// Get the effective stream URL based on toggle
+  String? get effectiveStreamUrl {
+    // If toggle is ON, use backoffice URL
+    if (useBackofficeStream && backofficeStreamUrl != null && backofficeStreamUrl!.isNotEmpty) {
+      return backofficeStreamUrl;
+    }
+    // Otherwise use user-configured URL
+    return streamUrl;
+  }
+
+  /// Check if currently using backoffice stream
+  bool get isFromBackoffice => useBackofficeStream &&
+      backofficeStreamUrl != null &&
+      backofficeStreamUrl!.isNotEmpty;
 
   /// Whether the workflow should currently be replaced (computed property)
   /// This considers both manual and automatic replacement modes
@@ -60,9 +73,9 @@ class LiveStreamViewerState extends Equatable {
   const LiveStreamViewerState({
     this.isEnabled = false,
     this.streamUrl,
+    this.backofficeStreamUrl,
+    this.useBackofficeStream = false,
     this.streamType,
-    this.videoController,
-    this.youtubeController,
     this.isInvalidUrl = false,
     this.replaceWorkflow = false,
     this.autoReplaceWorkflow = true,
@@ -73,9 +86,9 @@ class LiveStreamViewerState extends Equatable {
   LiveStreamViewerState copyWith({
     bool? isEnabled,
     String? streamUrl,
+    String? backofficeStreamUrl,
+    bool? useBackofficeStream,
     LiveStreamType? streamType,
-    VideoController? videoController,
-    YoutubePlayerController? youtubeController,
     bool? isInvalidUrl,
     bool? replaceWorkflow,
     bool? autoReplaceWorkflow,
@@ -84,9 +97,9 @@ class LiveStreamViewerState extends Equatable {
     return LiveStreamViewerState(
       isEnabled: isEnabled ?? this.isEnabled,
       streamUrl: streamUrl ?? this.streamUrl,
+      backofficeStreamUrl: backofficeStreamUrl ?? this.backofficeStreamUrl,
+      useBackofficeStream: useBackofficeStream ?? this.useBackofficeStream,
       streamType: streamType ?? this.streamType,
-      videoController: videoController ?? this.videoController,
-      youtubeController: youtubeController ?? this.youtubeController,
       isInvalidUrl: isInvalidUrl ?? this.isInvalidUrl,
       replaceWorkflow: replaceWorkflow ?? this.replaceWorkflow,
       autoReplaceWorkflow: autoReplaceWorkflow ?? this.autoReplaceWorkflow,
@@ -98,6 +111,8 @@ class LiveStreamViewerState extends Equatable {
   List<Object?> get props => [
         isEnabled,
         streamUrl,
+        backofficeStreamUrl,
+        useBackofficeStream,
         streamType,
         isInvalidUrl,
         replaceWorkflow,
@@ -107,6 +122,6 @@ class LiveStreamViewerState extends Equatable {
 
   @override
   String toString() {
-    return 'LiveStreamViewerState{isEnabled: $isEnabled, streamUrl: $streamUrl, streamType: $streamType, videoController: $videoController, youtubeController: $youtubeController, isInvalidUrl: $isInvalidUrl, replaceWorkflow: $replaceWorkflow, autoReplaceWorkflow: $autoReplaceWorkflow, streamStatus: $streamStatus} \n\n';
+    return 'LiveStreamViewerState{isEnabled: $isEnabled, streamUrl: $streamUrl, streamType: $streamType, isInvalidUrl: $isInvalidUrl, replaceWorkflow: $replaceWorkflow, autoReplaceWorkflow: $autoReplaceWorkflow, streamStatus: $streamStatus} \n\n';
   }
 }

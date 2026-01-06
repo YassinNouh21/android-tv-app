@@ -40,22 +40,6 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
         FocusScope.of(context).requestFocus(_replaceWorkflowWithStreamButtonFocusNode);
       }
     });
-
-    // Load the saved URL immediately when screen opens
-    _loadSavedUrl();
-  }
-
-  Future<void> _loadSavedUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedUrl = prefs.getString(LiveStreamConstants.prefKeyUrl);
-      if (savedUrl != null && savedUrl.isNotEmpty && _urlController.text.isEmpty) {
-        dev.log('📝 [RTSP_SCREEN] Loading saved URL on init: $savedUrl');
-        _urlController.text = savedUrl;
-      }
-    } catch (e) {
-      dev.log('⚠️ [RTSP_SCREEN] Error loading saved URL: $e');
-    }
   }
 
   void _saveDebouncedUrl(String url) {
@@ -66,7 +50,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
         await prefs.setString(LiveStreamConstants.prefKeyUrl, url);
         dev.log('💾 [RTSP_SCREEN] Auto-saved URL: $url');
       } catch (e) {
-        dev.log('⚠️ [RTSP_SCREEN] Error auto-saving URL: $e');
+        dev.log('[RTSP_SCREEN] Error auto-saving URL: $e');
       }
     });
   }
@@ -83,18 +67,31 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
   }
 
   void _updateUrlController(LiveStreamViewerState state) {
-    // Always update the controller if state has a URL and controller is empty or different
-    if (state.streamUrl != null &&
-        (state.streamUrl!.isNotEmpty) &&
-        (_urlController.text.isEmpty || _urlController.text != state.streamUrl)) {
-      dev.log('📝 [RTSP_SCREEN] Updating URL controller with: ${state.streamUrl}');
-      _urlController.text = state.streamUrl!;
+    // Determine which URL to show based on the toggle
+    String? urlToShow;
+
+    if (state.useBackofficeStream && state.backofficeStreamUrl != null && state.backofficeStreamUrl!.isNotEmpty) {
+      // Show backoffice URL when toggle is ON
+      urlToShow = state.backofficeStreamUrl;
+      dev.log('📝 [RTSP_SCREEN] Using backoffice URL: $urlToShow');
+    } else if (state.streamUrl != null && state.streamUrl!.isNotEmpty) {
+      // Show user URL when toggle is OFF
+      urlToShow = state.streamUrl;
+      dev.log('📝 [RTSP_SCREEN] Using user URL: $urlToShow');
+    }
+
+    // Update controller if URL is different
+    if (urlToShow != null && _urlController.text != urlToShow) {
+      dev.log('📝 [RTSP_SCREEN] Updating URL controller to: $urlToShow');
+      _urlController.text = urlToShow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final asyncState = ref.watch(liveStreamProvider);
+
+    // Update URL controller when state changes
     ref.listen(liveStreamProvider, (previous, next) {
       if (next.hasValue) {
         _updateUrlController(next.value!);
@@ -127,11 +124,11 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
         Color backgroundColor;
 
         if (state.streamUrl != null && !state.isInvalidUrl) {
-          dev.log('✅ [RTSP_SCREEN] Valid RTSP URL detected: ${state.streamUrl}');
+          dev.log('[RTSP_SCREEN] Valid RTSP URL detected: ${state.streamUrl}');
           message = S.of(context).validRtspUrl;
           backgroundColor = Colors.green;
         } else if (state.isInvalidUrl) {
-          dev.log('❌ [RTSP_SCREEN] Invalid RTSP URL detected: ${state.streamUrl}');
+          dev.log('[RTSP_SCREEN] Invalid RTSP URL detected: ${state.streamUrl}');
           message = S.of(context).invalidRtspUrl;
           backgroundColor = Colors.red;
         } else {
@@ -209,7 +206,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
         );
       },
       loading: () {
-        dev.log('⏳ [RTSP_SCREEN] Loading state');
+        dev.log('[RTSP_SCREEN] Loading state');
         return Scaffold(
           body: _buildLoadingOverlay(),
         );
@@ -296,9 +293,11 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
 
   Widget _buildVideoPreview(LiveStreamViewerState state) {
     dev.log('🎥 [RTSP_SCREEN] Building video preview for type: ${state.streamType}');
-    if (state.streamType == LiveStreamType.youtubeLive && state.youtubeController != null) {
+    final notifier = ref.read(liveStreamProvider.notifier);
+
+    if (state.streamType == LiveStreamType.youtubeLive && notifier.youtubeController != null) {
       return SafeYoutubePlayer(
-        controller: state.youtubeController!,
+        controller: notifier.youtubeController!,
         placeholder: Center(
           child: Text(
             'Loading stream...',
@@ -306,12 +305,12 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
           ),
         ),
         onError: (error) {
-          dev.log('⚠️ [RTSP_SCREEN] YouTube player error: $error');
+          dev.log('[RTSP_SCREEN] YouTube player error: $error');
         },
       );
     }
-    if (state.videoController != null) {
-      return Video(controller: state.videoController!);
+    if (notifier.videoController != null) {
+      return Video(controller: notifier.videoController!);
     }
     return const SizedBox.shrink();
   }
@@ -348,6 +347,24 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
           ),
         ),
         const SizedBox(height: 12),
+        // Toggle for using backoffice stream URL
+        if (state.backofficeStreamUrl != null && state.backofficeStreamUrl!.isNotEmpty) ...[
+          SwitchListTile(
+            title: Text(S.of(context).mosqueDefault),
+            value: state.useBackofficeStream,
+            onChanged: state.isEnabled
+                ? (value) {
+                    dev.log('🏢 [RTSP_SCREEN] Toggling use backoffice stream: $value');
+                    ref.read(liveStreamProvider.notifier).toggleUseBackofficeStream(value);
+                  }
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SwitchListTile(
           focusNode: _replaceWorkflowWithStreamButtonFocusNode,
           title: Text(S.of(context).replaceWorkflowWithStream),
@@ -375,29 +392,41 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
           const SizedBox(height: 20),
           TextField(
             controller: _urlController,
+            enabled: !state.isFromBackoffice, // Disable if using backoffice URL
             onChanged: (value) {
-              // Save URL as user types (debounced to avoid too many saves)
-              _saveDebouncedUrl(value);
+              // Only save if not using backoffice URL
+              if (!state.isFromBackoffice) {
+                _saveDebouncedUrl(value);
+              }
             },
             onSubmitted: (_) {
-              dev.log('📤 [RTSP_SCREEN] URL submitted: ${_urlController.text}');
-              // ref.read(rtspCameraSettingsProvider.notifier).toggleReplaceWorkflow(state.replaceWorkflow);
-              ref.read(liveStreamProvider.notifier).updateStream(
-                    url: _urlController.text,
-                  );
+              // Only allow submission if not using backoffice URL
+              if (!state.isFromBackoffice) {
+                dev.log('📤 [RTSP_SCREEN] URL submitted: ${_urlController.text}');
+                ref.read(liveStreamProvider.notifier).updateStream(
+                      url: _urlController.text,
+                    );
+              }
             },
             decoration: InputDecoration(
               labelText: S.of(context).enterRtspUrl,
-              hintText: S.of(context).hintTextRtspUrl,
+              hintText: state.isFromBackoffice
+                  ? S.of(context).urlManagedByMosqueAdmin
+                  : S.of(context).hintTextRtspUrl,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
+              suffixIcon: state.isFromBackoffice
+                  ? Icon(Icons.lock, color: Colors.grey)
+                  : null,
             ),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             focusNode: _saveButtonFocusNode,
-            onPressed: () async {
+            onPressed: state.isFromBackoffice
+                ? null // Disable save button when using backoffice URL
+                : () async {
               dev.log('💾 [RTSP_SCREEN] Save button pressed with URL: ${_urlController.text}');
               // First, show a loading indicator to prevent interactions
               final scaffoldMessenger = ScaffoldMessenger.of(context);

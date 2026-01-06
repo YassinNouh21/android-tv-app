@@ -200,7 +200,7 @@
   "recommended": "Recommended",
   "sabah": "Sabah",
   "randomHadithLanguage": "Random hadith language",
-  "mosqueDefault": "From your online configuration",
+  "mosqueDefault": "From your mawaqit.net account settings",
   "en": "English",
   "fr": "French",
   "ar": "Arabic",
@@ -392,6 +392,7 @@
   "somethingWrong": "Something went wrong",
   "tryAgainLater": "Please try again later",
   "hintTextRtspUrl": "rtsp://... or https://youtube.com/live/...",
+  "urlManagedByMosqueAdmin": "URL managed by mosque administrator",
   "checkInternetUpdate": "You must connect to internet to check for new updates",
   "appUpdateAvailable": "Your app is running version {currentVersion}. A new update (version {updatedVersion}) is available with the latest features and improvements.",
   "@appUpdateAvailable": {

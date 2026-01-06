@@ -27,32 +27,85 @@ class YouTubeStreamHelper {
     }
   }
 
+  /// Extract YouTube channel ID from URL
+  String? extractChannelId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    // Handle youtube.com URLs
+    if (uri.host == 'youtube.com' || uri.host == 'www.youtube.com' || uri.host == 'm.youtube.com') {
+      final pathSegments = uri.pathSegments;
+
+      // Handle /channel/CHANNEL_ID format
+      if (pathSegments.isNotEmpty && pathSegments[0] == 'channel' && pathSegments.length > 1) {
+        final channelId = pathSegments[1].split('?').first;
+        dev.log('[YOUTUBE_HELPER] Extracted channel ID: $channelId');
+        return channelId;
+      }
+
+      // Handle /@USERNAME format
+      if (pathSegments.isNotEmpty && pathSegments[0].startsWith('@')) {
+        return pathSegments[0];
+      }
+    }
+
+    return null;
+  }
+
+  /// Get the current live video ID from a YouTube channel
+  /// Uses the same logic as the old MawaqitYoutubePlayer: checks for videos with null duration (live streams)
+  Future<String?> getLiveVideoFromChannel(String channelId) async {
+    final yt = YoutubeExplode();
+    try {
+      final uploads = yt.channels.getUploads(channelId);
+
+      // Check first 10 videos for live streams (videos with null duration)
+      await for (final video in uploads.take(10)) {
+        // Live streams have null duration
+        if (video.duration == null) {
+          final videoId = video.id.value;
+          dev.log('[YOUTUBE_HELPER] Found live stream: $videoId');
+          yt.close();
+          return videoId;
+        }
+      }
+
+      yt.close();
+      return null;
+    } catch (e) {
+      dev.log('[YOUTUBE_HELPER] Error fetching live video: $e');
+      yt.close();
+      return null;
+    }
+  }
+
   /// Extract YouTube video ID from URL
-  String? extractVideoId(String url) {
-    dev.log('🔍 [YOUTUBE_HELPER] Extracting video ID from URL: $url');
+  /// If URL is a channel URL, attempts to fetch the current live video from that channel
+  Future<String?> extractVideoId(String url) async {
+    // First check if it's a channel URL
+    final channelId = extractChannelId(url);
+    if (channelId != null) {
+      final liveVideoId = await getLiveVideoFromChannel(channelId);
+      if (liveVideoId != null) {
+        return liveVideoId;
+      }
+      return null;
+    }
 
     // Try standard YouTube URL extraction first
     final regularId = YoutubePlayer.convertUrlToId(url);
     if (regularId != null && regularId.isNotEmpty) {
-      dev.log('✅ [YOUTUBE_HELPER] Extracted ID using standard method: $regularId');
       return regularId;
     }
 
-    dev.log('🔍 [YOUTUBE_HELPER] Standard extraction failed, trying manual extraction');
-
     // Manual extraction for various YouTube URL formats
     final uri = Uri.tryParse(url);
-    if (uri == null) {
-      dev.log('⚠️ [YOUTUBE_HELPER] Could not parse URL');
-      return null;
-    }
+    if (uri == null) return null;
 
     // Handle youtu.be short URLs (e.g., https://youtu.be/VIDEO_ID)
     if (uri.host == 'youtu.be') {
       if (uri.pathSegments.isNotEmpty) {
-        final videoId = uri.pathSegments[0].split('?').first;
-        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from youtu.be URL: $videoId');
-        return videoId;
+        return uri.pathSegments[0].split('?').first;
       }
     }
 
@@ -64,35 +117,26 @@ class YouTubeStreamHelper {
       if (pathSegments.contains('live') && pathSegments.length > 1) {
         final liveIndex = pathSegments.indexOf('live');
         if (liveIndex < pathSegments.length - 1) {
-          final videoId = pathSegments[liveIndex + 1].split('?').first;
-          dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /live/ URL: $videoId');
-          return videoId;
+          return pathSegments[liveIndex + 1].split('?').first;
         }
       }
 
       // Handle /watch?v=VIDEO_ID format
       if (uri.queryParameters.containsKey('v')) {
-        final videoId = uri.queryParameters['v'];
-        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from query parameter: $videoId');
-        return videoId;
+        return uri.queryParameters['v'];
       }
 
       // Handle /embed/VIDEO_ID format
       if (pathSegments.isNotEmpty && pathSegments[0] == 'embed' && pathSegments.length > 1) {
-        final videoId = pathSegments[1].split('?').first;
-        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /embed/ URL: $videoId');
-        return videoId;
+        return pathSegments[1].split('?').first;
       }
 
       // Handle /v/VIDEO_ID format
       if (pathSegments.isNotEmpty && pathSegments[0] == 'v' && pathSegments.length > 1) {
-        final videoId = pathSegments[1].split('?').first;
-        dev.log('✅ [YOUTUBE_HELPER] Extracted ID from /v/ URL: $videoId');
-        return videoId;
+        return pathSegments[1].split('?').first;
       }
     }
 
-    dev.log('❌ [YOUTUBE_HELPER] Could not extract video ID from URL');
     return null;
   }
 
@@ -181,8 +225,8 @@ class YouTubeStreamHelper {
   }) async {
     dev.log('🔍 [YOUTUBE_HELPER] Processing YouTube URL: $url (validateLive: $validateLive)');
 
-    // Extract video ID
-    final videoId = extractVideoId(url);
+    // Extract video ID (now async to support channel lookup)
+    final videoId = await extractVideoId(url);
     if (videoId == null || videoId.isEmpty) {
       dev.log('❌ [YOUTUBE_HELPER] Could not extract video ID from URL: $url');
       throw InvalidStreamUrlException('Could not extract valid video ID from YouTube URL');
