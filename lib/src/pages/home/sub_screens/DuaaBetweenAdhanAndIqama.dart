@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations_ar.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -22,7 +22,7 @@ class DuaaBetweenAdhanAndIqamaaScreen extends StatefulWidget {
 }
 
 class _DuaaBetweenAdhanAndIqamaaScreenState extends State<DuaaBetweenAdhanAndIqamaaScreen> {
-  final arabicTr = AppLocalizationsAr();
+  final arabicTr = MawaqitTvLocalizationsAr();
 
   @override
   void initState() {

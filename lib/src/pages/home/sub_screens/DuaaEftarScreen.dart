@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations_ar.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
@@ -38,7 +38,7 @@ class _DuaaEftarScreenState extends State<DuaaEftarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final arabic = AppLocalizationsAr();
+    final arabic = MawaqitTvLocalizationsAr();
     final mosqueProvider = context.read<MosqueManager>();
 
     return Container(

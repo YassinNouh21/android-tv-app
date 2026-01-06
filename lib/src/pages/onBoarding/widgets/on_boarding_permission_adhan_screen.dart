@@ -10,7 +10,6 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class PermissionAdhanScreen extends StatelessWidget {
   final VoidCallback? onNext;
