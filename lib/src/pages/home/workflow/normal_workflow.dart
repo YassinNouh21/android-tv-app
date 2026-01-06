@@ -18,7 +18,14 @@ const _AnnouncementRepeatDuration = Duration(minutes: 8);
 
 /// show the [NormalHomeSubScreen][AnnouncementScreen][RandomHadithScreen]
 class NormalWorkflowScreen extends ConsumerStatefulWidget {
-  const NormalWorkflowScreen({Key? key}) : super(key: key);
+  const NormalWorkflowScreen({
+    Key? key,
+    this.disableInterruptions = false,
+  }) : super(key: key);
+
+  /// When true, disables interrupting workflows (announcements, hadith)
+  /// This is used during Jumu'a workflow to prevent interruptions to the live stream
+  final bool disableInterruptions;
 
   @override
   ConsumerState<NormalWorkflowScreen> createState() => _NormalWorkflowScreenState();
@@ -49,13 +56,14 @@ class _NormalWorkflowScreenState extends ConsumerState<NormalWorkflowScreen> {
             enableVideos: !mosqueManager.typeIsMosque || userPrefs.isSecondaryScreen,
           ),
           repeatingDuration: _AnnouncementRepeatDuration,
+          disabled: widget.disableInterruptions,
         ),
 
         /// random hadith screen
         RepeatingWorkflowItem(
           builder: (context, next) => RandomHadithScreen(onDone: next),
           repeatingDuration: _HadithRepeatDuration,
-          disabled: mosqueManager.isDisableHadithBetweenSalah() || !mosqueManager.mosqueConfig!.randomHadithEnabled,
+          disabled: widget.disableInterruptions || mosqueManager.isDisableHadithBetweenSalah() || !mosqueManager.mosqueConfig!.randomHadithEnabled,
           duration: _HadithDuration,
         ),
 

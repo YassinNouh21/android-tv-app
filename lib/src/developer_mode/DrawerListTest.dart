@@ -173,9 +173,14 @@ class DrawerListDeveloper extends StatelessWidget {
         DrawerListTitle(
           icon: Icons.live_tv,
           text: S.of(context).jumuaaLive,
-          onTap: () => AppRouter.popAndPush(
-            MosqueBackgroundScreen(child: JummuaLive()),
-          ),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (context) => MosqueBackgroundScreen(child: JummuaLive()),
+              ),
+            );
+          },
         ),
         DrawerListTitle(
           icon: Icons.wb_sunny_outlined,
