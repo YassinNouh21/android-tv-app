@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 import 'package:mawaqit/src/helpers/StringUtils.dart';
 import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 
@@ -24,12 +23,12 @@ const _maghrebMonthsLocales = [
 
 extension MawaqitDateUtils on DateTime {
   String formatIntoMawaqitFormat({String local = 'en'}) {
-    // Map unsupported locales to supported ones for DateFormat
+    // Use MawaqitDateFormat which handles unsupported locales automatically
     final mappedLocale = mapToSupportedIntlLocale(local);
 
-    var formatter = mappedLocale == 'ar' || mappedLocale == 'fr'
-        ? DateFormat('EEEE, dd MMMM, yyyy', mappedLocale)
-        : DateFormat('EEEE, MMMM dd, yyyy', mappedLocale);
+    var formatter = (mappedLocale == 'ar' || mappedLocale == 'fr')
+        ? MawaqitDateFormat('EEEE, dd MMMM, yyyy', local)
+        : MawaqitDateFormat('EEEE, MMMM dd, yyyy', local);
 
     if (_maghrebMonthsLocales.contains(local.toUpperCase())) {
       formatter.dateSymbols.MONTHS = _maghrebMonthNames;
@@ -44,7 +43,7 @@ extension MawaqitDateUtils on DateTime {
     bool force30Days = false,
     int daysAdjustment = 0,
   }) {
-    var formatter = DateFormat('EEEE, dd MMMM, yyyy');
+    var formatter = MawaqitDateFormat('EEEE, dd MMMM, yyyy');
     formatter.useNativeDigits = false;
 
     return formatter.format(this);
