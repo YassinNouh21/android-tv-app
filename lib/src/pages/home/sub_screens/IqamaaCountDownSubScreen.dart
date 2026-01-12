@@ -139,7 +139,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                       alignment: Alignment.center,
                       child: HomeTimeWidget(
                         showSalahIn: false,
-                        showOuterBackground: true,
+                        showOuterBackground: false,
                         hideSeconds: true,
                         hideBackground: true,
                       ),
@@ -214,8 +214,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                 ],
               ),
             ),
-/*             SizedBox(height: isPortrait ? 0 : 1.5.vh),
- */            mosqueManager.times!.isTurki
+            mosqueManager.times!.isTurki
                 ? ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
                 : ResponsiveMiniSalahBarWidget(useCompactLayout: true),
             if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
