@@ -11,6 +11,7 @@ import 'package:mawaqit/src/pages/home/widgets/offline_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/TimeWidget.dart';
+import 'package:mawaqit/src/pages/home/sub_screens/iqamaa_time_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/WeatherWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -111,125 +112,114 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
 
     return SafeArea(
       child: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh),
-              child: Row(
-                textDirection: TextDirection.ltr,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OfflineWidget(),
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: WeatherWidget(),
-                  ),
-                ],
-              ),
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh),
+            child: Row(
+              textDirection: TextDirection.ltr,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OfflineWidget(),
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: WeatherWidget(),
+                ),
+              ],
             ),
+          ),
 
-            SizedBox(height: isPortrait ? 0.5.vh : 2.vh),
+          SizedBox(height: isPortrait ? 0.5.vh : 1.5.vh),
 
-            // Clock Widget from Main Screen (compact version)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 1.vw),
-              child: Container(
-                height: isPortrait ? 20.vh : 18.vh,
-                alignment: Alignment.center,
-                child: isPortrait
-                    ? HomeTimeWidget(
-                        showSalahIn: false,
-                        showOuterBackground: false,
-                        hideSeconds: true,
-                        hideBackground: true,
-                      )
-                    : ClipRect(
+          // Clock Widget - Using custom widget for landscape mode
+          isPortrait
+              ? Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 1.vw),
+                  child: Container(
+                    height: 20.vh,
+                    alignment: Alignment.center,
+                    child: HomeTimeWidget(
+                      showSalahIn: false,
+                      showOuterBackground: false,
+                      hideSeconds: true,
+                      hideBackground: true,
+                    ),
+                  ),
+                )
+              : Container(
+                  height: 20.vh,
+                  alignment: Alignment.center,
+                  child: IqamaaTimeWidget(hideSeconds: true),
+                ),
+
+          SizedBox(height: isPortrait ? 1.vh : 4.vh),
+
+          // Main countdown section - takes up available space
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  tr.iqamaIn,
+                  style: TextStyle(
+                    fontSize: isPortrait ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr) : 7.vwr,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: kIqamaCountDownTextShadow,
+                    height: 1,
+                  ),
+                ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
+                SizedBox(height: isPortrait ? 1.vh : 2.5.vh),
+                Flexible(
+                  child: StreamBuilder(
+                    stream: _countdownStream,
+                    builder: (context, snapshot) {
+                      // For normal mode, we need to update the remaining time on each tick
+                      if (!widget.isDebug) {
+                        final now = mosqueManager.mosqueDate();
+                        _remainingTime = _targetIqamaTime.difference(now);
+
+                        if (_remainingTime <= Duration.zero) {
+                          Future.delayed(Duration(milliseconds: 80), widget.onDone);
+                        }
+                      }
+
+                      // Format the remaining time into a string
+                      final minutes = _remainingTime.inMinutes;
+                      final seconds = _remainingTime.inSeconds % 60;
+                      final formattedTime = timeTwoDigit(
+                        seconds: seconds,
+                        minutes: minutes,
+                      );
+
+                      return Center(
                         child: FittedBox(
                           fit: BoxFit.contain,
-                          child: SizedBox(
-                            width: 60.vw,
-                            height: 35.vh,
-                            child: HomeTimeWidget(
-                              showSalahIn: false,
-                              showOuterBackground: false,
-                              hideSeconds: true,
-                              hideBackground: true,
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-
-            SizedBox(height: isPortrait ? 1.vh : 3.vh),
-
-            // Main countdown section - takes up available space
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      tr.iqamaIn,
-                      style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        shadows: kIqamaCountDownTextShadow,
-                        height: 1,
-                      ),
-                    ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
-                  ),
-                  SizedBox(height: isPortrait ? 1.vh : 2.vh),
-                  Flexible(
-                    flex: 2,
-                    child: StreamBuilder(
-                      stream: _countdownStream,
-                      builder: (context, snapshot) {
-                        // For normal mode, we need to update the remaining time on each tick
-                        if (!widget.isDebug) {
-                          final now = mosqueManager.mosqueDate();
-                          _remainingTime = _targetIqamaTime.difference(now);
-
-                          if (_remainingTime <= Duration.zero) {
-                            Future.delayed(Duration(milliseconds: 80), widget.onDone);
-                          }
-                        }
-
-                        // Format the remaining time into a string
-                        final minutes = _remainingTime.inMinutes;
-                        final seconds = _remainingTime.inSeconds % 60;
-                        final formattedTime = timeTwoDigit(
-                          seconds: seconds,
-                          minutes: minutes,
-                        );
-
-                        return FittedBox(
-                          fit: BoxFit.scaleDown,
                           child: Text(
                             formattedTime,
                             style: TextStyle(
-                              fontSize: 35.vw,
+                              fontSize: isPortrait ? 35.vw : 10.vw,
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               shadows: kIqamaCountDownTextShadow,
                               height: 1,
                             ),
                           ).animate().fadeIn(delay: .7.seconds, duration: 2.seconds).addRepaintBoundary(),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            mosqueManager.times!.isTurki
-                ? ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
-                : ResponsiveMiniSalahBarWidget(useCompactLayout: true),
-            if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
-              if (isPortrait) SizedBox(height: 1.vh),
-              isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : Footer(),
-            ],
+          ),
+          mosqueManager.times!.isTurki
+              ? ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
+              : ResponsiveMiniSalahBarWidget(useCompactLayout: true),
+          if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
+            if (isPortrait) SizedBox(height: 1.vh),
+            isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : Footer(),
           ],
+        ],
       ),
     );
   }
