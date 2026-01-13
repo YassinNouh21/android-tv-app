@@ -141,9 +141,7 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     }
 
     // Priority 2: YouTube Stream if working (from backoffice or settings)
-    if (isStreamActive &&
-        streamState.streamType == LiveStreamType.youtubeLive &&
-        notifier.youtubeController != null) {
+    if (isStreamActive && streamState.streamType == LiveStreamType.youtubeLive && notifier.youtubeController != null) {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(

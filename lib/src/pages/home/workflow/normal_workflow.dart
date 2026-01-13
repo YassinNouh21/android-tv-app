@@ -63,7 +63,9 @@ class _NormalWorkflowScreenState extends ConsumerState<NormalWorkflowScreen> {
         RepeatingWorkflowItem(
           builder: (context, next) => RandomHadithScreen(onDone: next),
           repeatingDuration: _HadithRepeatDuration,
-          disabled: widget.disableInterruptions || mosqueManager.isDisableHadithBetweenSalah() || !mosqueManager.mosqueConfig!.randomHadithEnabled,
+          disabled: widget.disableInterruptions ||
+              mosqueManager.isDisableHadithBetweenSalah() ||
+              !mosqueManager.mosqueConfig!.randomHadithEnabled,
           duration: _HadithDuration,
         ),
 

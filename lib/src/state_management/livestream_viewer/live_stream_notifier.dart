@@ -115,9 +115,8 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
       final autoReplaceWorkflow = prefs.getBool(LiveStreamConstants.prefKeyAutoReplaceWorkflow) ?? true;
 
       // Determine effective URL based on toggle
-      final effectiveUrl = (useBackofficeStream && backofficeUrl != null && backofficeUrl.isNotEmpty)
-          ? backofficeUrl
-          : savedUrl;
+      final effectiveUrl =
+          (useBackofficeStream && backofficeUrl != null && backofficeUrl.isNotEmpty) ? backofficeUrl : savedUrl;
 
       dev.log(
         '📊 [LIVE_STREAM] Loaded settings - Enabled: $isEnabled, URL: $effectiveUrl, UseBackoffice: $useBackofficeStream, ReplaceWorkflow: $replaceWorkflow',
@@ -313,9 +312,8 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
         final autoReplaceWorkflow = prefs.getBool(LiveStreamConstants.prefKeyAutoReplaceWorkflow) ?? true;
 
         // Determine effective URL based on toggle
-        final effectiveUrl = (useBackofficeStream && backofficeUrl != null && backofficeUrl.isNotEmpty)
-            ? backofficeUrl
-            : savedUrl;
+        final effectiveUrl =
+            (useBackofficeStream && backofficeUrl != null && backofficeUrl.isNotEmpty) ? backofficeUrl : savedUrl;
 
         if (effectiveUrl != null && effectiveUrl.isNotEmpty) {
           dev.log('🔄 [LIVE_STREAM] Re-enabling with URL: $effectiveUrl');

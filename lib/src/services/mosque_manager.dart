@@ -87,9 +87,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       } else {
         // Convert bare YouTube channel IDs to full URLs
         String processedUrl = streamUrl;
-        if (!streamUrl.startsWith('http://') &&
-            !streamUrl.startsWith('https://') &&
-            !streamUrl.startsWith('rtsp://')) {
+        if (!streamUrl.startsWith('http://') && !streamUrl.startsWith('https://') && !streamUrl.startsWith('rtsp://')) {
           // Assume it's a YouTube channel ID and convert to full URL
           processedUrl = 'https://www.youtube.com/channel/$streamUrl';
         }

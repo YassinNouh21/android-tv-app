@@ -410,15 +410,11 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
             },
             decoration: InputDecoration(
               labelText: S.of(context).enterRtspUrl,
-              hintText: state.isFromBackoffice
-                  ? S.of(context).urlManagedByMosqueAdmin
-                  : S.of(context).hintTextRtspUrl,
+              hintText: state.isFromBackoffice ? S.of(context).urlManagedByMosqueAdmin : S.of(context).hintTextRtspUrl,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              suffixIcon: state.isFromBackoffice
-                  ? Icon(Icons.lock, color: Colors.grey)
-                  : null,
+              suffixIcon: state.isFromBackoffice ? Icon(Icons.lock, color: Colors.grey) : null,
             ),
           ),
           const SizedBox(height: 20),
@@ -427,94 +423,94 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
             onPressed: state.isFromBackoffice
                 ? null // Disable save button when using backoffice URL
                 : () async {
-              dev.log('💾 [RTSP_SCREEN] Save button pressed with URL: ${_urlController.text}');
-              // First, show a loading indicator to prevent interactions
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              scaffoldMessenger.showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(S.of(context).processingRequest),
-                    ],
-                  ),
-                  duration: const Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-
-              // Wait a moment to ensure UI updates
-              await Future.delayed(const Duration(milliseconds: 100));
-
-              // Always test RTSP connection first when it's an RTSP URL
-              if (_urlController.text.isNotEmpty && _urlController.text.startsWith('rtsp://')) {
-                final notifier = ref.read(liveStreamProvider.notifier);
-                final isAvailable = await notifier.testRtspConnection(_urlController.text);
-
-                if (!isAvailable) {
-                  // Clear the loading snackbar
-                  scaffoldMessenger.clearSnackBars();
-
-                  // Show error message
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const Icon(Icons.error, color: Colors.white),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'RTSP server is not available. Please check your connection.',
-                              overflow: TextOverflow.ellipsis,
+                    dev.log('💾 [RTSP_SCREEN] Save button pressed with URL: ${_urlController.text}');
+                    // First, show a loading indicator to prevent interactions
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Text(S.of(context).processingRequest),
+                          ],
+                        ),
+                        duration: const Duration(seconds: 1),
+                        behavior: SnackBarBehavior.floating,
                       ),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 3),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  return; // Don't proceed if connection fails
-                }
-              }
-
-              // Only update the stream if the URL has actually changed OR if we need to reconnect
-              if (_urlController.text != state.streamUrl || state.streamStatus != LiveStreamStatus.active) {
-                dev.log('🔄 [RTSP_SCREEN] Updating stream (URL changed or reconnecting)');
-                await Future.delayed(const Duration(milliseconds: 500));
-
-                ref.read(liveStreamProvider.notifier).updateStream(
-                      url: _urlController.text,
                     );
-              } else if (state.streamUrl != null && state.streamUrl!.isNotEmpty) {
-                dev.log('📝 [RTSP_SCREEN] URL unchanged and stream active, only updating workflow flag');
-                // URL hasn't changed and stream is active, just update the workflow flag if needed
-                ref.read(liveStreamProvider.notifier).toggleReplaceWorkflow(state.replaceWorkflow);
 
-                // Show success message
-                scaffoldMessenger.clearSnackBars();
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Text('Settings saved successfully'),
-                      ],
-                    ),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
+                    // Wait a moment to ensure UI updates
+                    await Future.delayed(const Duration(milliseconds: 100));
+
+                    // Always test RTSP connection first when it's an RTSP URL
+                    if (_urlController.text.isNotEmpty && _urlController.text.startsWith('rtsp://')) {
+                      final notifier = ref.read(liveStreamProvider.notifier);
+                      final isAvailable = await notifier.testRtspConnection(_urlController.text);
+
+                      if (!isAvailable) {
+                        // Clear the loading snackbar
+                        scaffoldMessenger.clearSnackBars();
+
+                        // Show error message
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.error, color: Colors.white),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'RTSP server is not available. Please check your connection.',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return; // Don't proceed if connection fails
+                      }
+                    }
+
+                    // Only update the stream if the URL has actually changed OR if we need to reconnect
+                    if (_urlController.text != state.streamUrl || state.streamStatus != LiveStreamStatus.active) {
+                      dev.log('🔄 [RTSP_SCREEN] Updating stream (URL changed or reconnecting)');
+                      await Future.delayed(const Duration(milliseconds: 500));
+
+                      ref.read(liveStreamProvider.notifier).updateStream(
+                            url: _urlController.text,
+                          );
+                    } else if (state.streamUrl != null && state.streamUrl!.isNotEmpty) {
+                      dev.log('📝 [RTSP_SCREEN] URL unchanged and stream active, only updating workflow flag');
+                      // URL hasn't changed and stream is active, just update the workflow flag if needed
+                      ref.read(liveStreamProvider.notifier).toggleReplaceWorkflow(state.replaceWorkflow);
+
+                      // Show success message
+                      scaffoldMessenger.clearSnackBars();
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.white),
+                              const SizedBox(width: 12),
+                              Text('Settings saved successfully'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
             icon: const Icon(Icons.save),
             label: Text(S.of(context).save),
             style: ButtonStyle(

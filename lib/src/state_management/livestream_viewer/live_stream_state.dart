@@ -53,9 +53,7 @@ class LiveStreamViewerState extends Equatable {
   }
 
   /// Check if currently using backoffice stream
-  bool get isFromBackoffice => useBackofficeStream &&
-      backofficeStreamUrl != null &&
-      backofficeStreamUrl!.isNotEmpty;
+  bool get isFromBackoffice => useBackofficeStream && backofficeStreamUrl != null && backofficeStreamUrl!.isNotEmpty;
 
   /// Whether the workflow should currently be replaced (computed property)
   /// This considers both manual and automatic replacement modes
