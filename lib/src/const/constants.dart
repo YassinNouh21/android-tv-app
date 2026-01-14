@@ -93,6 +93,8 @@ abstract class QuranConstant {
   static const String kQuranReciterRetentionTime = 'quran_reciter_retention_time';
   static const int kCacheWidth = 300;
   static const int kCacheHeight = 300;
+  static const String kArabicLanguage = 'ar';
+  static const String kEnglishLanguage = 'eng';
 }
 
 abstract class AzkarConstant {

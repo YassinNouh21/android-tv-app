@@ -13,6 +13,7 @@ import 'package:mawaqit/src/domain/repository/quran/recite_repository.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
 
 import '../../../domain/model/quran/audio_file_model.dart';
+import '../../../const/constants.dart';
 
 class ReciteImpl implements ReciteRepository {
   final ReciteRemoteDataSource _remoteDataSource;
@@ -50,12 +51,21 @@ class ReciteImpl implements ReciteRepository {
       // If not cached or cache is outdated, fetch from the remote API
       log('ReciteImpl: Fetching reciters from remote API in both languages');
 
-      // Fetch reciters in the current language
-      final reciters = await _remoteDataSource.getReciters(language: language);
+      // Determine alternate language
+      final alternateLanguage = language == QuranConstant.kArabicLanguage
+          ? QuranConstant.kEnglishLanguage
+          : QuranConstant.kArabicLanguage;
 
-      // Fetch reciters in the alternate language to get bilingual names
-      final alternateLanguage = language == 'ar' ? 'eng' : 'ar';
-      final alternateReciters = await _remoteDataSource.getReciters(language: alternateLanguage);
+      // Fetch reciters in both languages in parallel for better performance
+      final results = await Future.wait([
+        _remoteDataSource.getReciters(language: language),
+        _remoteDataSource.getReciters(language: alternateLanguage).catchError((e) {
+          log('ReciteImpl: Alternate language fetch failed: $e');
+          return <ReciterModel>[]; // Return empty list on error
+        }),
+      ]);
+      final reciters = results[0];
+      final alternateReciters = results[1];
 
       // Create a map of alternate reciters by ID for quick lookup
       final alternateReciterMap = {
