@@ -170,6 +170,7 @@ abstract class DeviceDetectionConstant {
     'hyundai',
     'iris',
     'stream',
+    'lifemax'
   };
 }
 
