@@ -37,7 +37,7 @@ import 'mixins/connectivity_mixin.dart';
 
 final mawaqitApi = "https://mawaqit.net/api/2.0";
 
-const kAzkarDuration = const Duration(seconds: 140);
+const kAzkarDuration = const Duration(seconds: 160);
 
 class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, MosqueHelpersMixin, NetworkConnectivity {
   final sharedPref = SharedPref();

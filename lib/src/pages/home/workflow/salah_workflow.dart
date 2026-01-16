@@ -137,12 +137,16 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
         disabled: mosqueConfig.iqamaEnabled == false,
       ),
       WorkFlowItem(
-        builder: (context, next) => AfterSalahAzkar(onDone: next),
+        builder: (context, next) => AfterSalahAzkar(
+          key: const ValueKey('regular_azkar'),
+          onDone: next,
+        ),
         disabled: mosqueConfig.iqamaEnabled == false || mosqueConfig.duaAfterPrayerEnabled == false,
       ),
       WorkFlowItem(
-        duration: kAzkarDuration,
         builder: (context, next) => AfterSalahAzkar(
+          key: const ValueKey('asr_fajr_azkar'),
+          onDone: next,
           isAfterAsrOrFajr: true,
           isAfterAsr: isAsrPray,
           azkarTitle: isFajrPray ? AzkarConstant.kAzkarSabahAfterPrayer : AzkarConstant.kAzkarAsrAfterPrayer,
