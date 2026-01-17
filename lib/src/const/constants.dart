@@ -141,8 +141,9 @@ abstract class MawaqitBackendSettingsConstant {
 }
 
 abstract class ManualUpdateConstant {
-  static const String githubApiBaseUrl = 'https://api.github.com/repos/mawaqit/android-tv-app/releases';
-  static const String githubAcceptHeader = 'application/vnd.github.v3+json';
+  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?prefix=android/tv/apk/&list-type=2';
+  static const String s3DownloadBaseUrl = 'https://cdn.mawaqit.net';
+  static const String apkPrefix = 'MAWAQIT-For-TV-v';
 }
 
 abstract class ScheduleListeningConstant {
