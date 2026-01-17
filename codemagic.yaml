@@ -239,8 +239,7 @@ workflows:
             --device "Galaxy Tab S9" \
             --deviceVersion "15" \
             --orientation LANDSCAPE \
-            --name "MAWAQIT TV v$VERSION" \
-            --build "$BUILD_NUMBER"
+            --name "MAWAQIT TV v$VERSION (Build $BUILD_NUMBER)"
 
     artifacts:
       - build/artifacts/*
