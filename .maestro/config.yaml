@@ -1,0 +1,8 @@
+appId: com.mawaqit.androidtv
+
+# Each test that needs onboarding will run it via runFlow
+# This preserves state within each test flow
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - developer_screens_test
