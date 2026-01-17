@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mawaqit/src/domain/model/quran/moshaf_type_model.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 
 class QuranReadingState extends Equatable {
@@ -12,6 +13,7 @@ class QuranReadingState extends Equatable {
   final List<SurahModel> suwar;
   final String currentSurahName;
   final bool isRotated;
+  final MoshafType moshafType;
 
   QuranReadingState({
     required this.currentJuz,
@@ -21,6 +23,7 @@ class QuranReadingState extends Equatable {
     required this.pageController,
     required this.suwar,
     required this.currentSurahName,
+    required this.moshafType,
     this.isRotated = false,
   });
 
@@ -34,6 +37,7 @@ class QuranReadingState extends Equatable {
     List<SurahModel>? suwar,
     String? currentSurahName,
     bool? isRotated,
+    MoshafType? moshafType,
   }) {
     return QuranReadingState(
       currentJuz: currentJuz ?? this.currentJuz,
@@ -44,6 +48,7 @@ class QuranReadingState extends Equatable {
       suwar: suwar ?? this.suwar,
       currentSurahName: currentSurahName ?? this.currentSurahName,
       isRotated: isRotated ?? this.isRotated,
+      moshafType: moshafType ?? this.moshafType,
     );
   }
 
@@ -57,6 +62,7 @@ class QuranReadingState extends Equatable {
         suwar,
         currentSurahName,
         isRotated,
+        moshafType,
       ];
 
   int get totalPages => svgs.length;
