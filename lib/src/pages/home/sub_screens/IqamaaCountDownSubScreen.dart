@@ -39,62 +39,123 @@ class IqamaaCountDownSubScreen extends StatefulWidget {
 }
 
 class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
-  Duration _remainingTime = Duration.zero;
-  Timer? _countdownTimer;
   late DateTime _targetIqamaTime;
   late final MosqueManager _mosqueManager;
   late final Stream<int> _countdownStream;
+  Timer? _onDoneTimer;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
     _mosqueManager = context.read<MosqueManager>();
-    final mosqueManager = _mosqueManager;
-    _countdownStream = Stream.periodic(Duration(seconds: 1), (count) => count);
+    _countdownStream = Stream.periodic(const Duration(seconds: 1), (count) => count);
+    _initializeCountdown();
+  }
 
+  void _initializeCountdown() {
     if (widget.isDebug) {
-      _remainingTime = Duration(minutes: 5);
-      _startCountdown();
+      _targetIqamaTime = DateTime.now().add(const Duration(minutes: 5));
+      _scheduleOnDoneCallback(const Duration(minutes: 5));
     } else {
-      if (widget.iqamaTime != null) {
-        _targetIqamaTime = widget.iqamaTime!;
-      } else {
-        var currentSalahTime = mosqueManager.actualTimes()[widget.currentSalahIndex];
-        var currentIqamaTime = mosqueManager.actualIqamaTimes()[widget.currentSalahIndex];
-
-        if (currentIqamaTime.isBefore(currentSalahTime)) {
-          currentIqamaTime = currentIqamaTime.add(Duration(days: 1));
-        }
-        _targetIqamaTime = currentIqamaTime;
-      }
-
-      final now = mosqueManager.mosqueDate();
-      _remainingTime = _targetIqamaTime.difference(now);
-
-      // Schedule the onDone callback to be called when countdown finishes
-      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-        Future.delayed(_remainingTime, widget.onDone);
-      });
+      _targetIqamaTime = _calculateTargetIqamaTime();
+      final now = _mosqueManager.mosqueDate();
+      final remainingTime = _targetIqamaTime.difference(now);
+      _scheduleOnDoneCallback(remainingTime);
     }
   }
 
-  /// Start the countdown timer
-  void _startCountdown() {
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_remainingTime.inSeconds > 0) {
-          _remainingTime = _remainingTime - Duration(seconds: 1);
-        } else {
-          _countdownTimer?.cancel();
-          widget.onDone?.call();
-        }
+  DateTime _calculateTargetIqamaTime() {
+    if (widget.iqamaTime != null) {
+      return widget.iqamaTime!;
+    }
+
+    var currentSalahTime = _mosqueManager.actualTimes()[widget.currentSalahIndex];
+    var currentIqamaTime = _mosqueManager.actualIqamaTimes()[widget.currentSalahIndex];
+
+    if (currentIqamaTime.isBefore(currentSalahTime)) {
+      currentIqamaTime = currentIqamaTime.add(const Duration(days: 1));
+    }
+    return currentIqamaTime;
+  }
+
+  void _scheduleOnDoneCallback(Duration delay) {
+    if (delay <= Duration.zero) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isDisposed) widget.onDone?.call();
+      });
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onDoneTimer = Timer(delay, () {
+        if (!_isDisposed) widget.onDone?.call();
       });
     });
   }
 
+  Duration _calculateRemainingTime() {
+    if (widget.isDebug) {
+      return _targetIqamaTime.difference(DateTime.now());
+    }
+    return _targetIqamaTime.difference(_mosqueManager.mosqueDate());
+  }
+
+  String _formatRemainingTime() {
+    final remaining = _calculateRemainingTime();
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds % 60;
+    return timeTwoDigit(seconds: seconds, minutes: minutes);
+  }
+
+  Widget _buildCountdownText({required double fontSize}) {
+    return StreamBuilder(
+      stream: _countdownStream,
+      builder: (context, snapshot) {
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _formatRemainingTime(),
+            style: TextStyle(
+              fontSize: fontSize,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              shadows: kIqamaCountDownTextShadow,
+              height: 1,
+            ),
+          ).animate().fadeIn(delay: .7.seconds, duration: 2.seconds).addRepaintBoundary(),
+        );
+      },
+    );
+  }
+
+  Widget _buildSalahBar() {
+    return _mosqueManager.times!.isTurki
+        ? const ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
+        : const ResponsiveMiniSalahBarWidget(useCompactLayout: true);
+  }
+
+  Widget _buildHeaderRow({EdgeInsets? padding}) {
+    return Padding(
+      padding: padding ?? EdgeInsets.zero,
+      child: Row(
+        textDirection: TextDirection.ltr,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: const [
+          OfflineWidget(),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: WeatherWidget(),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
-    _countdownTimer?.cancel();
+    _isDisposed = true;
+    _onDoneTimer?.cancel();
 
     // Hide flash when transitioning to IqamaSubScreen (phone flash screen)
     _mosqueManager.hideFlashTemporarily();
@@ -102,54 +163,96 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
     super.dispose();
   }
 
+  /// Check if the screen is standard resolution (1920x1080 or less)
+  bool _isStandardResolution(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return size.width <= 1920 && size.height <= 1080;
+  }
+
   @override
   Widget build(BuildContext context) {
     final mosqueManager = context.read<MosqueManager>();
-    final tr = S.of(context);
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    if (mosqueManager.mosqueConfig?.iqamaFullScreenCountdown == false) return NormalHomeSubScreen();
+    if (mosqueManager.mosqueConfig?.iqamaFullScreenCountdown == false) return const NormalHomeSubScreen();
+
+    // Use new layout for screens 1920x1080 or less, old layout for larger screens
+    if (_isStandardResolution(context)) {
+      return _buildNewLayout(context, mosqueManager);
+    } else {
+      return _buildOldLayout(context, mosqueManager);
+    }
+  }
+
+  /// Old layout for high resolution screens (larger than 1920x1080)
+  Widget _buildOldLayout(BuildContext context, MosqueManager mosqueManager) {
+    final tr = S.of(context);
 
     return SafeArea(
       child: Column(
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh),
-            child: Row(
-              textDirection: TextDirection.ltr,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.vh)),
+
+          // Clock Widget from Main Screen (compact version)
+          Container(
+            height: 20.vh,
+            alignment: Alignment.center,
+            child: ClipRect(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: 60.vw,
+                  height: 35.vh,
+                  child: const HomeTimeWidget(showSalahIn: false, showOuterBackground: true),
+                ),
+              ),
+            ),
+          ),
+
+          // Main countdown section - takes up available space
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                OfflineWidget(),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: WeatherWidget(),
+                Flexible(
+                  child: Text(
+                    tr.iqamaIn,
+                    style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width < 400 ? 6.vwr : 7.vwr,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      shadows: kIqamaCountDownTextShadow,
+                      height: 1,
+                    ),
+                  ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
+                ),
+                SizedBox(height: 1.vh),
+                Flexible(
+                  flex: 2,
+                  child: _buildCountdownText(fontSize: 35.vw),
                 ),
               ],
             ),
           ),
+          _buildSalahBar(),
+        ],
+      ),
+    );
+  }
+
+  /// New layout for standard resolution screens (1920x1080 or less)
+  Widget _buildNewLayout(BuildContext context, MosqueManager mosqueManager) {
+    final tr = S.of(context);
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+
+    return SafeArea(
+      child: Column(
+        children: [
+          _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh)),
 
           SizedBox(height: isPortrait ? 0.5.vh : 1.5.vh),
 
           // Clock Widget - Using custom widget for landscape mode
-          isPortrait
-              ? Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 1.vw),
-                  child: Container(
-                    height: 20.vh,
-                    alignment: Alignment.center,
-                    child: HomeTimeWidget(
-                      showSalahIn: false,
-                      showOuterBackground: false,
-                      hideSeconds: true,
-                      hideBackground: true,
-                    ),
-                  ),
-                )
-              : Container(
-                  height: 20.vh,
-                  alignment: Alignment.center,
-                  child: IqamaaTimeWidget(hideSeconds: true),
-                ),
+          _buildClockWidget(isPortrait),
 
           SizedBox(height: isPortrait ? 1.vh : 4.vh),
 
@@ -161,7 +264,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                 Text(
                   tr.iqamaIn,
                   style: TextStyle(
-                    fontSize: isPortrait ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr) : 7.vwr,
+                    fontSize: isPortrait ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr) : 6.5.vwr,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     shadows: kIqamaCountDownTextShadow,
@@ -170,57 +273,43 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                 ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
                 SizedBox(height: isPortrait ? 1.vh : 2.5.vh),
                 Flexible(
-                  child: StreamBuilder(
-                    stream: _countdownStream,
-                    builder: (context, snapshot) {
-                      // For normal mode, we need to update the remaining time on each tick
-                      if (!widget.isDebug) {
-                        final now = mosqueManager.mosqueDate();
-                        _remainingTime = _targetIqamaTime.difference(now);
-
-                        if (_remainingTime <= Duration.zero) {
-                          Future.delayed(Duration(milliseconds: 80), widget.onDone);
-                        }
-                      }
-
-                      // Format the remaining time into a string
-                      final minutes = _remainingTime.inMinutes;
-                      final seconds = _remainingTime.inSeconds % 60;
-                      final formattedTime = timeTwoDigit(
-                        seconds: seconds,
-                        minutes: minutes,
-                      );
-
-                      return Center(
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Text(
-                            formattedTime,
-                            style: TextStyle(
-                              fontSize: isPortrait ? 35.vw : 10.vw,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              shadows: kIqamaCountDownTextShadow,
-                              height: 1,
-                            ),
-                          ).animate().fadeIn(delay: .7.seconds, duration: 2.seconds).addRepaintBoundary(),
-                        ),
-                      );
-                    },
+                  child: Center(
+                    child: _buildCountdownText(fontSize: isPortrait ? 35.vw : 13.vw),
                   ),
                 ),
               ],
             ),
           ),
-          mosqueManager.times!.isTurki
-              ? ResponsiveMiniSalahBarTurkishWidget(useCompactLayout: true)
-              : ResponsiveMiniSalahBarWidget(useCompactLayout: true),
+          _buildSalahBar(),
           if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
             if (isPortrait) SizedBox(height: 1.vh),
-            isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : Footer(),
+            isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : const Footer(),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildClockWidget(bool isPortrait) {
+    if (isPortrait) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: 1.vw),
+        child: Container(
+          height: 20.vh,
+          alignment: Alignment.center,
+          child: const HomeTimeWidget(
+            showSalahIn: false,
+            showOuterBackground: false,
+            hideSeconds: true,
+            hideBackground: true,
+          ),
+        ),
+      );
+    }
+    return Container(
+      height: 20.vh,
+      alignment: Alignment.center,
+      child: const IqamaaTimeWidget(hideSeconds: true),
     );
   }
 }
