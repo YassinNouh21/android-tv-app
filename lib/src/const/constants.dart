@@ -7,8 +7,10 @@ const kDeviceInfo = 'device_info';
 
 const kBaseUrl = 'https://mawaqit.net/api';
 const kStagingUrl = 'https://staging.mawaqit.net/api';
+const kPreProdUrl = 'https://preprod.mawaqit.net/api';
 const kStaticFilesUrl = 'https://cdn.mawaqit.net';
 const kStagingStaticFilesUrl = 'https://cdn.mawaqit.net';
+const kPreProdStaticFilesUrl = 'https://cdn.mawaqit.net';
 
 const kApiToken = String.fromEnvironment('mawaqit.api.key');
 const kSentryDns = String.fromEnvironment('mawaqit.sentry.dns');
