@@ -109,17 +109,6 @@ workflows:
           cp build/app/outputs/bundle/release/app-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.aab
           cp build/app/outputs/flutter-apk/app-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk
 
-      - name: Run Maestro Tests on TestingBot
-        script: |
-          npm install -g @testingbot/cli
-          testingbot maestro \
-            build/app/outputs/flutter-apk/app-release.apk \
-            .maestro \
-            --device "Galaxy Tab S9" \
-            --deviceVersion "15" \
-            --orientation LANDSCAPE \
-            --name "MAWAQIT TV v$VERSION (Build $BUILD_NUMBER)"
-
       - name: Upload to AWS S3 bucket
         script: |
           aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk s3://cdn.mawaqit.net/android/tv/apk/
@@ -241,6 +230,17 @@ workflows:
           cp build/app/outputs/bundle/release/app-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.aab
           cp build/app/outputs/flutter-apk/app-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.apk
 
+      - name: Run Maestro Tests on TestingBot
+        script: |
+          npm install -g @testingbot/cli
+          testingbot maestro \
+            build/app/outputs/flutter-apk/app-release.apk \
+            .maestro \
+            --device "Galaxy Tab S9" \
+            --deviceVersion "15" \
+            --orientation LANDSCAPE \
+            --name "MAWAQIT TV v$VERSION (Build $BUILD_NUMBER)"
+            
     artifacts:
       - build/artifacts/*
       - build/**/outputs/**/mapping.txt
