@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/Api.dart';
+import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +12,7 @@ const _developerModeKey = 'UserPreferencesManager.developer.mode.enabled';
 const _secondaryScreenKey = 'UserPreferencesManager.secondary.screen.enabled';
 const _webViewModeKey = 'UserPreferencesManager.webView.mode.enabled';
 const _forceStagingKey = 'UserPreferencesManager.api.settings.staging';
+const _forcePreProdKey = 'UserPreferencesManager.api.settings.preprod';
 const _screenOrientation = 'UserPreferencesManager.screen.orientation';
 const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
 const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
@@ -22,7 +26,13 @@ class UserPreferencesManager extends ChangeNotifier {
   Future<UserPreferencesManager> init() async {
     _sharedPref = await SharedPreferences.getInstance();
 
-    Api.useStagingApi(forceStaging);
+    // Set environment based on preferences (Pre-Prod > Staging > Production)
+    if (forcePreProduction) {
+      Api.usePreProdApi(true);
+    } else if (forceStaging) {
+      Api.useStagingApi(true);
+    }
+    // Production is default when both are false
     forceOrientation();
 
     return this;
@@ -60,12 +70,63 @@ class UserPreferencesManager extends ChangeNotifier {
 
   bool get forceStaging => _sharedPref.getBool(_forceStagingKey) ?? false;
 
-  /// this method is used to force staging api
-  /// if value is null, it will be [false]
+  /// Enables or disables the staging API environment.
+  /// When enabled, automatically disables pre-production to ensure mutual exclusion.
+  /// The value is persisted to SharedPreferences and triggers listeners.
   set forceStaging(bool value) {
+    // If enabling staging, disable pre-prod
+    if (value) {
+      _sharedPref.setBool(_forcePreProdKey, false);
+    }
+
+    // Switch environment
     Api.useStagingApi(value);
 
+    // Save preference
     _sharedPref.setBool(_forceStagingKey, value);
+
+    // Show success toast
+    final context = AppRouter.navigationKey.currentContext;
+    Fluttertoast.showToast(
+      msg: context != null ? S.of(context).environmentSwitchSuccess : "Environment switched successfully",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Color(0xff490094),
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+
+    notifyListeners();
+  }
+
+  bool get forcePreProduction => _sharedPref.getBool(_forcePreProdKey) ?? false;
+
+  /// Enables or disables the pre-production API environment.
+  /// When enabled, automatically disables staging to ensure mutual exclusion.
+  /// The value is persisted to SharedPreferences and triggers listeners.
+  set forcePreProduction(bool value) {
+    // If enabling pre-prod, disable staging
+    if (value) {
+      _sharedPref.setBool(_forceStagingKey, false);
+    }
+
+    // Switch environment
+    Api.usePreProdApi(value);
+
+    // Save preference
+    _sharedPref.setBool(_forcePreProdKey, value);
+
+    // Show success toast
+    final context = AppRouter.navigationKey.currentContext;
+    Fluttertoast.showToast(
+      msg: context != null ? S.of(context).environmentSwitchSuccess : "Environment switched successfully",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Color(0xff490094),
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+
     notifyListeners();
   }
 

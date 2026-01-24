@@ -3,12 +3,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/const/constants.dart';
+import 'package:mawaqit/src/module/dio_module.dart';
 import 'package:mawaqit/src/state_management/manual_app_update/manual_update_state.dart';
-import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'package:xml/xml.dart';
 
 import 'package:upgrader/upgrader.dart';
 
@@ -18,12 +19,29 @@ final manualUpdateNotifierProvider = AsyncNotifierProvider<ManualUpdateNotifier,
 
 class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
   static const platform = MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel);
+  static final _versionRegex = RegExp(r'v(\d+\.\d+\.\d+)');
+  static const _cacheDuration = Duration(days: 5);
+
   late final Dio _dio;
   CancelToken? _cancelToken;
+  Map<String, dynamic>? _cachedLatestApk;
+  DateTime? _cacheTimestamp;
 
   @override
   Future<UpdateState> build() async {
-    _dio = Dio();
+    // Use existing Dio provider for better testability
+    final dioModule = ref.read(
+      dioProvider(
+        DioProviderParameter(
+          baseUrl: '',
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      ),
+    );
+    _dio = dioModule.dio;
+    _cachedLatestApk = null;
+    _cacheTimestamp = null;
     return const UpdateState();
   }
 
@@ -33,10 +51,12 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
 
     _cleanupDownloadedFile();
 
-    state = const AsyncValue.data(UpdateState(
-      status: UpdateStatus.cancelled,
-      message: 'Update cancelled',
-    ));
+    state = const AsyncValue.data(
+      UpdateState(
+        status: UpdateStatus.cancelled,
+        message: 'Update cancelled',
+      ),
+    );
   }
 
   void _cleanupDownloadedFile() {
@@ -57,6 +77,11 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
     bool isDeviceRooted,
   ) async {
     state = const AsyncLoading();
+    // Implement time-based cache invalidation (5 days) instead of clearing on every check
+    if (_cacheTimestamp != null && DateTime.now().difference(_cacheTimestamp!) > _cacheDuration) {
+      _cachedLatestApk = null;
+      _cacheTimestamp = null;
+    }
     try {
       // Check if device is ONVO first
       final deviceModel = await _getDeviceModel();
@@ -76,8 +101,16 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
           : await _isUpdateAvailableStandard(languageCode);
 
       if (hasUpdate) {
-        final downloadUrl = await _getLatestReleaseUrl();
-        final latestVersion = await _getLatestVersion();
+        final latestApk = await _getLatestApk();
+        final latestVersion = _extractVersionFromFileName(latestApk['fileName']);
+
+        // Validate S3 key to prevent path traversal
+        final key = latestApk['key'] as String;
+        if (key.contains('..') || key.contains('//')) {
+          throw Exception('Invalid S3 key format: $key');
+        }
+
+        final downloadUrl = '${ManualUpdateConstant.s3DownloadBaseUrl}/$key';
 
         state = AsyncData(state.value!.copyWith(
           status: UpdateStatus.available,
@@ -126,37 +159,93 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<bool> _isUpdateAvailableForRootedDevice(String currentVersion) async {
-    final releases = await _fetchReleases();
-    final latestRelease = releases.firstWhere(
-      (release) => release['prerelease'] == false,
-      orElse: () => throw Exception('No stable release found'),
-    );
-    final latestVersion = latestRelease['tag_name'].toString();
+    final latestVersion = await _getLatestVersion();
     return _compareVersions(latestVersion, currentVersion) > 0;
   }
 
-  Future<List<dynamic>> _fetchReleases() async {
-    final response = await _dio.get(
-      ManualUpdateConstant.githubApiBaseUrl,
-      options: Options(
-        headers: {'Accept': ManualUpdateConstant.githubAcceptHeader},
-      ),
-    );
+  Future<List<Map<String, dynamic>>> _fetchS3ApkList() async {
+    final response = await _dio.get(ManualUpdateConstant.s3BucketListUrl);
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to fetch releases: ${response.statusCode}');
+      throw Exception('Failed to fetch APK list from S3: ${response.statusCode}');
     }
 
-    return response.data as List;
+    // Parse XML response from S3 with error handling
+    try {
+      final document = XmlDocument.parse(response.data);
+      final contents = document.findAllElements('Contents');
+
+      final apkList = <Map<String, dynamic>>[];
+
+      for (var content in contents) {
+        // Check if Key element exists before accessing
+        final keyElements = content.findElements('Key');
+        if (keyElements.isEmpty) continue;
+
+        final key = keyElements.first.innerText;
+
+        // Only include APK files with version pattern (MAWAQIT-For-TV-v*.apk)
+        if (key.contains(ManualUpdateConstant.apkPrefix) && key.endsWith('.apk')) {
+          // Check if LastModified element exists before accessing
+          final lastModifiedElements = content.findElements('LastModified');
+          if (lastModifiedElements.isEmpty) continue;
+
+          final lastModified = lastModifiedElements.first.innerText;
+
+          apkList.add({
+            'key': key,
+            'lastModified': lastModified,
+            'fileName': key.split('/').last,
+          });
+        }
+      }
+
+      return apkList;
+    } on XmlParserException catch (e) {
+      throw Exception('Failed to parse S3 response XML: $e');
+    } catch (e) {
+      throw Exception('Unexpected error parsing S3 response: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> _getLatestApk() async {
+    // Return cached result if available
+    if (_cachedLatestApk != null) {
+      return _cachedLatestApk!;
+    }
+
+    final apkList = await _fetchS3ApkList();
+    if (apkList.isEmpty) {
+      throw Exception('No APK found in S3');
+    }
+
+    // Sort by version to get the latest
+    apkList.sort((a, b) {
+      final versionA = _extractVersionFromFileName(a['fileName']);
+      final versionB = _extractVersionFromFileName(b['fileName']);
+      return _compareVersions(versionB, versionA); // Descending order
+    });
+
+    _cachedLatestApk = apkList.first;
+    _cacheTimestamp = DateTime.now(); // Set cache timestamp
+    return _cachedLatestApk!;
   }
 
   Future<String> _getLatestVersion() async {
-    final releases = await _fetchReleases();
-    final latestRelease = releases.firstWhere(
-      (release) => release['prerelease'] == false,
-      orElse: () => throw Exception('No stable release found'),
-    );
-    return latestRelease['tag_name'].toString();
+    final latestApk = await _getLatestApk();
+    return _extractVersionFromFileName(latestApk['fileName']);
+  }
+
+  String _extractVersionFromFileName(String fileName) {
+    // Extract version from filename like "MAWAQIT-For-TV-v1.28.0-603.apk"
+    final match = _versionRegex.firstMatch(fileName);
+    if (match != null) {
+      final version = match.group(1);
+      if (version != null) {
+        return version;
+      }
+    }
+    throw Exception('Could not extract version from filename: $fileName');
   }
 
   Future<void> downloadAndInstallUpdate() async {
@@ -206,37 +295,6 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       status: UpdateStatus.error,
       message: 'Update failed: ${e.toString()}',
     ));
-  }
-
-  Future<String> _getLatestReleaseUrl() async {
-    try {
-      final response = await _dio.get(
-        ManualUpdateConstant.githubApiBaseUrl,
-        options: Options(
-          headers: {'Accept': ManualUpdateConstant.githubAcceptHeader},
-          validateStatus: (status) => status! < 500,
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final releases = response.data as List;
-        final latestRelease = releases.firstWhere(
-          (release) => release['prerelease'] == false,
-          orElse: () => throw Exception('No stable release found'),
-        );
-
-        final assets = latestRelease['assets'] as List;
-        final apkAsset = assets.firstWhere(
-          (asset) => asset['name'].toString().endsWith('.apk'),
-          orElse: () => throw Exception('No APK found in latest release'),
-        );
-
-        return apkAsset['browser_download_url'];
-      }
-      throw Exception('Failed to fetch releases: ${response.statusCode}');
-    } catch (e) {
-      throw Exception('Error fetching latest release: $e');
-    }
   }
 
   Future<String> _downloadApk(String url) async {

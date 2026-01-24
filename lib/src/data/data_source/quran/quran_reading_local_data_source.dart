@@ -19,12 +19,47 @@ class QuranReadingLocalDataSource {
     required this.sharedPreferences,
   });
 
-  Future<int> getLastReadPage() async {
+  String _getSavedPageKeyByMoshafType(MoshafType moshafType) {
+    return switch (moshafType) {
+      MoshafType.hafs => QuranConstant.kHafsSavedCurrentPage,
+      MoshafType.warsh => QuranConstant.kWarshSavedCurrentPage,
+    };
+  }
+
+  Future<int> getLastReadPage({MoshafType? moshafType}) async {
+    if (moshafType != null) {
+      // Use Moshaf-specific key
+      final key = _getSavedPageKeyByMoshafType(moshafType);
+
+      // Check if the Moshaf-specific key exists
+      final moshafSpecificPage = sharedPreferences.getInt(key);
+      if (moshafSpecificPage != null) {
+        return moshafSpecificPage;
+      }
+
+      // Migration: If no Moshaf-specific page exists, check the old shared key
+      final oldPage = sharedPreferences.getInt(QuranConstant.kSavedCurrentPage);
+      if (oldPage != null) {
+        // Migrate the old page to the current Moshaf type
+        await sharedPreferences.setInt(key, oldPage);
+        return oldPage;
+      }
+
+      return 0;
+    }
+    // Fallback to the old shared key for backward compatibility
     return sharedPreferences.getInt(QuranConstant.kSavedCurrentPage) ?? 0;
   }
 
-  Future<void> saveLastReadPage(int lastReadingPage) async {
-    await sharedPreferences.setInt(QuranConstant.kSavedCurrentPage, lastReadingPage);
+  Future<void> saveLastReadPage(int lastReadingPage, {MoshafType? moshafType}) async {
+    if (moshafType != null) {
+      // Save to Moshaf-specific key
+      final key = _getSavedPageKeyByMoshafType(moshafType);
+      await sharedPreferences.setInt(key, lastReadingPage);
+    } else {
+      // Fallback to the old shared key for backward compatibility
+      await sharedPreferences.setInt(QuranConstant.kSavedCurrentPage, lastReadingPage);
+    }
   }
 
   Future<List<SvgPicture>> loadAllSvgs(MoshafType moshafType) async {

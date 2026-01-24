@@ -8,9 +8,8 @@ import 'package:mawaqit/src/domain/model/quran/moshaf_type_model.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/domain/repository/quran/quran_reading_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 import 'package:mawaqit/src/module/shared_preference_module.dart';
-import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/moshaf_type_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.dart';
@@ -157,7 +156,7 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
         throw Exception('No SVGs found for moshaf type: ${moshafType.name}');
       }
 
-      final lastReadPage = await repository.getLastReadPage();
+      final lastReadPage = await repository.getLastReadPage(moshafType: moshafType);
       final pageController = PageController(initialPage: (lastReadPage / 2).floor());
       final suwar = await getAllSuwar();
 
@@ -169,6 +168,7 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
         svgs: svgs,
         pageController: pageController,
         currentSurahName: _getCurrentSurahName(lastReadPage, suwar),
+        moshafType: moshafType,
       );
     } catch (e) {
       rethrow;
@@ -189,8 +189,15 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
   Future<void> _saveLastReadPage(int index) async {
     try {
       final quranRepository = await ref.read(quranReadingRepositoryProvider.future);
-      await quranRepository.saveLastReadPage(index);
+      final currentState = state.value;
+      if (currentState != null) {
+        await quranRepository.saveLastReadPage(index, moshafType: currentState.moshafType);
+      } else {
+        log('Warning: Saving page without moshafType - state is unexpectedly null');
+        await quranRepository.saveLastReadPage(index);
+      }
     } catch (e, s) {
+      CrashlyticsWrapper.sendException(e, s);
       state = AsyncError(e, s);
     }
   }

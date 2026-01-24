@@ -7,8 +7,10 @@ const kDeviceInfo = 'device_info';
 
 const kBaseUrl = 'https://mawaqit.net/api';
 const kStagingUrl = 'https://staging.mawaqit.net/api';
+const kPreProdUrl = 'https://preprod.mawaqit.net/api';
 const kStaticFilesUrl = 'https://cdn.mawaqit.net';
 const kStagingStaticFilesUrl = 'https://cdn.mawaqit.net';
+const kPreProdStaticFilesUrl = 'https://cdn.mawaqit.net';
 
 const kApiToken = String.fromEnvironment('mawaqit.api.key');
 const kSentryDns = String.fromEnvironment('mawaqit.sentry.dns');
@@ -85,6 +87,8 @@ abstract class QuranConstant {
   static const String kReciterBox = 'reciter_box_v2';
   static const String kQuranModePref = 'quran_mode';
   static const String kSavedCurrentPage = 'saved_current_page';
+  static const String kHafsSavedCurrentPage = 'hafs_saved_current_page';
+  static const String kWarshSavedCurrentPage = 'warsh_saved_current_page';
   static const String kFavoriteReciterBox = 'favorite_reciter_box';
   static const String quranMoshafConfigJsonUrl = 'https://cdn.mawaqit.net/quran/tv_config.json';
   static const String kIsFirstTime = 'is_first_time_quran';
@@ -141,8 +145,9 @@ abstract class MawaqitBackendSettingsConstant {
 }
 
 abstract class ManualUpdateConstant {
-  static const String githubApiBaseUrl = 'https://api.github.com/repos/mawaqit/android-tv-app/releases';
-  static const String githubAcceptHeader = 'application/vnd.github.v3+json';
+  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?prefix=android/tv/apk/&list-type=2';
+  static const String s3DownloadBaseUrl = 'https://cdn.mawaqit.net';
+  static const String apkPrefix = 'MAWAQIT-For-TV-v';
 }
 
 abstract class ScheduleListeningConstant {
@@ -170,6 +175,7 @@ abstract class DeviceDetectionConstant {
     'hyundai',
     'iris',
     'stream',
+    'lifemax'
   };
 }
 
