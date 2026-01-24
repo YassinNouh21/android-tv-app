@@ -103,6 +103,12 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
 
   String _formatRemainingTime() {
     final remaining = _calculateRemainingTime();
+    if (remaining <= Duration.zero) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isDisposed) widget.onDone?.call();
+      });
+      return "00:00";
+    }
     final minutes = remaining.inMinutes;
     final seconds = remaining.inSeconds % 60;
     return timeTwoDigit(seconds: seconds, minutes: minutes);
@@ -186,6 +192,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
   /// Old layout for high resolution screens (larger than 1920x1080)
   Widget _buildOldLayout(BuildContext context, MosqueManager mosqueManager) {
     final tr = S.of(context);
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
     return SafeArea(
       child: Column(
@@ -234,6 +241,10 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
             ),
           ),
           _buildSalahBar(),
+            if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
+            if (isPortrait) SizedBox(height: 1.vh),
+            isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : const Footer(),
+          ],
         ],
       ),
     );
