@@ -238,7 +238,7 @@ workflows:
             .maestro \
             --device "Galaxy Tab A" \
             --orientation LANDSCAPE \
-            --real-device"
+            --real-device
             
     artifacts:
       - build/artifacts/*
