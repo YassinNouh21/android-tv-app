@@ -174,7 +174,7 @@ appId: com.mawaqit.androidtv
 
 # Navigate down until "Iqamaa Count Down" is visible
 - repeat:
-    times: 15
+    times: 20
     while:
       notVisible: "Iqamaa Count Down"
     commands:
