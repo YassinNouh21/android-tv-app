@@ -236,10 +236,9 @@ workflows:
           testingbot maestro \
             build/app/outputs/flutter-apk/app-release.apk \
             .maestro \
-            --device "Galaxy Tab S9" \
-            --deviceVersion "15" \
+            --device "Galaxy Tab A" \
             --orientation LANDSCAPE \
-            --name "MAWAQIT TV v$VERSION (Build $BUILD_NUMBER)"
+            --real-device"
             
     artifacts:
       - build/artifacts/*
