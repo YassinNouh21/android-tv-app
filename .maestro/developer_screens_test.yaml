@@ -60,6 +60,9 @@ appId: com.mawaqit.androidtv
 - tapOn: "Next"
 - inputText: "3"
 - pressKey: Enter
+# Tap center of screen to dismiss system bars and regain app focus
+- tapOn:
+    point: "50%,50%"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: ".*GRIGNY.*"
