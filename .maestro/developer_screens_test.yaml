@@ -61,8 +61,6 @@ appId: com.mawaqit.androidtv
 - inputText: "3"
 - pressKey: Enter
 - waitForAnimationToEnd
-- tapOn:
-    point: "50%,50%"
 - extendedWaitUntil:
     visible: ".*GRIGNY.*"
     timeout: 10000
@@ -113,13 +111,17 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Al Adan" is visible
-- repeat:
-    times: 15
-    while:
-      notVisible: "Al Adan"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: "Al Adan"
 - assertVisible: ".*Al Adan.*"
@@ -133,13 +135,17 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Eid Mubarak" is visible
-- repeat:
-    times: 15
-    while:
-      notVisible: "Eid Mubarak"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: "Eid Mubarak"
 - assertVisible: ".*Allahu Akbar, Allahu Akbar, Allahu Akbar, la ilaha illa Allah.*"
@@ -155,13 +161,17 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Duaa El Eftar" is visible
-- repeat:
-    times: 15
-    while:
-      notVisible: "Duaa El Eftar"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: "Duaa El Eftar"
 
@@ -174,13 +184,17 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Iqamaa Count Down" is visible
-- repeat:
-    times: 20
-    while:
-      notVisible: "Iqamaa Count Down"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: "Iqamaa Count Down"
 - assertVisible: ".*Iqama in.*"
@@ -194,17 +208,23 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Iqama" is visible (using regex to match exactly)
-- repeat:
-    times: 20
-    while:
-      notVisible:
-        text: "^Iqama$"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
-- tapOn:
-    text: "^Iqama$"
+- tapOn: "Iqama"
 - assertVisible: ".*Please put your phones into Silent Mode.*"
 
 # Go back to drawer
@@ -216,13 +236,22 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Jumua" is visible
-- repeat:
-    times: 20
-    while:
-      notVisible: "Jumua"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: "Jumua"
 - assertVisible: ".*Whoever does the ablutions perfectly then goes to jumua and then listens and is silent.*"
@@ -237,13 +266,18 @@ appId: com.mawaqit.androidtv
 - pressKey: Remote Dpad Left
 - waitForAnimationToEnd
 
-# Navigate down until "Supplication" is visible
-- repeat:
-    times: 15
-    while:
-      notVisible: ".*Supplication.*"
-    commands:
-      - pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
 
 - tapOn: ".*Supplication.*"
 
