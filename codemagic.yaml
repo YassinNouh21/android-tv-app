@@ -236,9 +236,8 @@ workflows:
           testingbot maestro \
             build/app/outputs/flutter-apk/app-release.apk \
             .maestro \
-            --device "Galaxy Tab A" \
-            --orientation LANDSCAPE \
-            --real-device
+            --device "Galaxy Tab S9" \
+            --orientation LANDSCAPE 
             
     artifacts:
       - build/artifacts/*
