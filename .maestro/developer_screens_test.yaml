@@ -61,6 +61,8 @@ appId: com.mawaqit.androidtv
 - inputText: "3"
 - pressKey: Enter
 - waitForAnimationToEnd
+- tapOn:
+    point: "50%,50%"
 - extendedWaitUntil:
     visible: ".*GRIGNY.*"
     timeout: 10000

@@ -236,7 +236,7 @@ workflows:
           testingbot maestro \
             build/app/outputs/flutter-apk/app-release.apk \
             .maestro \
-            --device "Galaxy S25" \
+            --device "Galaxy Tab A" \
             --orientation LANDSCAPE \
             --real-device
             
