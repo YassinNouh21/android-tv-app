@@ -21,7 +21,10 @@ class ReciterModel {
   @HiveField(3)
   final List<MoshafModel> moshaf;
 
-  ReciterModel(this.id, this.name, this.letter, this.moshaf);
+  @HiveField(4)
+  final String? nameAlternate;
+
+  ReciterModel(this.id, this.name, this.letter, this.moshaf, [this.nameAlternate]);
 
   factory ReciterModel.fromJson(Map<String, dynamic> map) => _ensureContainer.fromMap<ReciterModel>(map);
 

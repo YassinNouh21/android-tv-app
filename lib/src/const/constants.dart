@@ -84,7 +84,7 @@ abstract class QuranConstant {
   static const String kSelectedMoshafType = 'selected_moshaf_type';
   static const String kQuranBaseUrl = 'https://mp3quran.net/api/v3/';
   static const String kSurahBox = 'surah_box_v2';
-  static const String kReciterBox = 'reciter_box_v2';
+  static const String kReciterBox = 'reciter_box_v3';
   static const String kQuranModePref = 'quran_mode';
   static const String kSavedCurrentPage = 'saved_current_page';
   static const String kHafsSavedCurrentPage = 'hafs_saved_current_page';
@@ -97,6 +97,8 @@ abstract class QuranConstant {
   static const String kQuranReciterRetentionTime = 'quran_reciter_retention_time';
   static const int kCacheWidth = 300;
   static const int kCacheHeight = 300;
+  static const String kArabicLanguage = 'ar';
+  static const String kEnglishLanguage = 'eng';
 }
 
 abstract class AzkarConstant {
