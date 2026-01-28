@@ -237,6 +237,7 @@ workflows:
             build/app/outputs/flutter-apk/app-release.apk \
             .maestro \
             --device "Galaxy Tab S9" \
+            --deviceVersion "12" \
             --orientation LANDSCAPE 
             
     artifacts:
