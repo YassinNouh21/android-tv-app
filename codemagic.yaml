@@ -236,7 +236,7 @@ workflows:
           testingbot maestro \
             build/app/outputs/flutter-apk/app-release.apk \
             .maestro \
-            --device "Galaxy Tab S9" \
+            --device "Galaxy Tab S7"" \
             --deviceVersion "12" \
             --orientation LANDSCAPE 
             
