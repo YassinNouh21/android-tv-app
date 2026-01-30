@@ -52,9 +52,8 @@ class ReciteImpl implements ReciteRepository {
       log('ReciteImpl: Fetching reciters from remote API in both languages');
 
       // Determine alternate language
-      final alternateLanguage = language == QuranConstant.kArabicLanguage
-          ? QuranConstant.kEnglishLanguage
-          : QuranConstant.kArabicLanguage;
+      final alternateLanguage =
+          language == QuranConstant.kArabicLanguage ? QuranConstant.kEnglishLanguage : QuranConstant.kArabicLanguage;
 
       // Fetch reciters in both languages in parallel for better performance
       final results = await Future.wait([
