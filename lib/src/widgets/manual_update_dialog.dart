@@ -140,8 +140,8 @@ class _UpdateDialogContentState extends ConsumerState<_UpdateDialogContent> {
 
   List<Widget> _buildDialogActions(BuildContext context, WidgetRef ref) {
     final updateState = ref.watch(manualUpdateNotifierProvider);
-    final isUpdating = updateState.value?.status == UpdateStatus.downloading ||
-        updateState.value?.status == UpdateStatus.installing;
+    final isUpdating =
+        updateState.value?.status == UpdateStatus.downloading || updateState.value?.status == UpdateStatus.installing;
 
     return [
       TextButton(

@@ -241,7 +241,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
             ),
           ),
           _buildSalahBar(),
-            if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
+          if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
             if (isPortrait) SizedBox(height: 1.vh),
             isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : const Footer(),
           ],
