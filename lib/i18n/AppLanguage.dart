@@ -153,6 +153,7 @@ class AppLanguage extends ChangeNotifier {
     'es': (context) => S.of(context).es,
     'pt': (context) => S.of(context).pt,
     'nl': (context) => S.of(context).nl,
+    'ta': (context) => S.of(context).ta,
     'fr_ar': (context) => S.of(context).fr_ar,
     'en_ar': (context) => S.of(context).en_ar,
     'de_ar': (context) => S.of(context).de_ar,
