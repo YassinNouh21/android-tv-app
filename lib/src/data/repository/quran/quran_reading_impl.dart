@@ -13,13 +13,13 @@ class QuranReadingImpl implements QuranReadingRepository {
   });
 
   @override
-  Future<int> getLastReadPage() {
-    return localDataSource.getLastReadPage();
+  Future<int> getLastReadPage({MoshafType? moshafType}) {
+    return localDataSource.getLastReadPage(moshafType: moshafType);
   }
 
   @override
-  Future<void> saveLastReadPage(int page) {
-    return localDataSource.saveLastReadPage(page);
+  Future<void> saveLastReadPage(int page, {MoshafType? moshafType}) {
+    return localDataSource.saveLastReadPage(page, moshafType: moshafType);
   }
 
   @override

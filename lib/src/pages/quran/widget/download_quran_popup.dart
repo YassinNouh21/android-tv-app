@@ -1,15 +1,16 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 
 import 'package:mawaqit/src/domain/error/quran_exceptions.dart';
 import 'package:mawaqit/src/domain/model/quran/moshaf_type_model.dart';
+import 'package:mawaqit/src/helpers/connectivity_provider.dart';
+import 'package:mawaqit/src/models/address_model.dart';
+import 'package:mawaqit/src/pages/home/widgets/show_check_internet_dialog.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/reading/moshaf_type_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer.dart';
 
 class DownloadQuranDialog extends ConsumerStatefulWidget {
   const DownloadQuranDialog({super.key});
@@ -40,6 +41,16 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
   void _checkForUpdate() {
     final notifier = ref.read(downloadQuranNotifierProvider.notifier);
     // notifier.checkForUpdate(notifier.selectedMoshafType);
+  }
+
+  /// Check if internet is available before proceeding with download
+  Future<bool> _checkInternetConnection() async {
+    await ref.read(connectivityProvider.notifier).checkInternetConnection();
+    final connectivityStatus = ref.read(connectivityProvider);
+    return connectivityStatus.whenOrNull(
+          data: (status) => status == ConnectivityStatus.connected,
+        ) ??
+        false;
   }
 
   @override
@@ -104,7 +115,19 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
         ),
         TextButton(
           autofocus: true,
-          onPressed: () {
+          onPressed: () async {
+            // Check internet connection before downloading
+            final hasInternet = await _checkInternetConnection();
+            if (!hasInternet) {
+              showCheckInternetDialog(
+                context: context,
+                onRetry: () => Navigator.pop(context),
+                title: S.of(context).error,
+                content: S.of(context).connectDownloadQuran,
+              );
+              return;
+            }
+
             final notifier = ref.read(downloadQuranNotifierProvider.notifier);
             notifier.downloadQuran(state.moshafType);
           },
@@ -239,6 +262,18 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
         TextButton(
           autofocus: true,
           onPressed: () async {
+            // Check internet connection before downloading
+            final hasInternet = await _checkInternetConnection();
+            if (!hasInternet) {
+              showCheckInternetDialog(
+                context: context,
+                onRetry: () => Navigator.pop(context),
+                title: S.of(context).error,
+                content: S.of(context).connectDownloadQuran,
+              );
+              return;
+            }
+
             Navigator.pop(context);
             await ref.read(downloadQuranNotifierProvider.notifier).downloadQuran(selectedMoshafType);
           },

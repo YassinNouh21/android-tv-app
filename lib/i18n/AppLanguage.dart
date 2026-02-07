@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:global_configuration/global_configuration.dart';
+import 'package:logger/logger.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/const/config.dart';
 import 'package:mawaqit/src/const/constants.dart';
@@ -9,6 +12,8 @@ import 'package:mawaqit/src/helpers/LocaleHelper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../src/services/mosque_manager.dart';
+
+final _logger = Logger();
 
 /// [AppLanguage] is a class that handles the app language
 /// It is a singleton class that can be accessed from anywhere in the app
@@ -68,9 +73,43 @@ class AppLanguage extends ChangeNotifier {
   Future<void> fetchLocale() async {
     var prefs = await SharedPreferences.getInstance();
     if (prefs.getString('language_code') == null) {
-      _appLocale = Locale(GlobalConfiguration().getValue('defaultLanguage'), '');
+      // Try to detect device language from the platform
+      String? deviceLanguage;
+
+      // First try to get locale from Platform.localeName (more reliable on Android)
+      try {
+        final platformLocale = Platform.localeName;
+        _logger.d('Platform.localeName: $platformLocale');
+        if (platformLocale.isNotEmpty) {
+          // Platform.localeName returns format like "en_US" or "en"
+          deviceLanguage = platformLocale.split('_').first.split('-').first;
+          _logger.d('Detected device language from Platform: $deviceLanguage');
+        }
+      } catch (e) {
+        _logger.e('Error getting Platform.localeName: $e');
+      }
+
+      // Fallback to WidgetsBinding if Platform.localeName didn't work
+      if (deviceLanguage == null || deviceLanguage.isEmpty) {
+        final locale = WidgetsBinding.instance.platformDispatcher.locale;
+        deviceLanguage = locale.languageCode;
+        _logger.d('Detected device language from WidgetsBinding: $deviceLanguage');
+      }
+
+      // Check if the detected language is supported
+      final isSupported = S.supportedLocales.any((locale) => locale.languageCode == deviceLanguage);
+      _logger.d('Is device language supported: $isSupported');
+
+      if (isSupported) {
+        _appLocale = Locale(deviceLanguage, '');
+        _logger.d('Using device language: $deviceLanguage');
+      } else {
+        _appLocale = Locale(GlobalConfiguration().getValue('defaultLanguage'), '');
+        _logger.d('Using default language: ${GlobalConfiguration().getValue('defaultLanguage')}');
+      }
+
       notifyListeners();
-      return null;
+      return;
     }
     _appLocale = LocaleHelper.splitLocaleCode(prefs.getString('language_code')!);
     notifyListeners();
@@ -114,6 +153,7 @@ class AppLanguage extends ChangeNotifier {
     'es': (context) => S.of(context).es,
     'pt': (context) => S.of(context).pt,
     'nl': (context) => S.of(context).nl,
+    'ta': (context) => S.of(context).ta,
     'fr_ar': (context) => S.of(context).fr_ar,
     'en_ar': (context) => S.of(context).en_ar,
     'de_ar': (context) => S.of(context).de_ar,

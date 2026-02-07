@@ -195,6 +195,11 @@ class DrawerListDeveloper extends StatelessWidget {
           onChanged: (value) => userPreferencesManager.forceStaging = value,
           title: Text(S.of(context).forceStaging),
         ),
+        SwitchListTile(
+          value: userPreferencesManager.forcePreProduction,
+          onChanged: (value) => userPreferencesManager.forcePreProduction = value,
+          title: Text(S.of(context).forcePreProduction),
+        ),
         Divider(
           color: Colors.grey,
         ),

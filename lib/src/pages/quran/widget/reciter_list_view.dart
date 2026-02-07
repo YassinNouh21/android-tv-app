@@ -48,6 +48,7 @@ class _ReciterListViewState extends ConsumerState<ReciterListView> {
             left: isRTL ? 0 : ReciterSelectionScreen.horizontalPadding,
           ),
           child: Container(
+            height: 16.h,
             // Only apply padding if this is the bottom list
             padding: widget.isAtBottom
                 ? EdgeInsets.only(right: isRTL ? 0 : buttonsPadding, left: isRTL ? buttonsPadding : 0)

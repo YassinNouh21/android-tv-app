@@ -77,6 +77,17 @@ class Api {
     }
   }
 
+  /// switch to pre-production environment
+  static usePreProdApi([bool preProd = true]) {
+    if (preProd) {
+      dio.options.baseUrl = kPreProdUrl;
+      dioStatic.options.baseUrl = kPreProdStaticFilesUrl;
+    } else {
+      dio.options.baseUrl = kBaseUrl;
+      dioStatic.options.baseUrl = kStaticFilesUrl;
+    }
+  }
+
   static Future<bool> kMosqueExistence(int id) {
     var url = 'https://mawaqit.net/en/id/$id?view=desktop';
 

@@ -28,16 +28,7 @@ class UpdateDialog {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Consumer(
-        builder: (context, ref, child) {
-          final updateState = ref.watch(manualUpdateNotifierProvider);
-          return AlertDialog(
-            title: Text(S.of(context).updateAvailable),
-            content: _buildDialogContent(context, updateState),
-            actions: _buildDialogActions(context, ref),
-          );
-        },
-      ),
+      builder: (context) => const _UpdateDialogContent(),
     );
   }
 
@@ -81,26 +72,6 @@ class UpdateDialog {
     );
   }
 
-  static List<Widget> _buildDialogActions(BuildContext context, WidgetRef ref) {
-    final updateState = ref.watch(manualUpdateNotifierProvider);
-    final isUpdating =
-        updateState.value?.status == UpdateStatus.downloading || updateState.value?.status == UpdateStatus.installing;
-
-    return [
-      TextButton(
-        onPressed: () {
-          ref.read(manualUpdateNotifierProvider.notifier).cancelUpdate();
-          Navigator.pop(context);
-        },
-        child: Text(S.of(context).cancel),
-      ),
-      TextButton(
-        onPressed: isUpdating ? null : () => _handleUpdateAction(context, ref),
-        child: Text(S.of(context).update),
-      ),
-    ];
-  }
-
   static void _handleUpdateAction(BuildContext context, WidgetRef ref) {
     final isDeviceRooted = ref.read(onBoardingProvider).maybeWhen(
           orElse: () => false,
@@ -129,5 +100,62 @@ class UpdateDialog {
         ],
       ),
     );
+  }
+}
+
+class _UpdateDialogContent extends ConsumerStatefulWidget {
+  const _UpdateDialogContent();
+
+  @override
+  ConsumerState<_UpdateDialogContent> createState() => _UpdateDialogContentState();
+}
+
+class _UpdateDialogContentState extends ConsumerState<_UpdateDialogContent> {
+  final FocusNode _updateButtonFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Request focus on the update button when dialog opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateButtonFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateButtonFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updateState = ref.watch(manualUpdateNotifierProvider);
+    return AlertDialog(
+      title: Text(S.of(context).updateAvailable),
+      content: UpdateDialog._buildDialogContent(context, updateState),
+      actions: _buildDialogActions(context, ref),
+    );
+  }
+
+  List<Widget> _buildDialogActions(BuildContext context, WidgetRef ref) {
+    final updateState = ref.watch(manualUpdateNotifierProvider);
+    final isUpdating =
+        updateState.value?.status == UpdateStatus.downloading || updateState.value?.status == UpdateStatus.installing;
+
+    return [
+      TextButton(
+        onPressed: () {
+          ref.read(manualUpdateNotifierProvider.notifier).cancelUpdate();
+          Navigator.pop(context);
+        },
+        child: Text(S.of(context).cancel),
+      ),
+      TextButton(
+        focusNode: _updateButtonFocusNode,
+        onPressed: isUpdating ? null : () => UpdateDialog._handleUpdateAction(context, ref),
+        child: Text(S.of(context).update),
+      ),
+    ];
   }
 }

@@ -51,8 +51,7 @@ class HomeTimeWidget extends TimerRefreshWidget {
                       color: Color.lerp(Colors.black, mosqueManager.getColorTheme(), 0.9)!.withOpacity(.7),
                       backgroundBlendMode: BlendMode.screen,
                     ),
-                    padding:
-                        EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
+                    padding: EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
                     child: timeContent,
                   ),
                   if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: SalahInWidget())),
@@ -74,8 +73,7 @@ class HomeTimeWidget extends TimerRefreshWidget {
                         color: Color.lerp(Colors.black, mosqueManager.getColorTheme(), 0.9)!.withOpacity(.7),
                         backgroundBlendMode: BlendMode.screen,
                       ),
-                      padding:
-                          EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
+                      padding: EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
                       child: timeContent,
                     ),
                     if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: SalahInWidget())),
