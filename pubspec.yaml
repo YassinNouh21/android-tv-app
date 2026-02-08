@@ -142,7 +142,7 @@ dependencies:
 
   wakelock_plus: 1.1.4
   wakelock_plus_platform_interface: 1.1.0
-  flutter_background_service: 
+  flutter_background_service:
     git:
       url: https://github.com/mawaqit/flutter_background_service
       ref: master
@@ -206,6 +206,11 @@ dependency_overrides:
       url: https://github.com/Predidit/media-kit.git
       ref: main
       path: ./libs/android/media_kit_libs_android_video
+  flutter_background_service_android:
+    git:
+      url: https://github.com/mawaqit/flutter_background_service
+      ref: master
+      path: packages/flutter_background_service_android
 # The following section is specific to Flutter.
 flutter:
   generate: true
