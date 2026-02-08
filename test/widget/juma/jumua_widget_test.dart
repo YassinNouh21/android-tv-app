@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
 import 'package:mawaqit/src/models/mosque.dart';
 import 'package:mawaqit/src/models/mosqueConfig.dart';
@@ -125,7 +125,7 @@ void main() {
         child: MaterialApp(
           locale: const Locale('en'),
           localizationsDelegates: const [
-            AppLocalizations.delegate,
+            MawaqitTvLocalizations.delegate,
           ],
           home: child,
         ),
