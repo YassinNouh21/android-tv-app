@@ -101,8 +101,9 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
       WorkFlowItem(
         builder: (context, next) => AdhanSubScreen(onDone: next),
         skip: () {
-          final audioState = ref.read(prayerAudioProvider);
-          final adhanDuration = audioState.duration ?? Duration(seconds: 150);
+          final adhanDuration = mosqueManger.typeIsMosque && mosqueConfig.adhanDuration != null
+              ? Duration(seconds: mosqueConfig.adhanDuration!)
+              : ref.read(prayerAudioProvider).duration ?? Duration(seconds: 150);
           return now.isAfter(currentSalahTime.add(adhanDuration));
         }(),
       ),
