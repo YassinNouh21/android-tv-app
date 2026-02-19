@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fpdart/fpdart.dart' as fp;
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../../../i18n/l10n.dart';
 import 'widgets.dart';
 
@@ -120,7 +120,7 @@ class OnBoardingScreenType extends StatelessWidget {
   /// Builds the header section with title and subtitle
   Widget _buildHeader(
     ThemeData theme,
-    AppLocalizations tr,
+    MawaqitTvLocalizations tr,
     double headerFontSize,
     double subtitleFontSize,
   ) {
@@ -156,7 +156,7 @@ class OnBoardingScreenType extends StatelessWidget {
   /// Builds the screen type options (main and secondary)
   Widget _buildScreenTypeOptions({
     required ThemeData theme,
-    required AppLocalizations tr,
+    required MawaqitTvLocalizations tr,
     required UserPreferencesManager userPrefs,
     required double buttonFontSize,
     required double descriptionFontSize,

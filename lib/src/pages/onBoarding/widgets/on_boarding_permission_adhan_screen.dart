@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:fpdart/fpdart.dart' as fp;
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:mawaqit/src/services/notification/prayer_schedule_service.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/services/permissions_manager.dart';
@@ -10,7 +11,6 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class PermissionAdhanScreen extends StatelessWidget {
   final VoidCallback? onNext;
@@ -158,7 +158,7 @@ class PermissionAdhanScreen extends StatelessWidget {
 
   /// Builds the header section with title and subtitle
   Widget _buildHeader(
-      ThemeData theme, AppLocalizations tr, double headerFontSize, double subtitleFontSize, BuildContext context) {
+      ThemeData theme, MawaqitTvLocalizations tr, double headerFontSize, double subtitleFontSize, BuildContext context) {
     return Column(
       children: [
         AutoSizeText(
@@ -194,7 +194,7 @@ class PermissionAdhanScreen extends StatelessWidget {
   Widget _buildToggleSection({
     required BuildContext context,
     required ThemeData theme,
-    required AppLocalizations tr,
+    required MawaqitTvLocalizations tr,
     required UserPreferencesManager userPrefs,
     required double titleFontSize,
     required double descriptionFontSize,

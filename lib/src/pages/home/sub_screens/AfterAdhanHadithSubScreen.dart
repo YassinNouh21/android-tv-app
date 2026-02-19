@@ -1,7 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations_ar.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
@@ -30,7 +30,7 @@ class AfterAdhanSubScreen extends ConsumerStatefulWidget {
 }
 
 class _AfterAdhanSubScreenState extends ConsumerState<AfterAdhanSubScreen> {
-  final arTranslation = AppLocalizationsAr();
+  final arTranslation = MawaqitTvLocalizationsAr();
   static const _minimumScreenDuration = Duration(seconds: 20);
 
   Timer? _completionTimer;

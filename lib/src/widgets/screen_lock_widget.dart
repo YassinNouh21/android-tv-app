@@ -161,7 +161,7 @@ class __TimePickerState extends ConsumerState<_TimePicker> {
             selectedMinuteBefore,
             ref.read(screenLockNotifierProvider.notifier).selectNextMinuteBefore,
             ref.read(screenLockNotifierProvider.notifier).selectPreviousMinuteBefore,
-            isIshaFajrOnly ? S.of(context).minutesBeforeFajrPrayer : S.of(context).before,
+            (isIshaFajrOnly ? S.of(context).minutesBeforeFajrPrayer : S.of(context).before) as String,
           ),
           const SizedBox(height: 16),
           _buildTimeSelector(
@@ -170,7 +170,7 @@ class __TimePickerState extends ConsumerState<_TimePicker> {
             selectedMinuteAfter,
             ref.read(screenLockNotifierProvider.notifier).selectNextMinuteAfter,
             ref.read(screenLockNotifierProvider.notifier).selectPreviousMinuteAfter,
-            isIshaFajrOnly ? S.of(context).minutesAfterIshaPrayer : S.of(context).after,
+            (isIshaFajrOnly ? S.of(context).minutesAfterIshaPrayer : S.of(context).after) as String,
           ),
         ],
       ),

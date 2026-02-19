@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations_ar.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
@@ -15,7 +14,7 @@ import '../../../const/constants.dart';
 import '../widgets/salah_items/responsive_mini_salah_bar_turkish_widget.dart';
 
 class AzkarLists {
-  static List<String> getAfterAsrList(AppLocalizations tr) => [
+  static List<String> getAfterAsrList(MawaqitTvLocalizations tr) => [
         tr.azkarList7,
         tr.azkarList10,
         tr.azkarList11,
@@ -24,7 +23,7 @@ class AzkarLists {
         tr.azkarList14,
       ];
 
-  static List<String> getAfterFajrList(AppLocalizations tr) => [
+  static List<String> getAfterFajrList(MawaqitTvLocalizations tr) => [
         tr.azkarList7,
         tr.azkarList8,
         tr.azkarList9,
@@ -34,7 +33,7 @@ class AzkarLists {
         tr.azkarList13,
       ];
 
-  static List<String> getRegularList(AppLocalizations tr) => [
+  static List<String> getRegularList(MawaqitTvLocalizations tr) => [
         tr.azkarList0, // أَسْـتَغْفِرُ الله 3x + اللّهُـمَّ أَنْـتَ السَّلامُ
         tr.azkarList6, // لا إِلَٰهَ إلاّ اللّهُ وحدَهُ لا شريكَ لهُ + اللّهُـمَّ لا مانِعَ لِما أَعْطَـيْت
         tr.azkarList1, // سُـبْحانَ اللهِ 33x، والحَمْـدُ لله 33x، واللهُ أكْـبَر 33x + لا إِلَٰهَ إلاّ اللّهُ
@@ -66,7 +65,7 @@ class _AfterSalahAzkarState extends State<AfterSalahAzkar> {
   int activeHadith = 0;
   Timer? _timer;
 
-  final arabicLocal = AppLocalizationsAr();
+  final arabicLocal = MawaqitTvLocalizationsAr();
 
   /// Get the number of items in the current azkar list
   int get _listLength {
@@ -74,7 +73,7 @@ class _AfterSalahAzkarState extends State<AfterSalahAzkar> {
     return widget.isAfterAsr ? 6 : 7; // Asr=6 items, Fajr=7 items
   }
 
-  String getItem(AppLocalizations tr, int index) {
+  String getItem(MawaqitTvLocalizations tr, int index) {
     if (!widget.isAfterAsrOrFajr) {
       return AzkarLists.getRegularList(tr)[index % 7];
     }
