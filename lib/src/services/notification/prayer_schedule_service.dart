@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/services/background_work_managers/work_manager_services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -294,13 +293,7 @@ class PrayerScheduleService {
 
     if (isAdhanVoiceEnabled) {
       shouldPlayAdhan = true;
-      final url = getAdhanLink(mosqueConfig, useFajrAdhan: isFajr);
-      if (url.contains('bip')) {
-        adhanFromAssets = true;
-        adhanAsset = R.ASSETS_VOICES_ADHAN_BIP_MP3;
-      } else {
-        adhanAsset = url;
-      }
+      adhanAsset = getAdhanLink(mosqueConfig, useFajrAdhan: isFajr);
     }
 
     return {
