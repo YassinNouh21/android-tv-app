@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +20,7 @@ import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer
 
 import 'package:mawaqit/src/pages/quran/widget/download_quran_popup.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.dart';
+import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
 import 'package:provider/provider.dart' as provider;
 
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_reading_page_selector.dart';
@@ -284,10 +287,12 @@ class FocusNodes {
 class AutoScrollReadingView extends ConsumerStatefulWidget {
   final AutoScrollState autoScrollState;
   final int initialPage;
+  final bool isPortrait;
 
   AutoScrollReadingView({
     required this.autoScrollState,
     this.initialPage = 1,
+    this.isPortrait = false,
   });
 
   @override
@@ -301,11 +306,28 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
   double? _cachedItemHeight;
   Map<int, bool> _loadedPages = {};
 
+  /// Single source of truth for item height — used for rendering, placeholders,
+  /// scroll position, and cache extent. Same pattern as develop, with portrait ratio.
+  double _itemHeight(Size size, double scalingFactor) {
+    if (widget.isPortrait) {
+      final shortSide = size.width < size.height ? size.width : size.height;
+      final ratio = 1.3 + (scalingFactor - 1.0) * 0.15;
+      return shortSide * ratio;
+    }
+    return size.height * scalingFactor;
+  }
+
   @override
   void initState() {
     super.initState();
     scrollController = ScrollController();
     _initializeScrollView();
+  }
+
+  Future<void> _waitForPostFrame() {
+    final completer = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) => completer.complete());
+    return completer.future;
   }
 
   Future<void> _initializeScrollView() async {
@@ -332,12 +354,11 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
         );
       });
 
-      await Future.delayed(Duration(milliseconds: 50));
-
+      // Wait for the frame to render before jumping to the initial page
+      await _waitForPostFrame();
       if (!mounted) return;
 
       await _jumpToInitialPage();
-      ref.read(autoScrollNotifierProvider.notifier).setScrollController(scrollController);
 
       if (mounted) {
         setState(() {
@@ -345,8 +366,14 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
           _isLoading = false;
         });
       }
-    } catch (e) {
-      print('Initialization error: $e');
+
+      // Set scroll controller AFTER the rebuild so the auto-scroll animation
+      // doesn't fight with the initial jump position.
+      await _waitForPostFrame();
+      if (!mounted) return;
+      ref.read(autoScrollNotifierProvider.notifier).setScrollController(scrollController);
+    } catch (e, stackTrace) {
+      debugPrint('[QuranReading] Initialization error: $e\n$stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -361,17 +388,20 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
 
       final size = MediaQuery.of(context).size;
       final scalingFactor = widget.autoScrollState.fontSize;
-      final itemHeight = size.height * scalingFactor;
+      final itemHeight = _itemHeight(size, scalingFactor);
       _cachedItemHeight = itemHeight;
 
-      final scrollPosition = (widget.initialPage - 1) * itemHeight;
+      final scrollPosition = widget.initialPage * itemHeight;
       scrollController.jumpTo(scrollPosition);
-    } catch (e) {
-      print('Error jumping to initial page: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[QuranReading] Error jumping to initial page: $e\n$stackTrace');
     }
   }
 
   Widget _buildPage(int index, SvgPicture svgPicture, double scalingFactor) {
+    final size = MediaQuery.of(context).size;
+    final itemHeight = _itemHeight(size, scalingFactor);
+
     if (!_loadedPages.containsKey(index)) {
       Future.microtask(() {
         if (mounted) {
@@ -380,8 +410,8 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
       });
 
       return SizedBox(
-        width: MediaQuery.of(context).size.width * scalingFactor,
-        height: MediaQuery.of(context).size.height * scalingFactor,
+        width: size.width * scalingFactor,
+        height: itemHeight,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -389,8 +419,8 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
     return GestureDetector(
       onTap: _handleTap,
       child: Container(
-        width: MediaQuery.of(context).size.width * scalingFactor,
-        height: MediaQuery.of(context).size.height * scalingFactor,
+        width: size.width * scalingFactor,
+        height: itemHeight,
         child: SvgPictureWidget(
           key: ValueKey('page_$index'),
           svgPicture: svgPicture,
@@ -433,6 +463,7 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
     final readingState = ref.watch(quranReadingNotifierProvider);
     final total = readingState.whenOrNull(data: (data) => data.totalPages) ?? 0;
     final pages = readingState.whenOrNull(data: (data) => data.svgs) ?? [];
+    final itemHeight = _itemHeight(MediaQuery.of(context).size, scalingFactor);
 
     return Stack(
       children: [
@@ -442,11 +473,12 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
             physics: NeverScrollableScrollPhysics(),
             controller: scrollController,
             itemCount: total,
-            cacheExtent: MediaQuery.of(context).size.height * 2,
+            itemExtent: itemHeight,
+            cacheExtent: itemHeight * 2,
             itemBuilder: (context, index) {
               if (!_isInitialized) {
                 return SizedBox(
-                  height: _cachedItemHeight ?? MediaQuery.of(context).size.height * scalingFactor,
+                  height: _cachedItemHeight ?? itemHeight,
                 );
               }
 
@@ -469,14 +501,16 @@ class _AutoScrollReadingViewState extends ConsumerState<AutoScrollReadingView> {
 class AutoScrollViewStrategy implements QuranViewStrategy {
   final AutoScrollState autoScrollState;
   final int initialPage;
+  final bool isPortrait;
 
-  AutoScrollViewStrategy(this.autoScrollState, {this.initialPage = 1});
+  AutoScrollViewStrategy(this.autoScrollState, {this.initialPage = 1, this.isPortrait = false});
 
   @override
   Widget buildView(QuranReadingState state, WidgetRef ref, BuildContext context) {
     return AutoScrollReadingView(
       autoScrollState: autoScrollState,
       initialPage: initialPage,
+      isPortrait: isPortrait,
     );
   }
 
@@ -501,38 +535,30 @@ class NormalViewStrategy implements QuranViewStrategy {
 
   @override
   Widget buildView(QuranReadingState state, WidgetRef ref, BuildContext context) {
-    bool shouldShowVertical = (MediaQuery.of(context).orientation == Orientation.portrait && !isPortrait) ||
-        MediaQuery.of(context).orientation == Orientation.landscape && isPortrait;
+    bool shouldShowVertical = isPortrait;
 
     final autoScrollState = ref.watch(autoScrollNotifierProvider);
 
     if (state.pageController.hasClients && !autoScrollState.isSinglePageView) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final currentAutoScrollState = ref.read(autoScrollNotifierProvider);
-        if (!currentAutoScrollState.isSinglePageView) {
-          if (shouldShowVertical) {
-            final targetPage = state.currentPage;
-            if (state.pageController.page?.round() != targetPage) {
-              state.pageController.jumpToPage(targetPage);
-            }
-          } else {
-            final targetPage = (state.currentPage / 2).floor();
-            if (state.pageController.page?.round() != targetPage) {
-              state.pageController.jumpToPage(targetPage);
-            }
+      final targetPage = shouldShowVertical ? state.currentPage : (state.currentPage / 2).floor();
+      final currentPage = state.pageController.page?.round();
+      if (currentPage != null && currentPage != targetPage) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (state.pageController.hasClients) {
+            state.pageController.jumpToPage(targetPage);
           }
-        }
-      });
+        });
+      }
     }
 
     return shouldShowVertical
         ? VerticalPageViewWidget(
             quranReadingState: state,
-            key: ValueKey('vertical_${state.currentPage}'),
+            key: const ValueKey('vertical'),
           )
         : HorizontalPageViewWidget(
             quranReadingState: state,
-            key: ValueKey('horizontal_${state.currentPage}'),
+            key: const ValueKey('horizontal'),
           );
   }
 
@@ -625,6 +651,13 @@ class NormalViewStrategy implements QuranViewStrategy {
   }
 }
 
+class _Jx11State {
+  final FocusNodes focusNodes;
+  final bool isPortrait;
+  final bool isPhysicallyPortrait;
+  const _Jx11State(this.focusNodes, this.isPortrait, this.isPhysicallyPortrait);
+}
+
 class QuranReadingScreen extends ConsumerStatefulWidget {
   const QuranReadingScreen({super.key});
 
@@ -647,11 +680,17 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
   final ScrollController _gridScrollController = ScrollController();
 
   Orientation? _lastOrientation;
+  bool? _lastEffectiveIsPortrait;
+
+  // JX-11 ring support — atomic state updated during build
+  _Jx11State? _jx11;
+  bool _initialFocusRequested = false;
 
   @override
   void initState() {
     super.initState();
     _initializeFocusNodes();
+    setJx11Enabled(true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(downloadQuranNotifierProvider);
@@ -659,6 +698,111 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
       // Just track the orientation, don't sync it with isRotated
       _lastOrientation = MediaQuery.of(context).orientation;
     });
+  }
+
+  void _handleJx11Event(Jx11Event event) {
+    final jx11 = _jx11;
+    if (jx11 == null) return;
+    final focusNodes = jx11.focusNodes;
+
+    final isDialogOpen = _isThereCurrentDialogShowing(context);
+    final isAutoScrolling = ref.read(autoScrollNotifierProvider).isSinglePageView;
+
+    // In dialogs or auto-scroll mode → pure focus traversal (no page navigation)
+    if (isDialogOpen || isAutoScrolling) {
+      jx11TraverseFocus(event);
+      return;
+    }
+
+    // Normal reading mode
+    _handleJx11ReadingMode(event, focusNodes);
+  }
+
+  void _handleJx11ReadingMode(Jx11Event event, FocusNodes focusNodes) {
+    final jx11 = _jx11;
+    if (jx11 == null) return;
+    final isPortrait = jx11.isPortrait;
+    final physicallyRotated = jx11.isPhysicallyPortrait;
+    final readingNotifier = ref.read(quranReadingNotifierProvider.notifier);
+
+    // Activate logic is the same in all modes
+    if (event == Jx11Event.playPause || event == Jx11Event.middleButton || event == Jx11Event.tap) {
+      _isAnyButtonFocused(focusNodes) ? jx11ActivateFocused() : focusNodes.backButtonNode.requestFocus();
+      return;
+    }
+
+    if (physicallyRotated) {
+      // Device is physically rotated: left/right buttons → pages, roller → cycle buttons
+      switch (event) {
+        case Jx11Event.swipeLeft:
+        case Jx11Event.volumeDown:
+          readingNotifier.previousPage(isPortrait: isPortrait);
+        case Jx11Event.swipeRight:
+        case Jx11Event.volumeUp:
+          readingNotifier.nextPage(isPortrait: isPortrait);
+        case Jx11Event.rollerUp:
+        case Jx11Event.rollerDown:
+          _jx11CycleButton(focusNodes, forward: event.isNext);
+        default:
+          break;
+      }
+    } else {
+      // Device is in landscape (including software portrait): roller → pages, left/right → cycle buttons
+      switch (event) {
+        case Jx11Event.rollerUp:
+        case Jx11Event.volumeDown:
+          readingNotifier.previousPage(isPortrait: isPortrait);
+        case Jx11Event.rollerDown:
+        case Jx11Event.volumeUp:
+          readingNotifier.nextPage(isPortrait: isPortrait);
+        case Jx11Event.swipeLeft:
+        case Jx11Event.swipeRight:
+          _jx11CycleButton(focusNodes, forward: event.isNext);
+        default:
+          break;
+      }
+    }
+  }
+
+  /// Cycle through buttons in visual order matching the on-screen layout.
+  void _jx11CycleButton(FocusNodes fn, {required bool forward}) {
+    final isPortrait = _jx11?.isPortrait ?? false;
+
+    // Ordered list matching the visual layout (top-left → top-right → bottom → FABs)
+    final order = isPortrait
+        ? [
+            fn.backButtonNode,
+            fn.surahSelectorNode,
+            fn.switchQuranNode, // moshaf selector (top-right)
+            fn.pageSelectorNode, // bottom-center
+            fn.switchToPlayQuranFocusNode, // FAB: play/pause
+            fn.switchScreenViewFocusNode, // FAB: orientation
+            fn.switchQuranModeNode, // FAB: mode
+          ]
+        : [
+            fn.backButtonNode,
+            fn.surahSelectorNode,
+            fn.leftSkipNode,
+            fn.rightSkipNode,
+            fn.switchQuranNode, // moshaf selector (bottom-left)
+            fn.pageSelectorNode, // bottom-center
+            fn.switchToPlayQuranFocusNode,
+            fn.switchScreenViewFocusNode,
+            fn.switchQuranModeNode,
+          ];
+
+    final currentIndex = order.indexWhere((node) => node.hasFocus);
+
+    if (currentIndex == -1) {
+      // No button focused yet — start from the first one
+      order.first.requestFocus();
+      return;
+    }
+
+    final nextIndex = forward
+        ? (currentIndex + 1) % order.length
+        : (currentIndex - 1 + order.length) % order.length;
+    order[nextIndex].requestFocus();
   }
 
   void _initializeFocusNodes() {
@@ -677,6 +821,8 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
 
   @override
   void dispose() {
+    _jx11 = null;
+    setJx11Enabled(false);
     _disposeFocusNodes();
     _gridScrollController.dispose();
     super.dispose();
@@ -712,6 +858,11 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
     // isRotated is ONLY controlled by the button, not physical rotation
     final currentOrientation = MediaQuery.of(context).orientation;
     _lastOrientation = currentOrientation;
+
+    // JX-11 Bluetooth ring events
+    ref.listen(jx11EventProvider, (_, next) {
+      next.whenData((event) => _handleJx11Event(event));
+    });
 
     ref.listen(downloadQuranNotifierProvider, (previous, next) async {
       if (!next.hasValue || next.value is Success) {
@@ -755,11 +906,25 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
           },
           child: quranReadingState.when(
             data: (state) {
+              final size = MediaQuery.of(context).size;
+              final physicallyPortrait = size.height > size.width;
+              final effectiveIsPortrait = state.isRotated || physicallyPortrait;
+              final needsSoftwareRotation = state.isRotated && !physicallyPortrait;
+
+              // When orientation mode changes, replace the PageController so the
+              // new PageView starts at the correct page from the very first frame.
+              if (_lastEffectiveIsPortrait != null && effectiveIsPortrait != _lastEffectiveIsPortrait) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ref.read(quranReadingNotifierProvider.notifier).replaceControllerForMode(effectiveIsPortrait);
+                });
+              }
+              _lastEffectiveIsPortrait = effectiveIsPortrait;
+
               return RotatedBox(
-                quarterTurns: state.isRotated ? -1 : 0,
+                quarterTurns: needsSoftwareRotation ? -1 : 0,
                 child: SizedBox(
-                  width: MediaQuery.of(context).size.height,
-                  height: MediaQuery.of(context).size.width,
+                  width: needsSoftwareRotation ? size.height : size.width,
+                  height: needsSoftwareRotation ? size.width : size.height,
                   child: Scaffold(
                     backgroundColor: Colors.white,
                     floatingActionButtonLocation: _getFloatingActionButtonLocation(context),
@@ -768,7 +933,7 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
                       switchQuranModeNode: _switchQuranModeNode,
                       switchToPlayQuranFocusNode: _switchToPlayQuranFocusNode,
                     ),
-                    body: _buildBody(quranReadingState, state.isRotated, userPrefs, autoReadingState),
+                    body: _buildBody(quranReadingState, effectiveIsPortrait, userPrefs, autoReadingState),
                   ),
                 ),
               );
@@ -797,6 +962,7 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
             ? AutoScrollViewStrategy(
                 autoScrollState,
                 initialPage: state.currentPage,
+                isPortrait: isPortrait,
               )
             : NormalViewStrategy(isPortrait);
 
@@ -812,19 +978,37 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
             switchQuranModeNode: _switchQuranModeNode);
         focusNodes.setupFocusTraversal(isPortrait: isPortrait, settingsOrientation: userPrefs.orientationLandscape);
 
-        return Stack(
-          children: [
-            viewStrategy.buildView(state, ref, context),
-            ...viewStrategy.buildControls(
-              context,
-              state,
-              userPrefs,
-              isPortrait,
-              focusNodes,
-              _scrollPageList,
-              _showPageSelector,
+        // Store active state for JX-11 MethodChannel handler (atomic assignment)
+        final size = MediaQuery.of(context).size;
+        _jx11 = _Jx11State(focusNodes, isPortrait, size.height > size.width);
+
+        // Request focus on back button only on first build
+        if (!_initialFocusRequested) {
+          _initialFocusRequested = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_isAnyButtonFocused(focusNodes)) {
+              focusNodes.backButtonNode.requestFocus();
+            }
+          });
+        }
+
+        return GestureDetector(
+            onHorizontalDragEnd: (details) => _handleSwipe(details, isPortrait),
+            onVerticalDragEnd: (details) => _handleSwipe(details, isPortrait),
+            child: Stack(
+              children: [
+                viewStrategy.buildView(state, ref, context),
+                ...viewStrategy.buildControls(
+                  context,
+                  state,
+                  userPrefs,
+                  isPortrait,
+                  focusNodes,
+                  _scrollPageList,
+                  _showPageSelector,
+                ),
+              ],
             ),
-          ],
         );
       },
     );
@@ -843,6 +1027,29 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
     return Center(
       child: Text('$errorLocalized: $error'),
     );
+  }
+
+  bool _isAnyButtonFocused(FocusNodes focusNodes) {
+    return focusNodes.backButtonNode.hasFocus ||
+        focusNodes.leftSkipNode.hasFocus ||
+        focusNodes.rightSkipNode.hasFocus ||
+        focusNodes.pageSelectorNode.hasFocus ||
+        focusNodes.switchQuranNode.hasFocus ||
+        focusNodes.surahSelectorNode.hasFocus ||
+        focusNodes.switchToPlayQuranFocusNode.hasFocus ||
+        focusNodes.switchScreenViewFocusNode.hasFocus ||
+        focusNodes.switchQuranModeNode.hasFocus;
+  }
+
+  void _handleSwipe(DragEndDetails details, bool isPortrait) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 200) return;
+
+    if (velocity > 0) {
+      ref.read(quranReadingNotifierProvider.notifier).previousPage(isPortrait: isPortrait);
+    } else {
+      ref.read(quranReadingNotifierProvider.notifier).nextPage(isPortrait: isPortrait);
+    }
   }
 
   void _scrollPageList(ScrollDirection direction, isPortrait) {

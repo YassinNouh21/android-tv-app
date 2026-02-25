@@ -25,6 +25,7 @@ import '../../../services/theme_manager.dart';
 import '../../../state_management/quran/recite/download_audio_quran/download_audio_quran_notifier.dart';
 import '../../../state_management/quran/recite/download_audio_quran/download_audio_quran_state.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
 
 class SurahSelectionScreen extends ConsumerStatefulWidget {
   final MoshafModel selectedMoshaf;
@@ -51,6 +52,7 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    setJx11Enabled(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(quranPlayerNotifierProvider.notifier).getDownloadedSuwarByReciterAndRiwayah(
             reciterId: widget.reciterId,
@@ -61,6 +63,7 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
 
   @override
   void dispose() {
+    setJx11Enabled(false);
     _scrollController.dispose();
     _errorFocusNode.dispose();
     super.dispose();
@@ -126,6 +129,24 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
     );
 
     final quranState = ref.watch(quranNotifierProvider);
+    // JX-11 ring: directional grid navigation + activate
+    ref.listen(jx11EventProvider, (_, next) {
+      final event = next.valueOrNull;
+      if (event == null) return;
+      if (event.isActivate) {
+        jx11ActivateFocused();
+      } else {
+        final direction = switch (event) {
+          Jx11Event.rollerUp || Jx11Event.volumeDown => TraversalDirection.up,
+          Jx11Event.rollerDown || Jx11Event.volumeUp => TraversalDirection.down,
+          Jx11Event.swipeLeft => TraversalDirection.left,
+          Jx11Event.swipeRight => TraversalDirection.right,
+          _ => null,
+        };
+        if (direction != null) jx11DirectionalFocus(direction);
+      }
+    });
+
     ref.listen<DownloadAudioQuranState>(downloadStateProvider(downloadNotifierParameter), (previous, next) {
       if (next.downloadStatus == DownloadStatus.completed) {
         showToast(S.of(context).downloadAllSuwarSuccessfully);

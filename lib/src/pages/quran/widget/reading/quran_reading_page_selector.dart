@@ -32,13 +32,11 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
 
   @override
   Widget build(BuildContext context) {
-    // Determine actual orientation considering both device and software rotation
-    final deviceOrientation = MediaQuery.of(context).orientation;
-    final isActuallyPortrait = (deviceOrientation == Orientation.portrait && !widget.isPortrait) ||
-        (deviceOrientation == Orientation.landscape && widget.isPortrait);
+    final size = MediaQuery.of(context).size;
+    final needsRotation = widget.isPortrait && size.width > size.height;
 
     return RotatedBox(
-      quarterTurns: widget.isPortrait ? -1 : 0,
+      quarterTurns: needsRotation ? -1 : 0,
       child: AlertDialog(
         title: SizedBox(
           width: double.maxFinite,
@@ -57,7 +55,7 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
           child: GridView.builder(
             controller: widget.scrollController,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isActuallyPortrait ? 4 : 6,
+              crossAxisCount: widget.isPortrait ? 4 : 6,
               childAspectRatio: 3 / 2,
             ),
             itemCount: widget.totalPages,
@@ -65,10 +63,9 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
               final isSelected = index == widget.currentPage;
               return InkWell(
                 onTap: () {
-                  // Use actual orientation to determine correct page navigation
                   ref.read(quranReadingNotifierProvider.notifier).updatePage(
                         index,
-                        isPortairt: isActuallyPortrait,
+                        isPortairt: widget.isPortrait,
                       );
                   Navigator.of(context).pop();
                 },

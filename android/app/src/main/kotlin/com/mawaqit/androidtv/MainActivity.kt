@@ -24,20 +24,52 @@ import android.os.AsyncTask
 import android.util.Log
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
-import  android.net.ConnectivityManager
+import android.net.ConnectivityManager
 import java.util.concurrent.Executors
 import android.os.Looper
 import android.os.Handler
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.app.AlarmManager
+import android.view.KeyEvent
+import android.view.MotionEvent
+
 
 class MainActivity : FlutterActivity() {
   private lateinit var mAdminComponentName: ComponentName
   private lateinit var mDevicePolicyManager: DevicePolicyManager
 
+  private var jx11Handler: Jx11RingHandler? = null
+
+  // --- JX-11 ring: forward raw input to handler, fall through for other devices ---
+  override fun dispatchGenericMotionEvent(event: MotionEvent) =
+    jx11Handler?.handleGenericMotionEvent(event) == true || super.dispatchGenericMotionEvent(event)
+
+  override fun dispatchTouchEvent(event: MotionEvent) =
+    jx11Handler?.handleTouchEvent(event) == true || super.dispatchTouchEvent(event)
+
+  override fun onKeyDown(keyCode: Int, event: KeyEvent) =
+    jx11Handler?.handleKeyDown(keyCode, event) == true || super.onKeyDown(keyCode, event)
+
+  override fun onKeyUp(keyCode: Int, event: KeyEvent) =
+    jx11Handler?.handleKeyUp(keyCode, event) == true || super.onKeyUp(keyCode, event)
+
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
+
+    val jx11Channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "jx11Channel")
+    jx11Handler = Jx11RingHandler(jx11Channel)
+
+    // Allow Flutter to enable/disable JX-11 input handling per screen
+    jx11Channel.setMethodCallHandler { call, result ->
+      when (call.method) {
+        "setEnabled" -> {
+          jx11Handler?.isEnabled = call.arguments as? Boolean ?: false
+          result.success(null)
+        }
+        else -> result.notImplemented()
+      }
+    }
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "nativeMethodsChannel")
       .setMethodCallHandler { call, result ->

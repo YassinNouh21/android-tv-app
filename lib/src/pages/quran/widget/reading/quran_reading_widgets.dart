@@ -28,8 +28,9 @@ class VerticalPageViewWidget extends ConsumerWidget {
       scrollDirection: Axis.vertical,
       controller: quranReadingState.pageController,
       onPageChanged: (index) {
-        if (index != quranReadingState.currentPage) {
-          ref.read(quranReadingNotifierProvider.notifier).updatePage(index, isPortairt: true);
+        final notifier = ref.read(quranReadingNotifierProvider.notifier);
+        if (!notifier.isProgrammaticJump && index != quranReadingState.currentPage) {
+          notifier.updatePage(index, isPortairt: true);
         }
       },
       itemCount: quranReadingState.totalPages,
@@ -81,9 +82,10 @@ class HorizontalPageViewWidget extends ConsumerWidget {
           reverse: Directionality.of(context) == TextDirection.ltr ? true : false,
           controller: quranReadingState.pageController,
           onPageChanged: (index) {
+            final notifier = ref.read(quranReadingNotifierProvider.notifier);
             final actualPage = index * 2;
-            if (actualPage != quranReadingState.currentPage) {
-              ref.read(quranReadingNotifierProvider.notifier).updatePage(actualPage);
+            if (!notifier.isProgrammaticJump && actualPage != quranReadingState.currentPage) {
+              notifier.updatePage(actualPage);
             }
           },
           itemCount: (quranReadingState.totalPages / 2).ceil(),

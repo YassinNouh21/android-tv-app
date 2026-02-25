@@ -16,6 +16,11 @@ import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.d
 import 'package:mawaqit/src/data/repository/quran/quran_reading_impl.dart';
 
 class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
+  /// True while [updatePage] is driving the PageController programmatically.
+  /// Widgets should skip their [onPageChanged] callback when this is set.
+  bool _isProgrammaticJump = false;
+  bool get isProgrammaticJump => _isProgrammaticJump;
+
   @override
   Future<QuranReadingState> build() async {
     final link = ref.keepAlive();
@@ -44,6 +49,16 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
     state.whenData((data) {
       final newRotation = !data.isRotated;
       state = AsyncValue.data(data.copyWith(isRotated: newRotation));
+    });
+  }
+
+  void replaceControllerForMode(bool isPortrait) {
+    state.whenData((data) {
+      final initialPage = isPortrait ? data.currentPage : (data.currentPage / 2).floor();
+      final newController = PageController(initialPage: initialPage);
+      final oldController = data.pageController;
+      state = AsyncValue.data(data.copyWith(pageController: newController));
+      WidgetsBinding.instance.addPostFrameCallback((_) => oldController.dispose());
     });
   }
 
@@ -82,6 +97,7 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
   Future<void> updatePage(int page, {bool isPortairt = false}) async {
     log('quran: QuranReadingNotifier: updatePage: $page');
 
+    _isProgrammaticJump = true;
     state = await AsyncValue.guard(() async {
       final currentState = state.value!;
       if (page >= 0 && page < currentState.totalPages) {
@@ -103,6 +119,7 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
       }
       return currentState;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _isProgrammaticJump = false);
   }
 
   Future<void> getAllSuwarPage() async {

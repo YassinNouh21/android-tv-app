@@ -75,18 +75,23 @@ class SurahSelectorWidget extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            S.of(context).surahSelector,
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.bold,
+        final size = MediaQuery.of(context).size;
+        final needsRotation = isPortrait && size.width > size.height;
+
+        return RotatedBox(
+          quarterTurns: needsRotation ? -1 : 0,
+          child: AlertDialog(
+            title: Text(
+              S.of(context).surahSelector,
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          content: Container(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.8,
+            content: Container(
+              width: double.maxFinite,
+              height: size.height * 0.8,
             child: Consumer(
               builder: (context, ref, _) {
                 final suwarState = ref.watch(quranReadingNotifierProvider);
@@ -190,6 +195,7 @@ class SurahSelectorWidget extends ConsumerWidget {
               },
             ),
           ),
+        ),
         );
       },
     );
