@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/moshaf_selector.dart';
 import 'package:mawaqit/src/pages/quran/widget/switch_button.dart';
+import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.dart';
 import 'package:sizer/sizer.dart';
@@ -309,6 +310,26 @@ class BackButtonWidget extends ConsumerWidget {
     required this.focusNode,
   }) : super(key: key);
 
+  Future<void> _handleBackPress(BuildContext context) async {
+    // Check if we're in Quran mode from settings
+    if (userPrefs.appMode == AppMode.quran) {
+      final shouldExit = await showQuranModeExitDialog(context);
+
+      if (shouldExit == true) {
+        if (isPortrait) {
+          userPrefs.orientationLandscape = true;
+        }
+        userPrefs.appMode = AppMode.normal;
+      }
+    } else {
+      // Normal behavior - just pop
+      if (isPortrait) {
+        userPrefs.orientationLandscape = true;
+      }
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Positioned.directional(
@@ -319,12 +340,7 @@ class BackButtonWidget extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           focusNode: focusNode,
-          onTap: () {
-            if (isPortrait) {
-              userPrefs.orientationLandscape = true;
-            }
-            Navigator.pop(context);
-          },
+          onTap: () => _handleBackPress(context),
           borderRadius: BorderRadius.circular(40),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +42,11 @@ class QuranImpl extends QuranRepository {
       // Save the new data to cache with current timestamp
       await _saveSuwarWithTimestamp(languageCode, suwar);
 
+      // Pre-fetch Arabic in background so it's available offline when user switches language
+      if (languageCode != 'ar') {
+        unawaited(_prefetchIfNeeded('ar'));
+      }
+
       return suwar;
     } on Exception catch (_) {
       // If remote fetch fails, try to return cached data even if it's outdated
@@ -60,6 +66,16 @@ class QuranImpl extends QuranRepository {
       final difference = currentTime.difference(time);
       return difference < _cacheValidityDuration;
     });
+  }
+
+  Future<void> _prefetchIfNeeded(String languageCode) async {
+    if (await _isCacheValid(languageCode)) return;
+    try {
+      final suwar = await _quranRemoteDataSource.getSuwarByLanguage(languageCode: languageCode);
+      await _saveSuwarWithTimestamp(languageCode, suwar);
+    } catch (e) {
+      log('quran: QuranImpl: _prefetchIfNeeded: failed to pre-fetch $languageCode: $e');
+    }
   }
 
   Future<void> _saveSuwarWithTimestamp(String languageCode, List<SurahModel> suwar) async {

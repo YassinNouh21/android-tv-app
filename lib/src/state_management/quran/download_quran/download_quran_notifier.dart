@@ -79,13 +79,16 @@ class DownloadQuranNotifier extends AutoDisposeAsyncNotifier<DownloadQuranState>
       final connectivityState = ref.read(connectivityProvider);
       return connectivityState.maybeWhen(
         orElse: () async {
-          final remoteVersion = await downloadQuranRepoImpl.getRemoteQuranVersion(moshafType: moshafType);
-          return localVersionOption.fold(
-            () => UpdateAvailable(
-              version: remoteVersion,
-              moshafType: moshafType,
-            ),
-            (localVersion) => _compareVersions(moshafType, localVersion, remoteVersion),
+          // Connectivity state not resolved yet - assume offline to avoid network errors
+          final savePath = await getApplicationSupportDirectory();
+          final quranPathHelper = QuranPathHelper(
+            applicationSupportDirectory: savePath,
+            moshafType: moshafType,
+          );
+          return NoUpdate(
+            moshafType: moshafType,
+            version: '',
+            svgFolderPath: quranPathHelper.quranDirectoryPath,
           );
         },
         data: (connectivity) async {

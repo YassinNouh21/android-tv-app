@@ -14,6 +14,12 @@ class AnnouncementWorkflowNotifier extends AsyncNotifier<AnnouncementWorkflowSta
   // Timer? _periodicTimer;
   late SharedPreferences sharedPrefs;
 
+  /// Helper to check if the app is in announcement mode using the new appMode enum
+  bool _isAnnouncementMode() {
+    final modeString = sharedPrefs.getString(appModeStoreKey);
+    return modeString == AppMode.announcement.name;
+  }
+
   @override
   FutureOr<AnnouncementWorkflowState> build() {
     ref.onDispose(() {
@@ -32,7 +38,7 @@ class AnnouncementWorkflowNotifier extends AsyncNotifier<AnnouncementWorkflowSta
       final announcementList = announcements;
       if (announcements.length == 0) return Future.value(state.value);
       sharedPrefs = await SharedPreferences.getInstance();
-      final isRepeatingAnnouncementMode = sharedPrefs.getBool(announcementsStoreKey) ?? false;
+      final isRepeatingAnnouncementMode = _isAnnouncementMode();
       log('announcement: AnnouncementWorkflowNotifier: startAnnouncementWorkflow ${announcementList.length} $isRepeatingAnnouncementMode');
       if (isRepeatingAnnouncementMode) {
         _handleRepeatedAnnouncementTimer(announcementList);
@@ -50,7 +56,7 @@ class AnnouncementWorkflowNotifier extends AsyncNotifier<AnnouncementWorkflowSta
   Future<void> _handleLinearAnnouncementTimer(List<Announcement> announcements) async {
     log('announcement: AnnouncementWorkflowNotifier: _handleLinearAnnouncementTimer');
     for (int i = 0; i < announcements.length; i++) {
-      final isRepeatingAnnouncementMode = sharedPrefs.getBool(announcementsStoreKey) ?? false;
+      final isRepeatingAnnouncementMode = _isAnnouncementMode();
       if (isRepeatingAnnouncementMode) {
         log('announcement: AnnouncementWorkflowNotifier: _handleLinearAnnouncementTimer - switching to repeated mode');
         break;
@@ -105,7 +111,7 @@ class AnnouncementWorkflowNotifier extends AsyncNotifier<AnnouncementWorkflowSta
     int index = 0;
     log('announcement: AnnouncementWorkflowNotifier: _handleRepeatedAnnouncementTimer');
     while (true) {
-      final isRepeatingAnnouncementMode = sharedPrefs.getBool(announcementsStoreKey) ?? false;
+      final isRepeatingAnnouncementMode = _isAnnouncementMode();
       if (!isRepeatingAnnouncementMode) {
         log('announcement: AnnouncementWorkflowNotifier: _handleRepeatedAnnouncementTimer - switching to linear mode');
         break;

@@ -13,7 +13,9 @@ import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/src/helpers/connectivity_provider.dart';
 import 'package:mawaqit/src/models/address_model.dart';
 import 'package:mawaqit/src/pages/quran/page/schedule_screen.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/services/theme_manager.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/recite/recite_notifier.dart';
@@ -220,8 +222,14 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   }
 
   void _navigateToReading() {
+    final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
     ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
-    Navigator.pushReplacementNamed(context, Routes.quranReading);
+    if (userPrefs.appMode == AppMode.quran) {
+      // Navigate back to root so OfflineHomeScreen shows QuranModeScreen
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    } else {
+      Navigator.pushReplacementNamed(context, Routes.quranReading);
+    }
   }
 
   @override
@@ -232,13 +240,25 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
 
     _setupFocusNodeCallbacks();
 
-    return Scaffold(
-      key: _scaffoldKey,
-      resizeToAvoidBottomInset: true,
-      floatingActionButton: _buildFloatingColumn(spacerWidth, buttonSize, iconSize, context),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      appBar: _buildAppBar(),
-      body: _buildBody(),
+    return WillPopScope(
+      onWillPop: () async {
+        if (!Navigator.canPop(context)) {
+          // Came here via pushReplacement (e.g. from Quran mode) — go back to reading
+          _navigateToReading();
+          return false;
+        }
+        // Reset quran mode and allow normal pop
+        ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.none);
+        return true;
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        resizeToAvoidBottomInset: true,
+        floatingActionButton: _buildFloatingColumn(spacerWidth, buttonSize, iconSize, context),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        appBar: _buildAppBar(),
+        body: _buildBody(),
+      ),
     );
   }
 
@@ -387,13 +407,19 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         ),
       ),
       centerTitle: true,
-      // leading: IconButton(
-      //   icon: Icon(
-      //     Icons.arrow_back,
-      //     color: Colors.white,
-      //   ),
-      //   onPressed: () => Navigator.pop(context),
-      // ),
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: Colors.white,
+        ),
+        onPressed: () {
+          if (!Navigator.canPop(context)) {
+            _navigateToReading();
+          } else {
+            Navigator.pop(context);
+          }
+        },
+      ),
     );
   }
 

@@ -7,13 +7,22 @@ import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Application display modes
+enum AppMode {
+  normal,
+  announcement,
+  quran,
+}
+
 const announcementsStoreKey = 'UserPreferencesManager.AnnouncementsOnly';
+const appModeStoreKey = 'UserPreferencesManager.app.mode';
 const _developerModeKey = 'UserPreferencesManager.developer.mode.enabled';
 const _secondaryScreenKey = 'UserPreferencesManager.secondary.screen.enabled';
 const _webViewModeKey = 'UserPreferencesManager.webView.mode.enabled';
 const _forceStagingKey = 'UserPreferencesManager.api.settings.staging';
 const _forcePreProdKey = 'UserPreferencesManager.api.settings.preprod';
 const _screenOrientation = 'UserPreferencesManager.screen.orientation';
+const quranLastPortraitKey = 'quran_last_portrait';
 const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
 const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
 
@@ -25,6 +34,10 @@ class UserPreferencesManager extends ChangeNotifier {
 
   Future<UserPreferencesManager> init() async {
     _sharedPref = await SharedPreferences.getInstance();
+
+    // Migrate old announcementsOnly boolean to new appMode enum
+    _migrateAnnouncementsOnly();
+
 
     // Set environment based on preferences (Pre-Prod > Staging > Production)
     if (forcePreProduction) {
@@ -38,12 +51,41 @@ class UserPreferencesManager extends ChangeNotifier {
     return this;
   }
 
+  /// Migrates the old announcementsOnly boolean preference to the new appMode enum.
+  /// This ensures existing users who had announcement mode enabled retain their setting.
+  void _migrateAnnouncementsOnly() {
+    if (_sharedPref.containsKey(announcementsStoreKey)) {
+      final oldValue = _sharedPref.getBool(announcementsStoreKey) ?? false;
+      // Only migrate if appMode hasn't been set yet
+      if (!_sharedPref.containsKey(appModeStoreKey) && oldValue) {
+        _sharedPref.setString(appModeStoreKey, AppMode.announcement.name);
+      }
+      // Remove the old key after migration
+      _sharedPref.remove(announcementsStoreKey);
+    }
+  }
+
   late SharedPreferences _sharedPref;
 
-  bool get announcementsOnly => _sharedPref.getBool(announcementsStoreKey) ?? false;
+  bool get announcementsOnly => appMode == AppMode.announcement;
 
   set announcementsOnly(bool value) {
-    _sharedPref.setBool(announcementsStoreKey, value);
+    appMode = value ? AppMode.announcement : AppMode.normal;
+  }
+
+  /// Get the current app mode (defaults to normal mode)
+  AppMode get appMode {
+    final modeString = _sharedPref.getString(appModeStoreKey);
+    if (modeString == null) return AppMode.normal;
+    return AppMode.values.firstWhere(
+      (e) => e.name == modeString,
+      orElse: () => AppMode.normal,
+    );
+  }
+
+  /// Set the app mode
+  set appMode(AppMode value) {
+    _sharedPref.setString(appModeStoreKey, value.name);
     notifyListeners();
   }
 

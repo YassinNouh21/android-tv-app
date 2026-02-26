@@ -80,6 +80,13 @@ class _QuranModeButton extends ConsumerWidget {
     required this.switchQuranModeNode,
   });
 
+  Future<void> _handleSwitchToListeningMode(BuildContext context, WidgetRef ref) async {
+    ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.listening);
+    if (context.mounted) {
+      Navigator.pushReplacementNamed(context, Routes.quranReciter);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Calculate relative size
@@ -100,10 +107,7 @@ class _QuranModeButton extends ConsumerWidget {
           color: Colors.white,
           size: iconSize,
         ),
-        onPressed: () {
-          ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.listening);
-          Navigator.pushReplacementNamed(context, Routes.quranReciter);
-        },
+        onPressed: () => _handleSwitchToListeningMode(context, ref),
         heroTag: null,
       ),
     );

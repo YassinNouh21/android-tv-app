@@ -8,6 +8,7 @@ import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/reading/widget/quran_floating_action_buttons.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_reading_widgets.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_surah_selector.dart';
+import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
 
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
@@ -659,7 +660,9 @@ class _Jx11State {
 }
 
 class QuranReadingScreen extends ConsumerStatefulWidget {
-  const QuranReadingScreen({super.key});
+  final bool isQuranMode;
+
+  const QuranReadingScreen({super.key, this.isQuranMode = false});
 
   @override
   ConsumerState createState() => _QuranReadingScreenState();
@@ -877,10 +880,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
         return;
       }
 
-      if (previous!.hasValue && previous.value != next.value) {
-        // Perform an action based on the new status
-      }
-
       if (!_isThereCurrentDialogShowing(context)) {
         await showDialog(
           context: context,
@@ -901,6 +900,15 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
         }
         return WillPopScope(
           onWillPop: () async {
+            // In Quran mode, show exit confirmation instead of popping (C1 fix)
+            if (widget.isQuranMode) {
+              final shouldExit = await showQuranModeExitDialog(context);
+              if (shouldExit) {
+                userPrefs.orientationLandscape = true;
+                userPrefs.appMode = AppMode.normal;
+              }
+              return false;
+            }
             userPrefs.orientationLandscape = true;
             return true;
           },

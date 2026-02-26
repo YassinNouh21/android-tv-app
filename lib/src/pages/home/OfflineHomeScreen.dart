@@ -21,6 +21,8 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_notifier.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_state.dart';
+import 'package:mawaqit/src/pages/quran/quran_mode_screen.dart';
+import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 
@@ -51,21 +53,26 @@ class OfflineHomeScreen extends ConsumerWidget {
   }
 
   /// show online home if enabled
-  /// show announcement mode if enabled
-  /// show offline home if enabled
+  /// show the appropriate screen based on app mode
   Widget activeHomeScreen(
     MosqueManager mosqueManager,
     bool onlineMode,
-    bool announcementMode,
+    AppMode appMode,
   ) {
     if (onlineMode) return HomeScreen();
 
-    if (announcementMode) return AnnouncementScreen();
-
-    final now = mosqueManager.mosqueDate();
-    return AppWorkflowScreen(
-      key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
-    );
+    switch (appMode) {
+      case AppMode.announcement:
+        return AnnouncementScreen();
+      case AppMode.quran:
+        return const QuranModeScreen();
+      case AppMode.normal:
+      default:
+        final now = mosqueManager.mosqueDate();
+        return AppWorkflowScreen(
+          key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
+        );
+    }
   }
 
   @override
@@ -95,23 +102,44 @@ class OfflineHomeScreen extends ConsumerWidget {
           return false;
         }
 
+        // In Quran mode, show exit confirmation that reverts to normal mode
+        if (userPrefs.appMode == AppMode.quran) {
+          final shouldExit = await showQuranModeExitDialog(context);
+          if (shouldExit) {
+            userPrefs.orientationLandscape = true;
+            userPrefs.appMode = AppMode.normal;
+          }
+          return false;
+        }
+
         return await showClosingDialog(context) ?? false;
       },
       // If stream is active and replacing workflow, show only the stream
       // Otherwise show the normal app workflow
       child: shouldShowStream
           ? const StreamReplacementScreen()
-          : MosqueBackgroundScreen(
-              key: ValueKey(mosqueProvider.mosque?.uuid),
-              child: SafeArea(
-                bottom: true,
-                child: activeHomeScreen(
-                  mosqueProvider,
-                  userPrefs.webViewMode,
-                  userPrefs.announcementsOnly,
+          // Quran mode has its own full-screen UI — skip the mosque background
+          // and drawer wrapper so arrow keys reach the Quran page navigation.
+          : userPrefs.appMode == AppMode.quran
+              ? SafeArea(
+                  bottom: true,
+                  child: activeHomeScreen(
+                    mosqueProvider,
+                    userPrefs.webViewMode,
+                    userPrefs.appMode,
+                  ),
+                )
+              : MosqueBackgroundScreen(
+                  key: ValueKey(mosqueProvider.mosque?.uuid),
+                  child: SafeArea(
+                    bottom: true,
+                    child: activeHomeScreen(
+                      mosqueProvider,
+                      userPrefs.webViewMode,
+                      userPrefs.appMode,
+                    ),
+                  ),
                 ),
-              ),
-            ),
     );
   }
 }

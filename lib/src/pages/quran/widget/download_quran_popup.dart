@@ -13,7 +13,13 @@ import 'package:mawaqit/src/state_management/quran/download_quran/download_quran
 import 'package:mawaqit/src/state_management/quran/reading/moshaf_type_notifier.dart';
 
 class DownloadQuranDialog extends ConsumerStatefulWidget {
-  const DownloadQuranDialog({super.key});
+  /// Called when the download completes successfully.
+  final VoidCallback? onSuccess;
+
+  /// Called when the user cancels or dismisses the dialog.
+  final VoidCallback? onCancel;
+
+  const DownloadQuranDialog({super.key, this.onSuccess, this.onCancel});
 
   @override
   _DownloadQuranDialogState createState() => _DownloadQuranDialogState();
@@ -70,7 +76,7 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       Downloading() => _buildDownloadingDialog(context, state),
       Extracting() => _buildExtractingDialog(context, state),
       Success() => _handleSuccess(context),
-      CancelDownload() => const SizedBox(),
+      CancelDownload() => _handleCancel(context),
       UpdateAvailable() => _buildUpdateAvailableDialog(context, state),
       _ => const SizedBox(),
     };
@@ -80,6 +86,15 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
     // Auto close dialog on success
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.of(context).pop();
+      widget.onSuccess?.call();
+    });
+    return const SizedBox();
+  }
+
+  Widget _handleCancel(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pop();
+      widget.onCancel?.call();
     });
     return const SizedBox();
   }
@@ -110,7 +125,10 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       content: Text(S.of(context).quranUpdateDialogContent(moshafName, state.version)),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onCancel?.call();
+          },
           child: Text(S.of(context).cancel),
         ),
         TextButton(
@@ -252,6 +270,7 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
                 } else {
                   Navigator.pop(context);
                 }
+                widget.onCancel?.call();
               },
               error: (_, __) {},
               loading: () {},
@@ -318,14 +337,17 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
 
   Widget _buildErrorDialog(BuildContext context, Object error) {
     if (error is CancelDownloadException) {
-      return SizedBox();
+      return _handleCancel(context);
     }
     return AlertDialog(
       title: Text(S.of(context).error),
       content: Text(error.toString()),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onCancel?.call();
+          },
           child: Text(S.of(context).ok),
         ),
       ],

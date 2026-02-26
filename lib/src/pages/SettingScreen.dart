@@ -306,14 +306,29 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                         )
                       : SizedBox(),
                   if (!userPreferences.webViewMode)
-                    _SettingSwitchItem(
-                      title: S.of(context).announcementOnlyMode,
-                      subtitle: S.of(context).announcementOnlyModeEXPLINATION,
-                      icon: Icon(Icons.notifications, size: 35),
-                      value: userPreferences.announcementsOnly,
-                      onChanged: (value) => userPreferences.announcementsOnly = value,
+                    _SettingDropdownItem<AppMode>(
+                      title: S.of(context).appDisplayMode,
+                      subtitle: S.of(context).appDisplayModeExplanation,
+                      icon: Icon(Icons.display_settings, size: 35),
+                      value: userPreferences.appMode,
+                      items: AppMode.values,
+                      onChanged: (value) {
+                        if (value != null) {
+                          userPreferences.appMode = value;
+                        }
+                      },
+                      itemLabelBuilder: (mode) {
+                        switch (mode) {
+                          case AppMode.normal:
+                            return S.of(context).normalMode;
+                          case AppMode.announcement:
+                            return S.of(context).announcementOnlyMode;
+                          case AppMode.quran:
+                            return S.of(context).quranMode;
+                        }
+                      },
                     ),
-                  if (!userPreferences.webViewMode && !userPreferences.announcementsOnly)
+                  if (!userPreferences.webViewMode && userPreferences.appMode == AppMode.normal)
                     _SettingSwitchItem(
                       title: S.of(context).secondaryScreen,
                       subtitle: S.of(context).secondaryScreenExplanation,
@@ -547,6 +562,57 @@ class _SettingSwitchItem extends StatelessWidget {
         subtitle: subtitle != null ? Text(subtitle!, maxLines: 2, overflow: TextOverflow.clip) : null,
         value: value,
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _SettingDropdownItem<T> extends StatelessWidget {
+  const _SettingDropdownItem({
+    Key? key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    required this.itemLabelBuilder,
+  }) : super(key: key);
+
+  final String title;
+  final String? subtitle;
+  final Widget? icon;
+  final T value;
+  final List<T> items;
+  final ValueChanged<T?> onChanged;
+  final String Function(T) itemLabelBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        autofocus: true,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        leading: icon ?? SizedBox(),
+        title: Text(title),
+        subtitle: subtitle != null
+            ? Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10))
+            : null,
+        trailing: DropdownButton<T>(
+          value: value,
+          underline: SizedBox(),
+          borderRadius: BorderRadius.circular(20),
+          onChanged: onChanged,
+          items: items.map((item) {
+            return DropdownMenuItem<T>(
+              value: item,
+              child: Text(itemLabelBuilder(item)),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

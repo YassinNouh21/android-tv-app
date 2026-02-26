@@ -41,7 +41,7 @@ class _OfflineScreenState extends State<OfflineScreen> {
               Text(
                 S.of(context).whoops,
                 style: TextStyle(color: Colors.white70, fontSize: 40.0, fontWeight: FontWeight.bold),
-              ),
+              ), 
               Text(
                 S.of(context).noInternet,
                 style: TextStyle(color: Colors.white70, fontSize: 15.0),
@@ -80,18 +80,18 @@ class _OfflineScreenState extends State<OfflineScreen> {
   _showDialog() {
     return showDialog(
       context: context,
-      builder: (context) => new AlertDialog(
-        title: new Text(S.of(context).closeApp),
-        content: new Text(S.of(context).sureCloseApp),
+      builder: (context) => AlertDialog(
+        title:  Text(S.of(context).closeApp),
+        content:  Text(S.of(context).sureCloseApp),
         actions: <Widget>[
-          new TextButton(
+           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: new Text(S.of(context).cancel),
+            child:  Text(S.of(context).cancel),
           ),
           SizedBox(height: 16),
-          new TextButton(
+           TextButton(
             onPressed: () => SystemNavigator.pop(),
-            child: new Text(S.of(context).ok),
+            child:  Text(S.of(context).ok),
           ),
         ],
       ),
