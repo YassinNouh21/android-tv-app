@@ -288,7 +288,6 @@ class PrayerScheduleService {
     int index,
   ) {
     String adhanAsset = "";
-    bool adhanFromAssets = false;
     bool shouldPlayAdhan = false;
 
     if (isAdhanVoiceEnabled) {
@@ -301,7 +300,6 @@ class PrayerScheduleService {
       'time': scheduleTime.toString(),
       'shouldPlayAdhan': shouldPlayAdhan,
       'adhanAsset': adhanAsset,
-      'adhanFromAssets': adhanFromAssets,
       'salahName': getSalahName(index),
       'day': scheduleTime.day,
       'month': scheduleTime.month,
