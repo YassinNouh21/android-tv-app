@@ -449,7 +449,6 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
     final prayerName = event['prayer'] as String;
     final shouldPlayAdhan = event['shouldPlayAdhan'] as bool;
     final adhanAsset = event['adhanAsset'] as String;
-    final adhanFromAssets = event['adhanFromAssets'] as bool;
     final salahName = event['salahName'] as String;
     print("called service prayerTime $salahName $prayerName");
 
@@ -457,7 +456,7 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
 
     if (shouldPlayAdhan) {
       try {
-        await PrayerAudioService.playPrayer(adhanAsset, adhanFromAssets);
+        await PrayerAudioService.playPrayer(adhanAsset);
         print("Prayer audio played successfully for $salahName");
       } catch (e) {
         print("Failed to play prayer audio for $salahName: $e");

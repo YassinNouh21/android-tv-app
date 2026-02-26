@@ -13,8 +13,6 @@ import 'package:mawaqit/src/services/audio_manager.dart';
 import 'package:mawaqit/src/helpers/connectivity_provider.dart';
 import 'package:mawaqit/src/models/address_model.dart';
 
-import 'package:mawaqit/const/resource.dart';
-
 // Simple provider without auto-dispose
 final prayerAudioProvider = StateNotifierProvider<PrayerAudioNotifier, PrayerAudioState>(
   (ref) => PrayerAudioNotifier(ref),
@@ -44,18 +42,12 @@ class PrayerAudioNotifier extends StateNotifier<PrayerAudioState> {
     final url = _audioManager.adhanLink(mosqueConfig, useFajrAdhan: useFajrAdhan);
     log('PrayerAudioNotifier: Will play adhan from $url');
 
-    if (url.contains('bip')) {
-      log('PrayerAudioNotifier: URL contains bip, playing bip asset');
-      await _playAsset(R.ASSETS_VOICES_ADHAN_BIP_MP3);
-    } else {
-      log('PrayerAudioNotifier: URL does not contain bip, trying cached/network playback');
-      await _playFromUrlWithCache(url);
-    }
+    await _playFromUrlWithCache(url);
   }
 
   Future<void> playIqamaBip(MosqueConfig? mosqueConfig) async {
     log('PrayerAudioNotifier: playIqamaBip called');
-    await _playAsset(R.ASSETS_VOICES_ADHAN_BIP_MP3);
+    await _playFromUrlWithCache(_audioManager.bipLink);
   }
 
   Future<void> playDuaAfterAdhan(MosqueConfig? mosqueConfig) async {
@@ -205,37 +197,6 @@ class PrayerAudioNotifier extends StateNotifier<PrayerAudioState> {
         _playerStateSubscription = null;
       }
     });
-  }
-
-  Future<void> _playAsset(String assetPath) async {
-    log('PrayerAudioNotifier: _playAsset called with path: $assetPath');
-
-    try {
-      // Stop any current playback
-      await stop();
-
-      // Update state to loading
-      state = const PrayerAudioState(processingState: ProcessingState.loading);
-
-      // Set asset and play
-      final duration = await _audioPlayer.setAsset(assetPath);
-      log('PrayerAudioNotifier: Asset set, duration: $duration');
-
-      await _audioPlayer.play();
-      log('PrayerAudioNotifier: Play() called');
-
-      // Update state
-      state = PrayerAudioState(
-        duration: duration,
-        processingState: ProcessingState.ready,
-      );
-
-      // Setup listener
-      _setupPlaybackListener();
-    } catch (e) {
-      log('PrayerAudioNotifier: Error in _playAsset: $e');
-      state = const PrayerAudioState(processingState: ProcessingState.idle);
-    }
   }
 
   @override

@@ -42,6 +42,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   Timer? _noAdhanDisplayTimer;
   bool _audioStarted = false;
   bool _closeCalled = false;
+  bool _isBipAdhan = false;
   late final MosqueManager _mosqueManager;
 
   @override
@@ -71,6 +72,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     if (widget.forceAdhan || mosqueManager.adhanVoiceEnable()) {
       log('AdhanSubScreen: Starting adhan playback');
       _audioStarted = true;
+      _isBipAdhan = mosqueConfig?.adhanVoice?.contains('bip') ?? false;
 
       // Ensure ref is accessed on the next frame after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -87,6 +89,16 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
           log('AdhanSubScreen: Error calling playAdhan', error: e);
         }
       });
+
+      // For bip adhan, use adhanDuration from API to keep the screen open
+      if (_isBipAdhan) {
+        final screenDuration = Duration(seconds: mosqueConfig?.adhanDuration ?? 150);
+        log('AdhanSubScreen: Bip adhan detected, using adhanDuration: $screenDuration');
+        _noAdhanDisplayTimer = Timer(screenDuration, () {
+          log('AdhanSubScreen: Bip adhan display timer elapsed. Closing screen.');
+          _closeScreenSafely();
+        });
+      }
     } else {
       // No Adhan audio will be played. Start a 150-second timer to close the screen.
       log('AdhanSubScreen: No Adhan audio activated. Starting 150-second display timer.');
@@ -176,7 +188,8 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
             'next: ${next.processingState}');
 
         // Detect completion: if the new state is completed
-        if (next.processingState == ProcessingState.completed) {
+        // For bip adhan, don't close on audio completion — screen duration is controlled by adhanDuration timer
+        if (next.processingState == ProcessingState.completed && !_isBipAdhan) {
           log('AdhanSubScreen: Playback COMPLETED detected - closing screen');
           _closeScreenSafely();
         }
