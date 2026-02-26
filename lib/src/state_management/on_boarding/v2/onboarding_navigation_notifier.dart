@@ -1,20 +1,12 @@
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
-import 'package:mawaqit/main.dart';
-import 'package:mawaqit/src/const/constants.dart';
-import 'package:mawaqit/src/helpers/Api.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/SharedPref.dart';
 import 'package:mawaqit/src/pages/home/OfflineHomeScreen.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/InputTypeSelector.dart';
-import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputId.dart';
-import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputSearch.dart';
-import 'package:mawaqit/src/pages/mosque_search/widgets/chromecast_mosque_input_search.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
-import 'package:page_transition/page_transition.dart';
 
 import 'onboarding_navigation_state.dart';
 import 'search_selection_type_provider.dart';
@@ -115,7 +107,7 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
 
       // Handle mosque search type selection
       if (currentState.screenFlow[currentState.currentScreen] == OnboardingScreenType.mosqueSearchType) {
-        await _handleMosqueSearchNavigation(currentState);
+        await _handleMosqueSearchNavigation(currentState, context);
         return;
       }
 
@@ -167,18 +159,15 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
     }
   }
 
-  Future<void> _handleMosqueSearchNavigation(OnboardingNavigationState currentState) async {
-    final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast =
-        DeviceDetectionConstant.chromeCastDeviceKeywords.any((keyword) => deviceModel.toLowerCase().contains(keyword));
+  Future<void> _handleMosqueSearchNavigation(OnboardingNavigationState currentState, BuildContext context) async {
     final selectionType = ref.read(mosqueInputTypeSelectorProvider);
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
-    // Determine the next screen based on device type and user selection
-    final screenType = switch ((isChromeCast, selectionType)) {
-      (true, SelectionType.mosqueId) => OnboardingScreenType.chromecastMosqueId,
-      (true, SelectionType.mosqueName) => OnboardingScreenType.chromecastMosqueName,
-      (false, SelectionType.mosqueId) => OnboardingScreenType.mosqueId,
-      (false, SelectionType.mosqueName) => OnboardingScreenType.mosqueName,
+    final screenType = switch ((isPhone, selectionType)) {
+      (true, SelectionType.mosqueId) => OnboardingScreenType.mosqueId,
+      (true, SelectionType.mosqueName) => OnboardingScreenType.mosqueName,
+      (false, SelectionType.mosqueId) => OnboardingScreenType.chromecastMosqueId,
+      (false, SelectionType.mosqueName) => OnboardingScreenType.chromecastMosqueName,
     };
 
     final newFlow = [...currentState.screenFlow];
@@ -301,17 +290,6 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
     } else {
       // If we can't find the wifi screen, just go to the next screen after timezone
       nextPage(context);
-    }
-  }
-
-  Future<String?> _fetchDeviceModel() async {
-    try {
-      logger.d('Fetching device model for onboarding');
-      final hardware = await DeviceInfoPlugin().androidInfo;
-      return hardware.model;
-    } catch (e, stackTrace) {
-      logger.e('Error fetching device model: $e', stackTrace: stackTrace);
-      return null;
     }
   }
 

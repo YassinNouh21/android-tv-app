@@ -196,6 +196,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       _saveToLocale();
     } catch (e, stack) {
       debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 

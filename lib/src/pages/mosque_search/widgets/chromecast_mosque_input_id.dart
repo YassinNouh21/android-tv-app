@@ -52,6 +52,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
 
   FocusNode _inputFocusNode = FocusNode();
   FocusNode _mosqueTileFocusNode = FocusNode();
+  bool _showKeyboard = true;
 
   @override
   void initState() {
@@ -70,6 +71,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
   }
 
   void _setMosqueId(String mosqueId) async {
+    if (loading) return;
     if (mosqueId.isEmpty) {
       return setState(() => error = S.of(context).missingMosqueId);
     }
@@ -90,6 +92,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
       setState(() {
         searchOutput = value;
         loading = false;
+        _showKeyboard = false;
       });
 
       // Move focus to the mosque tile after result appears
@@ -105,11 +108,13 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
+          _showKeyboard = true;
           error = S.of(context).mosqueIdIsNotValid(mosqueId);
         });
       } else {
         setState(() {
           loading = false;
+          _showKeyboard = true;
           error = S.of(context).backendError;
         });
       }
@@ -120,9 +125,16 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
     final mosqueManager = context.read<MosqueManager>();
 
     try {
-      await mosqueManager.setMosqueUUid(searchOutput!.uuid.toString());
+      final uuid = searchOutput?.uuid;
+      if (uuid == null) {
+        setState(() => error = 'Invalid mosque');
+        return;
+      }
+      await mosqueManager.setMosqueUUid(uuid);
+      if (!mounted) return;
 
       final hadithLangCode = await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+      if (!mounted) return;
       ref.read(randomHadithNotifierProvider.notifier).fetchAndCacheHadith(language: hadithLangCode);
 
       if (searchOutput != null) {
@@ -142,7 +154,8 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
       } else { */
       widget.onDone?.call();
       /* } */
-    } catch (e, stack) {
+    } catch (e) {
+      if (!mounted) return;
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
@@ -165,8 +178,6 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showKeyboard = searchOutput == null;
-
     return Material(
       child: Align(
         alignment: Alignment(0, -.3),
@@ -183,7 +194,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
             ),
             SizedBox(height: 10),
             buildInputWidget(context, theme),
-            if (showKeyboard)
+            if (_showKeyboard)
               KeyboardCustom(
                 keyboardType: KeyboardType.numeric,
                 controller: inputController,
@@ -197,6 +208,7 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
                 onKeyEvent: (node, event) {
                   if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
                     setState(() {
+                      _showKeyboard = true;
                       searchOutput = null;
                       error = null;
                     });
@@ -226,18 +238,26 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
   final navKey = GlobalKey<NavigatorState>();
 
   KeyEventResult _handleKeyEvent(FocusNode node, RawKeyEvent event) {
-    if (LogicalKeyboardKey.arrowLeft == event.logicalKey) {
-      FocusManager.instance.primaryFocus!.focusInDirection(TraversalDirection.left);
-    } else if (LogicalKeyboardKey.arrowRight == event.logicalKey) {
-      FocusManager.instance.primaryFocus!.focusInDirection(TraversalDirection.right);
-    } else if (LogicalKeyboardKey.arrowUp == event.logicalKey) {
-      FocusManager.instance.primaryFocus!.focusInDirection(TraversalDirection.up);
-    } else if (LogicalKeyboardKey.arrowDown == event.logicalKey) {
-      FocusManager.instance.primaryFocus!.focusInDirection(TraversalDirection.down);
-    } else if (LogicalKeyboardKey.goBack == event.logicalKey) {
-      navKey.currentState!.pop();
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      focus.focusInDirection(TraversalDirection.left);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      focus.focusInDirection(TraversalDirection.right);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      focus.focusInDirection(TraversalDirection.up);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      focus.focusInDirection(TraversalDirection.down);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.goBack) {
+      Navigator.of(context).maybePop();
+      return KeyEventResult.handled;
     }
-    return KeyEventResult.handled;
+    return KeyEventResult.ignored;
   }
 
   Padding buildInputWidget(BuildContext context, ThemeData theme) {
@@ -256,6 +276,14 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
             ),
+            onTap: () {
+              if (!_showKeyboard) {
+                setState(() {
+                  _showKeyboard = true;
+                  searchOutput = null;
+                });
+              }
+            },
             onFieldSubmitted: _setMosqueId,
             cursorColor: theme.brightness == Brightness.dark ? null : theme.primaryColor,
             keyboardType: TextInputType.none,

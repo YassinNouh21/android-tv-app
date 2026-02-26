@@ -73,13 +73,13 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     }
   }
 
-  void _updateFocusNodes() {
+  void _updateFocusNodes([int? count]) {
     for (var node in _resultFocusNodes) {
       node.dispose();
     }
 
     _resultFocusNodes = List.generate(
-      results.length,
+      count ?? results.length,
       (index) => FocusNode(debugLabel: 'chromecast_result_${index}_node'),
     );
 
@@ -129,19 +129,25 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
     await mosqueManager.searchMosques(mosque, page: page).then((value) {
       if (!mounted) return;
 
+      final int oldResultsLength = (page == 1) ? 0 : results.length;
+      final newResults = (page == 1) ? [...value] : [...results, ...value];
+
+      _updateFocusNodes(newResults.length);
+
       setState(() {
         loading = false;
 
         if (page == 1) {
-          results = [];
           _currentFocusIndex = -1;
         }
 
         noMore = value.isEmpty;
-        final oldResultsLength = results.length;
-        results = [...results, ...value];
+        results = newResults;
 
-        _updateFocusNodes();
+        if (page == 1 && results.isEmpty) {
+          showKeyboard = true;
+          error = S.of(context).mosqueNoResults;
+        }
 
         if (page == 1 && results.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -174,6 +180,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
       setState(() {
         logger.w(e.toString(), stackTrace: stack);
         loading = false;
+        showKeyboard = true;
         error = S.of(context).backendError;
       });
     });
@@ -181,6 +188,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
 
   Future<void> _selectMosque(Mosque mosque) {
     return context.read<MosqueManager>().setMosqueUUid(mosque.uuid.toString()).then((value) {
+      if (!mounted) return;
       if (context.read<MosqueManager>().typeIsMosque) {
         ref.read(mosqueManagerProvider.notifier).state = Option.fromNullable(SearchSelectionType.mosque);
       } else {
@@ -197,6 +205,7 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
       widget.onDone?.call();
       /* } */
     }).catchError((e, stack) {
+      if (!mounted) return;
       if (e is InvalidMosqueId) {
         setState(() {
           loading = false;
@@ -253,7 +262,6 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
         child: ListView(
           controller: scrollController,
           padding: EdgeInsets.symmetric(vertical: 80, horizontal: 10),
-          cacheExtent: 99999,
           children: [
             Text(
               S.of(context).searchMosque,
@@ -281,10 +289,12 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
                   // If we're on the first item and arrow up is pressed
                   if (i == 0 && event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
                     _searchFocusNode.requestFocus();
+                    for (final node in _resultFocusNodes) node.dispose();
                     setState(() {
                       showKeyboard = true;
                       results = [];
                       _currentFocusIndex = -1;
+                      _resultFocusNodes = [];
                     });
                     return KeyEventResult.handled;
                   }
@@ -360,6 +370,15 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
         autofocus: true,
         keyboardType: TextInputType.none,
         textInputAction: TextInputAction.search,
+        onTap: () {
+          if (!showKeyboard) {
+            setState(() {
+              showKeyboard = true;
+              results = [];
+              _currentFocusIndex = -1;
+            });
+          }
+        },
         onFieldSubmitted: (val) => _searchMosque(val, 1),
         cursorColor: theme.brightness == Brightness.dark ? null : theme.primaryColor,
         style: GoogleFonts.inter(

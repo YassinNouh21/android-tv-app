@@ -211,7 +211,8 @@ class Api {
 
   static Future<List<Mosque>> searchMosques(String mosque, {page = 1}) async {
     final response = await dio.get(
-      '/2.0/mosque/search?word=$mosque&page=$page',
+      '/2.0/mosque/search',
+      queryParameters: {'word': mosque, 'page': page},
     );
 
     List<Mosque> mosques = [];
