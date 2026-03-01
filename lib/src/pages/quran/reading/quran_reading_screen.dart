@@ -680,7 +680,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
   late FocusNode _portraitModeBackButtonFocusNode;
   late FocusNode _portraitModeSwitchQuranFocusNode;
   late FocusNode _portraitModePageSelectorFocusNode;
-  final ScrollController _gridScrollController = ScrollController();
 
   Orientation? _lastOrientation;
   bool? _lastEffectiveIsPortrait;
@@ -827,7 +826,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
     _jx11 = null;
     setJx11Enabled(false);
     _disposeFocusNodes();
-    _gridScrollController.dispose();
     super.dispose();
   }
 
@@ -1075,7 +1073,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
         return QuranReadingPageSelector(
           isPortrait: switcherScreen,
           currentPage: currentPage,
-          scrollController: _gridScrollController,
           totalPages: totalPages,
         );
       },
