@@ -11,8 +11,6 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:xml/xml.dart';
 
-import 'package:upgrader/upgrader.dart';
-
 final manualUpdateNotifierProvider = AsyncNotifierProvider<ManualUpdateNotifier, UpdateState>(() {
   return ManualUpdateNotifier();
 });
@@ -95,10 +93,8 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
         return;
       }
 
-      // For non-ONVO devices, proceed with normal update check
-      final hasUpdate = isDeviceRooted
-          ? await _isUpdateAvailableForRootedDevice(currentVersion)
-          : await _isUpdateAvailableStandard(languageCode);
+      // For all non-ONVO devices, check S3 for updates and install via system installer
+      final hasUpdate = await _isUpdateAvailableForRootedDevice(currentVersion);
 
       if (hasUpdate) {
         final latestApk = await _getLatestApk();
@@ -148,14 +144,6 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       logger.e('Failed to open ONVO store', error: e);
       rethrow;
     }
-  }
-
-  Future<bool> _isUpdateAvailableStandard(String languageCode) async {
-    final upgrader = Upgrader(
-      messages: UpgraderMessages(code: languageCode),
-    );
-    await upgrader.initialize();
-    return upgrader.isUpdateAvailable();
   }
 
   Future<bool> _isUpdateAvailableForRootedDevice(String currentVersion) async {
@@ -333,8 +321,6 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       final result = await platform.invokeMethod('installApk', {
         'filePath': filePath,
       });
-
-      await file.delete();
 
       if (result != true) {
         throw Exception('Installation failed');
