@@ -181,8 +181,10 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
 
     if (mosqueManager.mosqueConfig?.iqamaFullScreenCountdown == false) return const NormalHomeSubScreen();
 
-    // Use new layout for screens 1920x1080 or less, old layout for larger screens
-    if (_isStandardResolution(context)) {
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+
+    // Portrait always uses new layout; landscape uses new for standard res, old for high res
+    if (isPortrait || _isStandardResolution(context)) {
       return _buildNewLayout(context, mosqueManager);
     } else {
       return _buildOldLayout(context, mosqueManager);
@@ -199,20 +201,11 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
         children: [
           _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.vh)),
 
-          // Clock Widget from Main Screen (compact version)
+          // Clock Widget - compact version without redundant black box
           Container(
             height: 20.vh,
             alignment: Alignment.center,
-            child: ClipRect(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: 60.vw,
-                  height: 35.vh,
-                  child: const HomeTimeWidget(showSalahIn: false, showOuterBackground: true),
-                ),
-              ),
-            ),
+            child: const IqamaaTimeWidget(hideSeconds: true),
           ),
 
           // Main countdown section - takes up available space
