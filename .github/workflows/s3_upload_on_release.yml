@@ -1,0 +1,80 @@
+name: Upload APK to S3 on latest release
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test with (e.g. v99.0.0-test)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  upload-to-s3:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check if APK asset exists in release
+        id: check_apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          APK_COUNT=$(gh release view "$RELEASE_TAG" \
+            --repo "$REPO" \
+            --json assets \
+            --jq '[.assets[] | select(.name | endswith(".apk"))] | length')
+
+          echo "APK assets found: $APK_COUNT"
+
+          if [ "$APK_COUNT" -eq "0" ]; then
+            echo "No APK in release yet — this is a direct latest release, Codemagic will handle S3 upload"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "APK found — this was a pre-release switched to latest, uploading to S3"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download APK from release
+        if: steps.check_apk.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release download "$RELEASE_TAG" \
+            --repo "$REPO" \
+            --pattern "*.apk" \
+            --dir ./artifacts
+
+          echo "Downloaded files:"
+          ls -la ./artifacts/
+
+      - name: Upload to S3
+        if: steps.check_apk.outputs.skip == 'false'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          shopt -s nullglob
+          APK_FILES=(./artifacts/*.apk)
+          if [ ${#APK_FILES[@]} -eq 0 ]; then
+            echo "::error::No APK found in ./artifacts/"
+            exit 1
+          fi
+          if [ ${#APK_FILES[@]} -gt 1 ]; then
+            echo "::error::Multiple APKs found: ${APK_FILES[*]}"
+            exit 1
+          fi
+          APK_FILE="${APK_FILES[0]}"
+          echo "Uploading $APK_FILE to S3"
+          aws s3 cp "$APK_FILE" s3://cdn.mawaqit.net/android/tv/apk/

@@ -108,7 +108,7 @@ workflows:
           mkdir build/artifacts;
           cp build/app/outputs/bundle/release/app-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.aab
           cp build/app/outputs/flutter-apk/app-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk
-    
+
       - name: Run Maestro Tests on TestingBot
         script: |
           npm install -g @testingbot/cli
@@ -117,10 +117,31 @@ workflows:
             .maestro \
             --device "Galaxy Tab S7" \
             --deviceVersion "12" \
-            --orientation LANDSCAPE 
-            
+            --orientation LANDSCAPE
+
       - name: Upload to AWS S3 bucket
         script: |
+          if [ -z "${CM_TAG}" ]; then
+            echo "Not a tag build, skipping S3 upload"
+            exit 0
+          fi
+
+          IS_PRERELEASE=$(gh release view "${CM_TAG}" --json isPrerelease -q '.isPrerelease') || {
+            echo "ERROR: Cannot determine release status. Refusing to upload."
+            exit 1
+          }
+
+          if [ -z "$IS_PRERELEASE" ]; then
+            echo "ERROR: Empty response from gh. Refusing to upload."
+            exit 1
+          fi
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "Tag ${CM_TAG} is a pre-release, skipping S3 upload"
+            exit 0
+          fi
+
+          echo "Tag ${CM_TAG} is marked as latest, uploading to S3"
           aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk s3://cdn.mawaqit.net/android/tv/apk/
 
       - name: Upload apk to the Github release
@@ -239,7 +260,7 @@ workflows:
           mkdir build/artifacts;
           cp build/app/outputs/bundle/release/app-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.aab
           cp build/app/outputs/flutter-apk/app-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.apk
-            
+
     artifacts:
       - build/artifacts/*
       - build/**/outputs/**/mapping.txt
