@@ -18,6 +18,7 @@ final manualUpdateNotifierProvider = AsyncNotifierProvider<ManualUpdateNotifier,
 class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
   static const platform = MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel);
   static final _versionRegex = RegExp(r'v(\d+\.\d+\.\d+)');
+  static final _buildNumberRegex = RegExp(r'v\d+\.\d+\.\d+-(\d+)');
   static const _cacheDuration = Duration(days: 5);
 
   late final Dio _dio;
@@ -99,6 +100,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       if (hasUpdate) {
         final latestApk = await _getLatestApk();
         final latestVersion = _extractVersionFromFileName(latestApk['fileName']);
+        final latestBuildNumber = _extractBuildNumberFromFileName(latestApk['fileName']);
 
         // Validate S3 key to prevent path traversal
         final key = latestApk['key'] as String;
@@ -113,7 +115,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
           message: 'Update available',
           downloadUrl: downloadUrl,
           currentVersion: currentVersion,
-          availableVersion: latestVersion,
+          availableVersion: '$latestVersion-$latestBuildNumber',
         ));
       } else {
         state = AsyncData(UpdateState(
@@ -207,11 +209,15 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       throw Exception('No APK found in S3');
     }
 
-    // Sort by version to get the latest
+    // Sort by version and build number to get the latest
     apkList.sort((a, b) {
       final versionA = _extractVersionFromFileName(a['fileName']);
       final versionB = _extractVersionFromFileName(b['fileName']);
-      return _compareVersions(versionB, versionA); // Descending order
+      final versionCompare = _compareVersions(versionB, versionA);
+      if (versionCompare != 0) return versionCompare;
+      final buildA = _extractBuildNumberFromFileName(a['fileName']);
+      final buildB = _extractBuildNumberFromFileName(b['fileName']);
+      return buildB - buildA;
     });
 
     _cachedLatestApk = apkList.first;
@@ -234,6 +240,14 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       }
     }
     throw Exception('Could not extract version from filename: $fileName');
+  }
+
+  int _extractBuildNumberFromFileName(String fileName) {
+    final match = _buildNumberRegex.firstMatch(fileName);
+    if (match != null) {
+      return int.parse(match.group(1)!);
+    }
+    return 0;
   }
 
   Future<void> downloadAndInstallUpdate() async {
