@@ -133,28 +133,19 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
   Widget _buildPrayerTimesWidget(
       BuildContext context, MosqueManager mosqueProvider, bool announcementMode, bool? showPrayerTimesOnMessageScreen) {
     final isImageAnnouncement = currentAnnouncement?.image != null;
+    // In announcement-only mode default to hidden; in normal mode default to visible (backward compat).
+    final showPrayers = (showPrayerTimesOnMessageScreen ?? !announcementMode) && !isImageAnnouncement;
 
-    return announcementMode
-        ? ((showPrayerTimesOnMessageScreen ?? false) && !isImageAnnouncement
-            ? IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 1.5.vh),
-                  child: mosqueProvider.times!.isTurki
-                      ? ResponsiveMiniSalahBarTurkishWidget()
-                      : ResponsiveMiniSalahBarWidget(),
-                ),
-              )
-            : const SizedBox.shrink())
-        : !isImageAnnouncement
-            ? IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 1.5.vh),
-                  child: mosqueProvider.times!.isTurki
-                      ? ResponsiveMiniSalahBarTurkishWidget()
-                      : ResponsiveMiniSalahBarWidget(),
-                ),
-              )
-            : const SizedBox.shrink();
+    return showPrayers
+        ? IgnorePointer(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 1.5.vh),
+              child: mosqueProvider.times!.isTurki
+                  ? ResponsiveMiniSalahBarTurkishWidget()
+                  : ResponsiveMiniSalahBarWidget(),
+            ),
+          )
+        : const SizedBox.shrink();
   }
 
   /// return the widget of the announcement based on its type
