@@ -146,12 +146,19 @@ class MainActivity : FlutterActivity() {
                 if (VERSION.SDK_INT >= VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
                   // Save path so we can retry after user grants permission
                   pendingInstallApkPath = filePath
-                  val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = Uri.parse("package:$packageName")
+                  try {
+                    val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                      data = Uri.parse("package:$packageName")
+                    }
+                    startActivityForResult(permIntent, REQUEST_INSTALL_PERMISSION)
+                    result.success(true)
+                    return@setMethodCallHandler
+                  } catch (e: android.content.ActivityNotFoundException) {
+                    // Device doesn't have unknown sources settings (e.g. some Android TV boxes)
+                    // Fall through to try direct install anyway
+                    Log.w("APK_INSTALL", "No MANAGE_UNKNOWN_APP_SOURCES activity, trying direct install")
+                    pendingInstallApkPath = null
                   }
-                  startActivityForResult(permIntent, REQUEST_INSTALL_PERMISSION)
-                  result.success(true)
-                  return@setMethodCallHandler
                 }
 
                 launchInstallIntent(filePath)
