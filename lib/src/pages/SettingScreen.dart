@@ -57,6 +57,7 @@ class SettingScreen extends ConsumerStatefulWidget {
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool isBoxOrAndroidTV = false;
   int androidSdkVersion = 0;
+  bool hasPlayStore = false;
 
   @override
   void initState() {
@@ -66,9 +67,13 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       await ref.read(onBoardingProvider.notifier).isDeviceRooted();
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final bool deviceIsBoxOrAndroidTV = await DeviceInfoDataSource().isBoxOrAndroidTV();
+      final bool playStoreInstalled = await const MethodChannel('nativeMethodsChannel')
+          .invokeMethod<bool>('isPackageInstalled', {'packageName': 'com.android.vending'}) ??
+          false;
       setState(() {
         isBoxOrAndroidTV = deviceIsBoxOrAndroidTV;
         androidSdkVersion = androidInfo.version.sdkInt;
+        hasPlayStore = playStoreInstalled;
       });
 
       final appLanguage = Provider.of<AppLanguage>(context, listen: false);
@@ -426,6 +431,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                           title: checkInternet,
                                           content: S.of(context).checkInternetUpdate,
                                         );
+                                      } else if (hasPlayStore) {
+                                        ref.read(appUpdateProvider.notifier).openStore();
                                       } else {
                                         var softwareFuture = await PackageInfo.fromPlatform();
                                         ref
