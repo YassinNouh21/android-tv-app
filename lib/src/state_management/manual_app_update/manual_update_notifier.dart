@@ -69,11 +69,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
     }
   }
 
-  Future<void> checkForUpdates(
-    String currentVersion,
-    String languageCode,
-    bool isDeviceRooted,
-  ) async {
+  Future<void> checkForUpdates(String currentVersion) async {
     state = const AsyncLoading();
     // Implement time-based cache invalidation (5 days) instead of clearing on every check
     if (_cacheTimestamp != null && DateTime.now().difference(_cacheTimestamp!) > _cacheDuration) {

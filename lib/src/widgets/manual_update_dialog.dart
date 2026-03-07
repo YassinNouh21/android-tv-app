@@ -9,8 +9,6 @@ class UpdateDialogMessages {
   static Map<UpdateStatus, String> getLocalizedMessage(BuildContext context) {
     return {
       UpdateStatus.checking: S.of(context).checkingForUpdates,
-/*       UpdateStatus.available: S.of(context).updateAvailable,
- */
       UpdateStatus.notAvailable: S.of(context).usingLatestVersion,
       UpdateStatus.downloading: S.of(context).downloadingUpdate,
       UpdateStatus.installing: S.of(context).installingUpdate,

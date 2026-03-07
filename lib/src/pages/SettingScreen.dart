@@ -428,14 +428,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                         );
                                       } else {
                                         var softwareFuture = await PackageInfo.fromPlatform();
-                                        final isDeviceRooted = ref.watch(onBoardingProvider).maybeWhen(
-                                              orElse: () => false,
-                                              data: (value) => value.isRootedDevice,
-                                            );
                                         ref.read(manualUpdateNotifierProvider.notifier).checkForUpdates(
-                                            softwareFuture.version,
-                                            context.read<AppLanguage>().appLocal.languageCode,
-                                            isDeviceRooted);
+                                            softwareFuture.version);
                                       }
                                     },
                                   );
