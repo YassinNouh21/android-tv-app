@@ -68,7 +68,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final bool deviceIsBoxOrAndroidTV = await DeviceInfoDataSource().isBoxOrAndroidTV();
       final bool playStoreInstalled = await const MethodChannel('nativeMethodsChannel')
-          .invokeMethod<bool>('isPackageInstalled', {'packageName': 'com.android.vending'}) ??
+              .invokeMethod<bool>('isPackageInstalled', {'packageName': 'com.android.vending'}) ??
           false;
       setState(() {
         isBoxOrAndroidTV = deviceIsBoxOrAndroidTV;
