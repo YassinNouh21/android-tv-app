@@ -428,8 +428,9 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                         );
                                       } else {
                                         var softwareFuture = await PackageInfo.fromPlatform();
-                                        ref.read(manualUpdateNotifierProvider.notifier).checkForUpdates(
-                                            softwareFuture.version);
+                                        ref
+                                            .read(manualUpdateNotifierProvider.notifier)
+                                            .checkForUpdates(softwareFuture.version);
                                       }
                                     },
                                   );
