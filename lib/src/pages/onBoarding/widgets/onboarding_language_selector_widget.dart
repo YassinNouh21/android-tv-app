@@ -147,33 +147,42 @@ class _LanguageTileState extends State<LanguageTile> {
               widget.onTap();
               setState(() {});
             },
-            child: ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.symmetric(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
                 horizontal: 4.w,
-                vertical: 0.5.h,
+                vertical: 1.5.h,
               ),
-              textColor: widget.isSelected ? Colors.white : null,
-              leading: widget.isIconActivated
-                  ? flagIcon(LocaleHelper.transformLocaleToString(widget.locale), size: 10.w)
-                  : null,
-              title: Text(
-                appLanguage.combinedLanguageName(
-                  LocaleHelper.transformLocaleToString(widget.locale),
-                  context: context,
-                ),
-                style: TextStyle(
-                  fontSize: 13.sp, // Responsive font size
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
-              trailing: widget.isSelected
-                  ? Icon(
+              child: Row(
+                children: [
+                  if (widget.isIconActivated)
+                    Padding(
+                      padding: EdgeInsets.only(right: 3.w),
+                      child: flagIcon(
+                        LocaleHelper.transformLocaleToString(widget.locale),
+                        size: 22.sp,
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      appLanguage.combinedLanguageName(
+                        LocaleHelper.transformLocaleToString(widget.locale),
+                        context: context,
+                      ),
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.normal,
+                        color: widget.isSelected ? Colors.white : null,
+                      ),
+                    ),
+                  ),
+                  if (widget.isSelected)
+                    Icon(
                       MawaqitIcons.icon_checked,
                       color: Colors.white,
-                      size: 5.w, // Responsive icon size
-                    )
-                  : null,
+                      size: 16.sp,
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -186,16 +195,18 @@ class _LanguageTileState extends State<LanguageTile> {
     final themeData = Theme.of(context);
 
     if (languageCode == 'auto') {
-      return SizedBox(
+      return Container(
         width: s,
         height: s,
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
-          child: Icon(
-            Icons.sync,
-            size: s * 0.6,
-            color: themeData.primaryColor,
-          ),
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+        ),
+        child: Icon(
+          Icons.sync,
+          size: s * 0.45,
+          color: themeData.primaryColor,
         ),
       );
     }
@@ -209,38 +220,47 @@ class _LanguageTileState extends State<LanguageTile> {
       // Show both flags side by side
       return SizedBox(
         width: s * 1.4,
-        height: s,
+        height: flagSize,
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Positioned(
               left: 0,
+              top: 0,
               child: Container(
+                width: flagSize,
+                height: flagSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 1),
                 ),
-                child: CircleAvatar(
-                  radius: flagSize / 2,
-                  foregroundImage: AssetImage(
+                child: ClipOval(
+                  child: Image.asset(
                     'assets/img/flag/${languages[0].toLowerCase()}.png',
+                    width: flagSize,
+                    height: flagSize,
+                    fit: BoxFit.cover,
                   ),
-                  backgroundColor: Colors.white,
                 ),
               ),
             ),
             Positioned(
               left: flagSize * 0.7,
+              top: 0,
               child: Container(
+                width: flagSize,
+                height: flagSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 1),
                 ),
-                child: CircleAvatar(
-                  radius: flagSize / 2,
-                  foregroundImage: AssetImage(
+                child: ClipOval(
+                  child: Image.asset(
                     'assets/img/flag/${languages[1].toLowerCase()}.png',
+                    width: flagSize,
+                    height: flagSize,
+                    fit: BoxFit.cover,
                   ),
-                  backgroundColor: Colors.white,
                 ),
               ),
             ),
@@ -253,11 +273,29 @@ class _LanguageTileState extends State<LanguageTile> {
     return SizedBox(
       width: s,
       height: s,
-      child: CircleAvatar(
-        foregroundImage: AssetImage(
+      child: ClipOval(
+        child: Image.asset(
           'assets/img/flag/${languageCode.toLowerCase()}.png',
+          width: s,
+          height: s,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: s,
+              height: s,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey.withOpacity(0.3),
+              ),
+              child: Icon(
+                Icons.language,
+                size: s * 0.45,
+                color: Colors.grey,
+              ),
+            );
+          },
         ),
-        backgroundColor: Colors.white,
       ),
     );
   }
