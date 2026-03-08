@@ -196,4 +196,3 @@ class _QuranModeScreenState extends ConsumerState<QuranModeScreen> {
     );
   }
 }
-

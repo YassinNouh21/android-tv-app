@@ -260,7 +260,6 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
       ],
     );
   }
-
 }
 
 enum SelectionType {

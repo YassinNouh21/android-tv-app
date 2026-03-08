@@ -88,7 +88,6 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
     }
   }
 
-
   void _startScrolling() {
     // Cancel any existing timer to prevent multiple timers
     _autoScrollTimer?.cancel();

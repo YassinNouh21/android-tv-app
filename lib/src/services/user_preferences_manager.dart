@@ -38,7 +38,6 @@ class UserPreferencesManager extends ChangeNotifier {
     // Migrate old announcementsOnly boolean to new appMode enum
     _migrateAnnouncementsOnly();
 
-
     // Set environment based on preferences (Pre-Prod > Staging > Production)
     if (forcePreProduction) {
       Api.usePreProdApi(true);

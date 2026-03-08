@@ -801,9 +801,7 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
       return;
     }
 
-    final nextIndex = forward
-        ? (currentIndex + 1) % order.length
-        : (currentIndex - 1 + order.length) % order.length;
+    final nextIndex = forward ? (currentIndex + 1) % order.length : (currentIndex - 1 + order.length) % order.length;
     order[nextIndex].requestFocus();
   }
 
@@ -999,22 +997,22 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
         }
 
         return GestureDetector(
-            onHorizontalDragEnd: (details) => _handleSwipe(details, isPortrait),
-            onVerticalDragEnd: (details) => _handleSwipe(details, isPortrait),
-            child: Stack(
-              children: [
-                viewStrategy.buildView(state, ref, context),
-                ...viewStrategy.buildControls(
-                  context,
-                  state,
-                  userPrefs,
-                  isPortrait,
-                  focusNodes,
-                  _scrollPageList,
-                  _showPageSelector,
-                ),
-              ],
-            ),
+          onHorizontalDragEnd: (details) => _handleSwipe(details, isPortrait),
+          onVerticalDragEnd: (details) => _handleSwipe(details, isPortrait),
+          child: Stack(
+            children: [
+              viewStrategy.buildView(state, ref, context),
+              ...viewStrategy.buildControls(
+                context,
+                state,
+                userPrefs,
+                isPortrait,
+                focusNodes,
+                _scrollPageList,
+                _showPageSelector,
+              ),
+            ],
+          ),
         );
       },
     );

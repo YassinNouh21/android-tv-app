@@ -157,8 +157,8 @@ class PermissionAdhanScreen extends StatelessWidget {
   }
 
   /// Builds the header section with title and subtitle
-  Widget _buildHeader(
-      ThemeData theme, MawaqitTvLocalizations tr, double headerFontSize, double subtitleFontSize, BuildContext context) {
+  Widget _buildHeader(ThemeData theme, MawaqitTvLocalizations tr, double headerFontSize, double subtitleFontSize,
+      BuildContext context) {
     return Column(
       children: [
         AutoSizeText(

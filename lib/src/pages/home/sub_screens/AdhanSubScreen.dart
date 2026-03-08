@@ -101,10 +101,9 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
       }
     } else {
       // No Adhan audio will be played. For mosque type, use configured duration from API; otherwise fallback to 150s.
-      final adhanDurationSeconds =
-          _mosqueManager.typeIsMosque && _mosqueManager.mosqueConfig?.adhanDuration != null
-              ? _mosqueManager.mosqueConfig!.adhanDuration!
-              : 150;
+      final adhanDurationSeconds = _mosqueManager.typeIsMosque && _mosqueManager.mosqueConfig?.adhanDuration != null
+          ? _mosqueManager.mosqueConfig!.adhanDuration!
+          : 150;
       log('AdhanSubScreen: No Adhan audio activated. Starting $adhanDurationSeconds-second display timer.');
       _noAdhanDisplayTimer?.cancel(); // Cancel any existing one
       _noAdhanDisplayTimer = Timer(Duration(seconds: adhanDurationSeconds), () {
