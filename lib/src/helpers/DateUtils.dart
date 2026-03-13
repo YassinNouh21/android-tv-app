@@ -80,8 +80,9 @@ extension MawaqitDateUtils on DateTime {
   String formatIntoMawaqitFormat({String local = 'en'}) {
     final isArabic = local.toLowerCase() == 'ar' || local.toUpperCase().startsWith('AR_');
     final isFrench = local.toLowerCase() == 'fr' || local.toUpperCase().startsWith('FR_');
+    final isKurdish = local.toLowerCase() == 'ku'|| local.toUpperCase().startsWith('KU_');
 
-    var formatter = (isArabic || isFrench)
+    var formatter = (isArabic || isFrench || isKurdish)
         ? MawaqitDateFormat('EEEE, dd MMMM, yyyy', local)
         : MawaqitDateFormat('EEEE, MMMM dd, yyyy', local);
 
