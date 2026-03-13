@@ -6,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/moshaf_selector.dart';
 import 'package:mawaqit/src/pages/quran/widget/switch_button.dart';
-import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.dart';
 import 'package:sizer/sizer.dart';
@@ -310,17 +309,10 @@ class BackButtonWidget extends ConsumerWidget {
     required this.focusNode,
   }) : super(key: key);
 
-  Future<void> _handleBackPress(BuildContext context) async {
-    // Check if we're in Quran mode from settings
+  void _handleBackPress(BuildContext context) {
     if (userPrefs.appMode == AppMode.quran) {
-      final shouldExit = await showQuranModeExitDialog(context);
-
-      if (shouldExit == true) {
-        if (isPortrait) {
-          userPrefs.orientationLandscape = true;
-        }
-        userPrefs.appMode = AppMode.normal;
-      }
+      // In Quran mode, open the drawer menu
+      Scaffold.maybeOf(context)?.openDrawer();
     } else {
       // Normal behavior - just pop
       if (isPortrait) {
@@ -332,6 +324,8 @@ class BackButtonWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isQuranMode = userPrefs.appMode == AppMode.quran;
+
     return Positioned.directional(
       start: 10,
       top: 10,
@@ -350,7 +344,7 @@ class BackButtonWidget extends ConsumerWidget {
             ),
             child: Center(
               child: Icon(
-                Icons.arrow_back_rounded,
+                isQuranMode ? Icons.menu : Icons.arrow_back_rounded,
                 color: Colors.white,
                 size: 14.sp,
               ),

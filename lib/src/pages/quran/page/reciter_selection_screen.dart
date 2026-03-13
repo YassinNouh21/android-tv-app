@@ -225,8 +225,13 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
     ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
     if (userPrefs.appMode == AppMode.quran) {
-      // Navigate back to root so OfflineHomeScreen shows QuranModeScreen
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      // In Quran mode, pop back to the reading screen if possible
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        // Fallback: came here via pushReplacement, restart to get back to quran mode root
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
     } else {
       Navigator.pushReplacementNamed(context, Routes.quranReading);
     }
@@ -242,8 +247,13 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
 
     return WillPopScope(
       onWillPop: () async {
+        final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
+        if (userPrefs.appMode == AppMode.quran) {
+          // In Quran mode, just pop back to quran reading
+          ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
+          return true;
+        }
         if (!Navigator.canPop(context)) {
-          // Came here via pushReplacement (e.g. from Quran mode) — go back to reading
           _navigateToReading();
           return false;
         }
@@ -413,7 +423,12 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
           color: Colors.white,
         ),
         onPressed: () {
-          if (!Navigator.canPop(context)) {
+          final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
+          if (userPrefs.appMode == AppMode.quran) {
+            // In Quran mode, just pop back to quran reading
+            ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
+            Navigator.pop(context);
+          } else if (!Navigator.canPop(context)) {
             _navigateToReading();
           } else {
             Navigator.pop(context);
