@@ -16,6 +16,7 @@
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
 
   <!-- Hardware/Feature requirements (all optional as specified) -->
@@ -110,5 +111,14 @@
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
         android:value="Background service for app functionality and task management" />
     </service>
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.update_provider"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/provider_paths" />
+    </provider>
   </application>
 </manifest>

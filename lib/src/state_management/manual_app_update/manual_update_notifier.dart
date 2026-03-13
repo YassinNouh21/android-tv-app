@@ -1,4 +1,3 @@
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mawaqit/main.dart';
@@ -11,8 +10,6 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:xml/xml.dart';
 
-import 'package:upgrader/upgrader.dart';
-
 final manualUpdateNotifierProvider = AsyncNotifierProvider<ManualUpdateNotifier, UpdateState>(() {
   return ManualUpdateNotifier();
 });
@@ -20,6 +17,7 @@ final manualUpdateNotifierProvider = AsyncNotifierProvider<ManualUpdateNotifier,
 class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
   static const platform = MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel);
   static final _versionRegex = RegExp(r'v(\d+\.\d+\.\d+)');
+  static final _buildNumberRegex = RegExp(r'v\d+\.\d+\.\d+-(\d+)');
   static const _cacheDuration = Duration(days: 5);
 
   late final Dio _dio;
@@ -71,11 +69,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
     }
   }
 
-  Future<void> checkForUpdates(
-    String currentVersion,
-    String languageCode,
-    bool isDeviceRooted,
-  ) async {
+  Future<void> checkForUpdates(String currentVersion) async {
     state = const AsyncLoading();
     // Implement time-based cache invalidation (5 days) instead of clearing on every check
     if (_cacheTimestamp != null && DateTime.now().difference(_cacheTimestamp!) > _cacheDuration) {
@@ -83,26 +77,13 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       _cacheTimestamp = null;
     }
     try {
-      // Check if device is ONVO first
-      final deviceModel = await _getDeviceModel();
-      if (_isOnvoDevice(deviceModel)) {
-        await _openOnvoStore();
-        state = AsyncData(UpdateState(
-          status: UpdateStatus.notAvailable,
-          message: 'Redirected to ONVO Store',
-          currentVersion: currentVersion,
-        ));
-        return;
-      }
-
-      // For non-ONVO devices, proceed with normal update check
-      final hasUpdate = isDeviceRooted
-          ? await _isUpdateAvailableForRootedDevice(currentVersion)
-          : await _isUpdateAvailableStandard(languageCode);
+      // For all devices, check S3 for updates and install via system installer
+      final hasUpdate = await _isUpdateAvailableForRootedDevice(currentVersion);
 
       if (hasUpdate) {
         final latestApk = await _getLatestApk();
         final latestVersion = _extractVersionFromFileName(latestApk['fileName']);
+        final latestBuildNumber = _extractBuildNumberFromFileName(latestApk['fileName']);
 
         // Validate S3 key to prevent path traversal
         final key = latestApk['key'] as String;
@@ -117,7 +98,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
           message: 'Update available',
           downloadUrl: downloadUrl,
           currentVersion: currentVersion,
-          availableVersion: latestVersion,
+          availableVersion: '$latestVersion-$latestBuildNumber',
         ));
       } else {
         state = AsyncData(UpdateState(
@@ -129,33 +110,6 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
     } catch (e, st) {
       state = AsyncError(e, st);
     }
-  }
-
-  /// Check if device is ONVO
-  bool _isOnvoDevice(String deviceModel) {
-    return RegExp(r'ONVO.*').hasMatch(deviceModel);
-  }
-
-  Future<String> _getDeviceModel() async {
-    final hardware = await DeviceInfoPlugin().androidInfo;
-    return hardware.model;
-  }
-
-  Future<void> _openOnvoStore() async {
-    try {
-      await MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel).invokeMethod('openOnvoStore');
-    } catch (e) {
-      logger.e('Failed to open ONVO store', error: e);
-      rethrow;
-    }
-  }
-
-  Future<bool> _isUpdateAvailableStandard(String languageCode) async {
-    final upgrader = Upgrader(
-      messages: UpgraderMessages(code: languageCode),
-    );
-    await upgrader.initialize();
-    return upgrader.isUpdateAvailable();
   }
 
   Future<bool> _isUpdateAvailableForRootedDevice(String currentVersion) async {
@@ -219,11 +173,15 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       throw Exception('No APK found in S3');
     }
 
-    // Sort by version to get the latest
+    // Sort by version and build number to get the latest
     apkList.sort((a, b) {
       final versionA = _extractVersionFromFileName(a['fileName']);
       final versionB = _extractVersionFromFileName(b['fileName']);
-      return _compareVersions(versionB, versionA); // Descending order
+      final versionCompare = _compareVersions(versionB, versionA);
+      if (versionCompare != 0) return versionCompare;
+      final buildA = _extractBuildNumberFromFileName(a['fileName']);
+      final buildB = _extractBuildNumberFromFileName(b['fileName']);
+      return buildB - buildA;
     });
 
     _cachedLatestApk = apkList.first;
@@ -246,6 +204,14 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       }
     }
     throw Exception('Could not extract version from filename: $fileName');
+  }
+
+  int _extractBuildNumberFromFileName(String fileName) {
+    final match = _buildNumberRegex.firstMatch(fileName);
+    if (match != null) {
+      return int.parse(match.group(1)!);
+    }
+    return 0;
   }
 
   Future<void> downloadAndInstallUpdate() async {
@@ -333,8 +299,6 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       final result = await platform.invokeMethod('installApk', {
         'filePath': filePath,
       });
-
-      await file.delete();
 
       if (result != true) {
         throw Exception('Installation failed');

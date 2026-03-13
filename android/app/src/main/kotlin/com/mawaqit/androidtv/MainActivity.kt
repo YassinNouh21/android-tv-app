@@ -33,6 +33,7 @@ import android.content.IntentFilter
 import android.app.AlarmManager
 import android.view.KeyEvent
 import android.view.MotionEvent
+import androidx.core.content.FileProvider
 
 
 class MainActivity : FlutterActivity() {
@@ -40,6 +41,10 @@ class MainActivity : FlutterActivity() {
   private lateinit var mDevicePolicyManager: DevicePolicyManager
 
   private var jx11Handler: Jx11RingHandler? = null
+
+  // Pending APK install path — saved when user is redirected to enable unknown sources
+  private var pendingInstallApkPath: String? = null
+  private val REQUEST_INSTALL_PERMISSION = 1234
 
   // --- JX-11 ring: forward raw input to handler, fall through for other devices ---
   override fun dispatchGenericMotionEvent(event: MotionEvent) =
@@ -130,27 +135,37 @@ class MainActivity : FlutterActivity() {
           "installApk" -> {
             val filePath = call.argument<String>("filePath")
             if (filePath != null) {
-              AsyncTask.execute {
-                try {
-                  // Check if file exists
-                  val file = java.io.File(filePath)
-                  if (!file.exists()) {
-                    Log.e("APK_INSTALL", "APK file not found at path: $filePath")
-                    result.error("FILE_NOT_FOUND", "APK file not found", null)
-                    return@execute
-                  }
-                  // Check if device is rooted
-                  if (!checkRoot()) {
-                    Log.e("APK_INSTALL", "Device is not rooted")
-                    result.error("NOT_ROOTED", "Device is not rooted", null)
-                    return@execute
-                  }
-                  val commands = listOf("pm install -r -d $filePath")
-                  executeCommand(commands, result)
-                } catch (e: Exception) {
-                  Log.e("APK_INSTALL", "Failed to install APK", e)
-                  result.error("INSTALL_FAILED", e.message, null)
+              try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                  result.error("FILE_NOT_FOUND", "APK file not found", null)
+                  return@setMethodCallHandler
                 }
+
+                // On Android 8.0+, check if we have install permission
+                if (VERSION.SDK_INT >= VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+                  // Save path so we can retry after user grants permission
+                  pendingInstallApkPath = filePath
+                  try {
+                    val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                      data = Uri.parse("package:$packageName")
+                    }
+                    startActivityForResult(permIntent, REQUEST_INSTALL_PERMISSION)
+                    result.success(true)
+                    return@setMethodCallHandler
+                  } catch (e: android.content.ActivityNotFoundException) {
+                    // Device doesn't have unknown sources settings (e.g. some Android TV boxes)
+                    // Fall through to try direct install anyway
+                    Log.w("APK_INSTALL", "No MANAGE_UNKNOWN_APP_SOURCES activity, trying direct install")
+                    pendingInstallApkPath = null
+                  }
+                }
+
+                launchInstallIntent(filePath)
+                result.success(true)
+              } catch (e: Exception) {
+                Log.e("APK_INSTALL", "Failed to install APK", e)
+                result.error("INSTALL_FAILED", e.message, null)
               }
             } else {
               result.error("INVALID_PATH", "File path is null", null)
@@ -160,6 +175,37 @@ class MainActivity : FlutterActivity() {
           else -> result.notImplemented()
         }
       }
+  }
+
+  private fun launchInstallIntent(filePath: String) {
+    val file = File(filePath)
+    val uri = FileProvider.getUriForFile(
+      applicationContext,
+      "${applicationContext.packageName}.update_provider",
+      file
+    )
+
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+    }
+
+    startActivity(intent)
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == REQUEST_INSTALL_PERMISSION) {
+      val path = pendingInstallApkPath
+      pendingInstallApkPath = null
+      if (path != null && VERSION.SDK_INT >= VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
+        try {
+          launchInstallIntent(path)
+        } catch (e: Exception) {
+          Log.e("APK_INSTALL", "Failed to install APK after permission grant", e)
+        }
+      }
+    }
   }
 
   private fun checkRoot(): Boolean {

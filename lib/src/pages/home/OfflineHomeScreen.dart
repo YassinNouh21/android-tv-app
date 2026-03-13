@@ -22,11 +22,15 @@ import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_notifier.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_state.dart';
 import 'package:mawaqit/src/pages/quran/quran_mode_screen.dart';
-import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 
 import '../HomeScreen.dart';
+
+/// When true, OfflineHomeScreen shows prayer times instead of quran
+/// even though appMode is still quran. This allows navigating freely
+/// without stacking routes.
+final quranHomeOverrideProvider = StateProvider<bool>((ref) => false);
 
 class OfflineHomeScreen extends ConsumerWidget {
   OfflineHomeScreen({Key? key}) : super(key: key);
@@ -58,8 +62,17 @@ class OfflineHomeScreen extends ConsumerWidget {
     MosqueManager mosqueManager,
     bool onlineMode,
     AppMode appMode,
+    bool showHomeOverride,
   ) {
     if (onlineMode) return HomeScreen();
+
+    // If quran mode but user navigated to "Home" via drawer, show prayer times
+    if (appMode == AppMode.quran && showHomeOverride) {
+      final now = mosqueManager.mosqueDate();
+      return AppWorkflowScreen(
+        key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
+      );
+    }
 
     switch (appMode) {
       case AppMode.announcement:
@@ -81,6 +94,7 @@ class OfflineHomeScreen extends ConsumerWidget {
     final mosqueProvider = context.watch<MosqueManager>();
     final userPrefs = context.watch<UserPreferencesManager>();
     final streamState = ref.watch(liveStreamProvider);
+    final showHomeOverride = ref.watch(quranHomeOverrideProvider);
 
     if (!mosqueProvider.loaded)
       return ErrorScreen(
@@ -94,21 +108,12 @@ class OfflineHomeScreen extends ConsumerWidget {
       );
 
     final shouldShowStream = streamState.valueOrNull?.shouldReplaceWorkflow == true;
+    final isShowingQuran = userPrefs.appMode == AppMode.quran && !showHomeOverride;
 
     return WillPopScope(
       onWillPop: () async {
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
-          return false;
-        }
-
-        // In Quran mode, show exit confirmation that reverts to normal mode
-        if (userPrefs.appMode == AppMode.quran) {
-          final shouldExit = await showQuranModeExitDialog(context);
-          if (shouldExit) {
-            userPrefs.orientationLandscape = true;
-            userPrefs.appMode = AppMode.normal;
-          }
           return false;
         }
 
@@ -120,13 +125,14 @@ class OfflineHomeScreen extends ConsumerWidget {
           ? const StreamReplacementScreen()
           // Quran mode has its own full-screen UI — skip the mosque background
           // and drawer wrapper so arrow keys reach the Quran page navigation.
-          : userPrefs.appMode == AppMode.quran
+          : isShowingQuran
               ? SafeArea(
                   bottom: true,
                   child: activeHomeScreen(
                     mosqueProvider,
                     userPrefs.webViewMode,
                     userPrefs.appMode,
+                    showHomeOverride,
                   ),
                 )
               : MosqueBackgroundScreen(
@@ -137,6 +143,7 @@ class OfflineHomeScreen extends ConsumerWidget {
                       mosqueProvider,
                       userPrefs.webViewMode,
                       userPrefs.appMode,
+                      showHomeOverride,
                     ),
                   ),
                 ),

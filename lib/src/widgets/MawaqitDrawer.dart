@@ -25,6 +25,7 @@ import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 
 import '../pages/quran/page/quran_mode_selection_screen.dart';
 import 'package:mawaqit/src/pages/quran/reading/quran_reading_screen.dart';
+import 'package:mawaqit/src/pages/home/OfflineHomeScreen.dart';
 import '../state_management/quran/quran/quran_state.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:open_store/open_store.dart';
@@ -37,6 +38,7 @@ class MawaqitDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userPrefs = context.watch<UserPreferencesManager>();
+    final isQuranMode = userPrefs.appMode == AppMode.quran;
 
     final theme = Theme.of(context);
 
@@ -99,46 +101,20 @@ class MawaqitDrawer extends ConsumerWidget {
                               ),
                               label: Text(S.of(context).quit),
                             ),
-                            // ActionChip(
-                            //   // backgroundColor: theme.brightness == Brightness.dark ? Colors.white : theme.primaryColor,
-                            //   // labelStyle: TextStyle(
-                            //   //   color: theme.brightness == Brightness.dark ? theme.primaryColor : Colors.white,
-                            //   // ),
-                            //   onPressed: () {},
-                            //   label: Text("Quit"),
-                            //   padding: EdgeInsets.all(0),
-                            //   avatar: Container(
-                            //     padding: EdgeInsets.all(3),
-                            //     decoration: BoxDecoration(
-                            //       color: Colors.black26,
-                            //       shape: BoxShape.circle,
-                            //     ),
-                            //     child: Icon(
-                            //       Icons.close,
-                            //       color: theme.primaryColor,
-                            //       size: 15,
-                            //     ),
-                            //   ),
-                            // ),
                           ],
                         ),
                         Padding(
                           padding: EdgeInsets.only(top: 5),
                           child: Text(
-                            // settings.title!,
                             S.of(context).drawerTitle,
                             overflow: TextOverflow.ellipsis,
-                            // style: TextStyle( fontSize: 16),
                             style: theme.textTheme.titleLarge,
                           ),
                         ),
                         Padding(
                           padding: EdgeInsets.only(top: 3),
-                          child: Text(
-                              // settings.subTitle!,
-                              S.of(context).drawerDesc,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14)),
+                          child: Text(S.of(context).drawerDesc,
+                              overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14)),
                         ),
                         SizedBox(height: 7),
                         VersionWidget(style: theme.textTheme.labelSmall),
@@ -153,12 +129,25 @@ class MawaqitDrawer extends ConsumerWidget {
                   onTap: () async {
                     Navigator.pop(context);
 
-                    goHome();
+                    if (isQuranMode) {
+                      // Pop any pushed routes, then show prayer times in-place
+                      AppRouter.popAll();
+                      ref.read(quranHomeOverrideProvider.notifier).state = true;
+                    } else {
+                      goHome();
+                    }
                   }),
               DrawerListTitle(
                 icon: Icons.book,
                 text: S.of(context).quran,
                 onTap: () async {
+                  if (isQuranMode) {
+                    // Pop drawer + any pushed routes, then show quran
+                    Navigator.pop(context);
+                    AppRouter.popAll();
+                    ref.read(quranHomeOverrideProvider.notifier).state = false;
+                    return;
+                  }
                   await ref.read(quranNotifierProvider.notifier).getSelectedMode();
                   final state = ref.read(quranNotifierProvider);
                   Navigator.pop(context);

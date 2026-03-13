@@ -8,13 +8,9 @@ import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/reading/widget/quran_floating_action_buttons.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_reading_widgets.dart';
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_surah_selector.dart';
-import 'package:mawaqit/src/pages/quran/widget/quran_exit_dialog.dart';
-
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_state.dart';
-import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/reading/auto_reading/auto_reading_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/auto_reading/auto_reading_state.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer.dart';
@@ -25,7 +21,8 @@ import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
 import 'package:provider/provider.dart' as provider;
 
 import 'package:mawaqit/src/pages/quran/widget/reading/quran_reading_page_selector.dart';
-import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/widgets/MawaqitDrawer.dart';
+import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -680,6 +677,8 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
   late FocusNode _portraitModeBackButtonFocusNode;
   late FocusNode _portraitModeSwitchQuranFocusNode;
   late FocusNode _portraitModePageSelectorFocusNode;
+  final ScrollController _gridScrollController = ScrollController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   Orientation? _lastOrientation;
   bool? _lastEffectiveIsPortrait;
@@ -841,11 +840,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
     _surahSelectorNode.dispose();
   }
 
-  void _navigateToListeningMode() {
-    ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.listening);
-    Navigator.pushReplacementNamed(context, Routes.quranReciter);
-  }
-
   @override
   Widget build(BuildContext context) {
     final quranReadingState = ref.watch(quranReadingNotifierProvider);
@@ -896,14 +890,9 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
         }
         return WillPopScope(
           onWillPop: () async {
-            // In Quran mode, show exit confirmation instead of popping (C1 fix)
             if (widget.isQuranMode) {
-              final shouldExit = await showQuranModeExitDialog(context);
-              if (shouldExit) {
-                userPrefs.orientationLandscape = true;
-                userPrefs.appMode = AppMode.normal;
-              }
-              return false;
+              // Let OfflineHomeScreen's WillPopScope handle back
+              return true;
             }
             userPrefs.orientationLandscape = true;
             return true;
@@ -930,6 +919,8 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
                   width: needsSoftwareRotation ? size.height : size.width,
                   height: needsSoftwareRotation ? size.width : size.height,
                   child: Scaffold(
+                    key: widget.isQuranMode ? _scaffoldKey : null,
+                    drawer: widget.isQuranMode ? MawaqitDrawer(goHome: () => AppRouter.popAll()) : null,
                     backgroundColor: Colors.white,
                     floatingActionButtonLocation: _getFloatingActionButtonLocation(context),
                     floatingActionButton: QuranFloatingActionControls(
