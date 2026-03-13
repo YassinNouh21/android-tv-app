@@ -25,10 +25,9 @@ class AboutScreen extends StatelessWidget {
     int tapCount = 0;
     bool menuActivated = Provider.of<UserPreferencesManager>(context, listen: false).developerModeEnabled;
 
-    return RawKeyboardListener(
-      focusNode: FocusNode(),
-      onKey: (RawKeyEvent event) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown && event is RawKeyDownEvent) {
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowDown) {
           if (!menuActivated) {
             tapCount++;
             if (tapCount >= _activationTapCount) {
@@ -42,7 +41,9 @@ class AboutScreen extends StatelessWidget {
             Provider.of<UserPreferencesManager>(context, listen: false).developerModeEnabled = false;
             _showSnackBar(context, _deactivationMessage);
           }
+          return KeyEventResult.handled;
         }
+        return KeyEventResult.ignored;
       },
       child: Scaffold(
         body: ScreenWithAnimationWidget(

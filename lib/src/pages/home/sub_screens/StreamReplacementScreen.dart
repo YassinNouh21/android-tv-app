@@ -145,8 +145,10 @@ class _StreamReplacementScreenState extends ConsumerState<StreamReplacementScree
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
           if (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowRight) {
-            scaffoldKey.currentState?.openDrawer();
-            return KeyEventResult.handled;
+            if (!(scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+              scaffoldKey.currentState?.openDrawer();
+              return KeyEventResult.handled;
+            }
           }
         }
         return KeyEventResult.ignored;

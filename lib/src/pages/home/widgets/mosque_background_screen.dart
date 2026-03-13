@@ -38,20 +38,22 @@ class _MosqueBackgroundScreenState extends State<MosqueBackgroundScreen> {
   Widget build(BuildContext context) {
     final mosqueProvider = context.watch<MosqueManager>();
     if (!mosqueProvider.loaded) return const SizedBox();
-    return RawKeyboardListener(
+    return Focus(
       focusNode: _focusNode,
-      onKey: (event) {
-        if (event is RawKeyDownEvent && event.isArrow) {
-          _scaffoldKey.currentState?.openDrawer();
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && event.isArrow) {
+          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+            _scaffoldKey.currentState?.openDrawer();
+            return KeyEventResult.handled;
+          }
         }
+        return KeyEventResult.ignored;
       },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          key: _scaffoldKey,
-          drawer: MawaqitDrawer(goHome: () => AppRouter.popAll()),
-          body: _buildBackgroundDecoration(mosqueProvider),
-        ),
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: MawaqitDrawer(goHome: () => AppRouter.popAll()),
+        body: _buildBackgroundDecoration(mosqueProvider),
       ),
     );
   }
@@ -115,7 +117,7 @@ class _MosqueBackgroundScreenState extends State<MosqueBackgroundScreen> {
   }
 }
 
-extension on RawKeyDownEvent {
+extension on KeyEvent {
   bool get isArrow =>
       logicalKey == LogicalKeyboardKey.arrowDown ||
       logicalKey == LogicalKeyboardKey.arrowUp ||
