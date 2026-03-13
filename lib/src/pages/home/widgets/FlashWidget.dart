@@ -23,23 +23,23 @@ class _FlashWidgetState extends State<FlashWidget> {
     final isFlashEnabled = context.select<MosqueManager, bool>((mosque) => mosque.flashEnabled);
     final flash = context.select<MosqueManager, Flash?>((mosque) => mosque.mosque?.flash);
     if (!isFlashEnabled) return SizedBox();
+    if (flash == null || flash.content.trim().isEmpty) return SizedBox();
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final appLanguage = Provider.of<AppLanguage>(context);
-    if (!isFlashEnabled) return SizedBox();
 
     TextDirection getTextDirection() {
       if (isPortrait && appLanguage.appLocal.toLanguageTag() == "ar") {
-        return flash?.orientation == 'rtl' ? TextDirection.ltr : TextDirection.rtl;
+        return flash.orientation == 'rtl' ? TextDirection.ltr : TextDirection.rtl;
       } else {
-        return flash?.orientation == 'rtl' ? TextDirection.rtl : TextDirection.ltr;
+        return flash.orientation == 'rtl' ? TextDirection.rtl : TextDirection.ltr;
       }
     }
 
     return RepaintBoundary(
       child: Marquee(
-        key: ValueKey(flash!.content),
+        key: ValueKey(flash.content),
         textDirection: getTextDirection(),
-        text: flash.content ?? '',
+        text: flash.content,
         velocity: 50,
         blankSpace: 50.0,
         style: TextStyle(
