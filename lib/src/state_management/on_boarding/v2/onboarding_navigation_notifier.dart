@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mawaqit/src/state_management/device_info/device_info_notifier.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
@@ -161,7 +162,9 @@ class OnboardingNavigationNotifier extends AsyncNotifier<OnboardingNavigationSta
 
   Future<void> _handleMosqueSearchNavigation(OnboardingNavigationState currentState, BuildContext context) async {
     final selectionType = ref.read(mosqueInputTypeSelectorProvider);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
+    final deviceInfo = ref.read(deviceInfoProvider);
+    final isTV = deviceInfo.valueOrNull?.isBoxOrAndroidTV ?? false;
+    final isPhone = isTV ? false : MediaQuery.of(context).size.shortestSide < 480;
 
     final screenType = switch ((isPhone, selectionType)) {
       (true, SelectionType.mosqueId) => OnboardingScreenType.mosqueId,

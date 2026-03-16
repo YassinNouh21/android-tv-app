@@ -13,6 +13,7 @@ import '../../../../i18n/l10n.dart';
 import '../../../helpers/Api.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
 import 'chromecast_mosque_input_id.dart';
+import 'package:mawaqit/src/state_management/device_info/device_info_notifier.dart';
 
 class InputTypeSelector extends ConsumerStatefulWidget {
   const InputTypeSelector({
@@ -45,7 +46,12 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     }
   }
 
-  bool get _isPhone => MediaQuery.of(context).size.shortestSide < 600;
+  bool get _isPhone {
+    final deviceInfo = ref.watch(deviceInfoProvider);
+    final isTV = deviceInfo.valueOrNull?.isBoxOrAndroidTV ?? false;
+    if (isTV) return false;
+    return MediaQuery.of(context).size.shortestSide < 480;
+  }
 
   void _handleYesSelection() {
     setState(() {
