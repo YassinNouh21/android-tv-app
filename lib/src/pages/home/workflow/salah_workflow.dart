@@ -64,7 +64,7 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
       items: [
         RepeatingWorkflowItem(
           builder: (context, next) => DuaaEftarScreen(),
-          duration: 90.seconds,
+          duration: 60.seconds,
           dateTime: currentSalahTime.add(-2.minutes),
           showInitial: () => mosqueManger.nextSalahAfter() < 2.minutes,
           disabled: currentSalah != 3 || hijri.islamicMonth != 8,
