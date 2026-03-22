@@ -37,11 +37,13 @@ class _AfterAdhanSubScreenState extends ConsumerState<AfterAdhanSubScreen> {
   bool _audioStarted = false;
   bool _audioCompleted = false;
   bool _closeCalled = false;
+  late final PrayerAudioNotifier _audioNotifier;
 
   @override
   void initState() {
     super.initState();
     log('AfterAdhanSubScreen: initState');
+    _audioNotifier = ref.read(prayerAudioProvider.notifier);
     _initializeScreen();
   }
 
@@ -148,14 +150,7 @@ class _AfterAdhanSubScreenState extends ConsumerState<AfterAdhanSubScreen> {
     // Stop audio playback when the screen is disposed prematurely
     if (_audioStarted) {
       log('AfterAdhanSubScreen: Stopping audio in dispose');
-      try {
-        // Use Future.microtask to avoid calling during build/layout
-        Future.microtask(() {
-          ref.read(prayerAudioProvider.notifier).stop();
-        });
-      } catch (e) {
-        log('AfterAdhanSubScreen: Error stopping audio in dispose', error: e);
-      }
+      _audioNotifier.stop();
     }
 
     _cancelTimers();

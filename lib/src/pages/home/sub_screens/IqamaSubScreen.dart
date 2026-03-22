@@ -14,7 +14,6 @@ import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 
-import 'dart:async';
 import 'dart:developer';
 
 class IqamaSubScreen extends ConsumerStatefulWidget {
@@ -28,11 +27,13 @@ class IqamaSubScreen extends ConsumerStatefulWidget {
 
 class _IqamaSubScreenState extends ConsumerState<IqamaSubScreen> {
   bool _audioStarted = false;
+  late final PrayerAudioNotifier _audioNotifier;
 
   @override
   void initState() {
     super.initState();
     log('IqamaSubScreen: initState');
+    _audioNotifier = ref.read(prayerAudioProvider.notifier);
     _playIqamaBipIfNeeded();
   }
 
@@ -70,16 +71,7 @@ class _IqamaSubScreenState extends ConsumerState<IqamaSubScreen> {
     // Stop any potentially playing bip sound if screen is disposed early
     if (_audioStarted) {
       log('IqamaSubScreen: Stopping audio in dispose');
-      try {
-        // Get the notifier reference before disposal
-        final notifier = ref.read(prayerAudioProvider.notifier);
-        // Use Future.microtask to avoid calling during build/layout
-        Future.microtask(() {
-          notifier.stop();
-        });
-      } catch (e) {
-        log('IqamaSubScreen: Error stopping audio in dispose', error: e);
-      }
+      _audioNotifier.stop();
     }
 
     super.dispose();
