@@ -308,7 +308,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
             showSalahIn: false,
             showOuterBackground: false,
             hideSeconds: true,
-            hideBackground: true,
+            hideBackground: false,
           ),
         ),
       );
