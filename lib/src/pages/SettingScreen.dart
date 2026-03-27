@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
-import 'package:fpdart/fpdart.dart';
+import 'package:fpdart/fpdart.dart' hide State;
 
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/data/data_source/device_info_data_source.dart';
@@ -46,6 +45,36 @@ import '../widgets/screen_lock_widget.dart';
 import '../widgets/time_picker_widget.dart';
 import 'home/widgets/show_check_internet_dialog.dart';
 import 'rtsp_camera_settings_screen.dart';
+
+enum _LaunchMode { mainPrayer, secondaryPrayer, announcement, quran }
+
+_LaunchMode _getLaunchMode(UserPreferencesManager prefs) {
+  switch (prefs.appMode) {
+    case AppMode.normal:
+      return prefs.isSecondaryScreen ? _LaunchMode.secondaryPrayer : _LaunchMode.mainPrayer;
+    case AppMode.announcement:
+      return _LaunchMode.announcement;
+    case AppMode.quran:
+      return _LaunchMode.quran;
+  }
+}
+
+void _setLaunchMode(UserPreferencesManager prefs, _LaunchMode mode) {
+  switch (mode) {
+    case _LaunchMode.mainPrayer:
+      prefs.appMode = AppMode.normal;
+      prefs.isSecondaryScreen = false;
+    case _LaunchMode.secondaryPrayer:
+      prefs.appMode = AppMode.normal;
+      prefs.isSecondaryScreen = true;
+    case _LaunchMode.announcement:
+      prefs.appMode = AppMode.announcement;
+      prefs.isSecondaryScreen = false;
+    case _LaunchMode.quran:
+      prefs.appMode = AppMode.quran;
+      prefs.isSecondaryScreen = false;
+  }
+}
 
 class SettingScreen extends ConsumerStatefulWidget {
   const SettingScreen({super.key});
@@ -93,11 +122,14 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
     final userPreferences = context.watch<UserPreferencesManager>();
     final themeManager = context.watch<ThemeNotifier>();
     final String checkInternet = S.of(context).noInternet;
-    final String checkInternetLegacyMode = S.of(context).checkInternetLegacyMode;
     final String hadithLanguage = S.of(context).connectToChangeHadith;
-    TimeShiftManager timeShiftManager = TimeShiftManager();
-
+    final TimeShiftManager timeShiftManager = TimeShiftManager();
     final featureManager = Provider.of<FeatureManager>(context);
+    final isDeviceRooted = ref.watch(onBoardingProvider).maybeWhen(
+          orElse: () => false,
+          data: (value) => value.isRootedDevice,
+        );
+
     ref.listen(manualUpdateNotifierProvider, (previous, next) {
       switch (next.value?.status) {
         case UpdateStatus.available:
@@ -110,6 +142,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
           break;
       }
     });
+
     return ScreenWithAnimationWidget(
       animation: 'settings',
       child: Padding(
@@ -122,181 +155,229 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
             const SizedBox(height: 20),
             Flexible(
               fit: FlexFit.loose,
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  _SettingItem(
-                    title: S.of(context).changeMosque,
-                    subtitle: S.of(context).searchMosque,
-                    icon: Icon(MawaqitIcons.icon_mosque, size: 35),
-                    onTap: () => AppRouter.push(MosqueSearchScreen(
-                      nextButtonFocusNode: None(),
-                    )),
-                  ),
-                  _SettingItem(
-                    title: S.of(context).hijriAdjustments,
-                    subtitle: S.of(context).hijriAdjustmentsDescription,
-                    icon: Icon(MawaqitIcons.icon_mosque, size: 35),
-                    onTap: () => AppRouter.push(HijriAdjustmentsScreen()),
-                  ),
-                  _SettingItem(
-                    title: S.of(context).languages,
-                    subtitle: S.of(context).descLang,
-                    icon: Icon(Icons.language, size: 35),
-                    onTap: () {
-                      ref.invalidate(reciteNotifierProvider);
-                      AppRouter.push(LanguageScreen());
-                    },
-                  ),
-                  _SettingItem(
-                    title: S.of(context).randomHadithLanguage,
-                    subtitle: S.of(context).hadithLangDesc,
-                    icon: Icon(Icons.language, size: 35),
-                    onTap: () async {
-                      final userPreference = await appLanguage.getHadithLanguagePreference();
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                  // Section 1: Global (open by default)
+                  _CollapsibleSection(
+                    title: S.of(context).settingsSectionGlobal,
+                    icon: Icons.public,
+                    initiallyExpanded: true,
+                    children: [
+                      _SettingItem(
+                        title: S.of(context).hijriDateAdjustment,
+                        subtitle: S.of(context).hijriAdjustmentsDescription,
+                        icon: Icon(Icons.calendar_month, size: 35),
+                        onTap: () => AppRouter.push(HijriAdjustmentsScreen()),
+                      ),
+                      _SettingItem(
+                        title: S.of(context).interfaceLanguage,
+                        subtitle: S.of(context).descLang,
+                        icon: Icon(Icons.translate, size: 35),
+                        onTap: () {
+                          ref.invalidate(reciteNotifierProvider);
+                          AppRouter.push(LanguageScreen());
+                        },
+                      ),
+                      _SettingItem(
+                        title: S.of(context).randomHadithLanguage,
+                        subtitle: S.of(context).hadithLangDesc,
+                        icon: Icon(Icons.menu_book, size: 35),
+                        onTap: () async {
+                          final userPreference = await appLanguage.getHadithLanguagePreference();
 
-                      if (!mounted) return;
+                          if (!mounted) return;
 
-                      AppRouter.push(
-                        LanguageScreen(
-                          isIconActivated: true,
-                          title: S.of(context).randomHadithLanguage,
-                          description: S.of(context).descLang,
-                          languages: appLanguage.hadithLocalizedLanguage.keys.toList(),
-                          isSelected: (langCode) {
-                            return userPreference == langCode;
-                          },
-                          onSelect: (langCode) async {
-                            await ref.read(connectivityProvider.notifier).checkInternetConnection();
-                            ref.watch(connectivityProvider).maybeWhen(
-                              orElse: () {
+                          AppRouter.push(
+                            LanguageScreen(
+                              isIconActivated: true,
+                              title: S.of(context).randomHadithLanguage,
+                              description: S.of(context).descLang,
+                              languages: appLanguage.hadithLocalizedLanguage.keys.toList(),
+                              isSelected: (langCode) {
+                                return userPreference == langCode;
+                              },
+                              onSelect: (langCode) async {
+                                await ref.read(connectivityProvider.notifier).checkInternetConnection();
+                                ref.watch(connectivityProvider).maybeWhen(
+                                  orElse: () {
+                                    showCheckInternetDialog(
+                                      context: context,
+                                      onRetry: () {
+                                        AppRouter.pop();
+                                      },
+                                      title: checkInternet,
+                                      content: hadithLanguage,
+                                    );
+                                  },
+                                  data: (isConnectedToInternet) async {
+                                    if (isConnectedToInternet == ConnectivityStatus.disconnected) {
+                                      showCheckInternetDialog(
+                                        context: context,
+                                        onRetry: () {
+                                          AppRouter.pop();
+                                        },
+                                        title: checkInternet,
+                                        content: hadithLanguage,
+                                      );
+                                    } else {
+                                      await context.read<AppLanguage>().setHadithLanguage(langCode);
+                                      if (!mounted) return;
+
+                                      final mosqueManager = context.read<MosqueManager>();
+                                      final actualLanguage =
+                                          await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+                                      if (!mounted) return;
+
+                                      await ref
+                                          .read(randomHadithNotifierProvider.notifier)
+                                          .getRandomHadith(language: actualLanguage);
+                                      if (!mounted) return;
+
+                                      AppRouter.pop();
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                      _SettingItem(
+                        title: S.of(context).rtspCameraSettingTitle,
+                        subtitle: S.of(context).rtspCameraSettingDesc,
+                        icon: Icon(Icons.videocam, size: 35),
+                        onTap: () async {
+                          await ref.read(connectivityProvider.notifier).checkInternetConnection();
+                          ref.watch(connectivityProvider).maybeWhen(
+                            orElse: () {
+                              showCheckInternetDialog(
+                                context: context,
+                                onRetry: () {
+                                  AppRouter.pop();
+                                },
+                                title: checkInternet,
+                                content: S.of(context).checkInternetLiveCamera,
+                              );
+                            },
+                            data: (isConnectedToInternet) {
+                              if (isConnectedToInternet == ConnectivityStatus.disconnected) {
                                 showCheckInternetDialog(
                                   context: context,
                                   onRetry: () {
                                     AppRouter.pop();
                                   },
                                   title: checkInternet,
-                                  content: hadithLanguage,
+                                  content: S.of(context).checkInternetLiveCamera,
                                 );
-                              },
-                              data: (isConnectedToInternet) async {
-                                if (isConnectedToInternet == ConnectivityStatus.disconnected) {
-                                  showCheckInternetDialog(
-                                    context: context,
-                                    onRetry: () {
-                                      AppRouter.pop();
-                                    },
-                                    title: checkInternet,
-                                    content: hadithLanguage,
-                                  );
-                                } else {
-                                  await context.read<AppLanguage>().setHadithLanguage(langCode);
-                                  if (!mounted) return;
-
-                                  final mosqueManager = context.read<MosqueManager>();
-                                  final actualLanguage =
-                                      await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
-                                  if (!mounted) return;
-
-                                  await ref
-                                      .read(randomHadithNotifierProvider.notifier)
-                                      .getRandomHadith(language: actualLanguage);
-                                  if (!mounted) return;
-
-                                  AppRouter.pop();
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                  _SettingItem(
-                    title: S.of(context).rtspCameraSettingTitle,
-                    subtitle: S.of(context).rtspCameraSettingDesc,
-                    icon: Icon(Icons.video_camera_back, size: 35),
-                    onTap: () async {
-                      await ref.read(connectivityProvider.notifier).checkInternetConnection();
-                      ref.watch(connectivityProvider).maybeWhen(
-                        orElse: () {
-                          showCheckInternetDialog(
-                            context: context,
-                            onRetry: () {
-                              AppRouter.pop();
+                              } else {
+                                AppRouter.push(RTSPCameraSettingsScreen());
+                              }
                             },
-                            title: checkInternet,
-                            content: S.of(context).checkInternetLiveCamera,
                           );
                         },
-                        data: (isConnectedToInternet) {
-                          if (isConnectedToInternet == ConnectivityStatus.disconnected) {
-                            showCheckInternetDialog(
-                              context: context,
-                              onRetry: () {
-                                AppRouter.pop();
-                              },
-                              title: checkInternet,
-                              content: S.of(context).checkInternetLiveCamera,
-                            );
-                          } else {
-                            AppRouter.push(RTSPCameraSettingsScreen());
+                      ),
+                      _SettingItem(
+                        title: S.of(context).changeMosque,
+                        subtitle: S.of(context).searchMosque,
+                        icon: Icon(MawaqitIcons.icon_mosque, size: 35),
+                        onTap: () => AppRouter.push(MosqueSearchScreen(
+                          nextButtonFocusNode: None(),
+                        ),),
+                      ),
+                    ],
+                  ),
+
+                  // Section 2: Display
+                  _CollapsibleSection(
+                    title: S.of(context).appDisplayMode,
+                    icon: Icons.display_settings,
+                    children: [
+                      _SettingDropdownItem<_LaunchMode>(
+                        title: S.of(context).applicationModes,
+                        subtitle: S.of(context).appDisplayModeExplanation,
+                        icon: Icon(Icons.dashboard, size: 35),
+                        value: _getLaunchMode(userPreferences),
+                        items: _LaunchMode.values,
+                        onChanged: (value) {
+                          if (value != null) _setLaunchMode(userPreferences, value);
+                        },
+                        itemLabelBuilder: (mode) {
+                          switch (mode) {
+                            case _LaunchMode.mainPrayer:
+                              return S.of(context).launchModeMainPrayer;
+                            case _LaunchMode.secondaryPrayer:
+                              return S.of(context).launchModeSecondaryPrayer;
+                            case _LaunchMode.announcement:
+                              return S.of(context).announcement;
+                            case _LaunchMode.quran:
+                              return S.of(context).quran;
                           }
                         },
-                      );
-                    },
-                  ),
-/*                   Consumer(
-                    builder: (context, ref, child) {
-                      final isDeviceRooted = ref.watch(onBoardingProvider).maybeWhen(
-                            orElse: () => false,
-                            data: (value) => value.isRootedDevice,
-                          );
-                      final mosqueManager = context.watch<MosqueManager>();
-                      if (!isDeviceRooted && androidSdkVersion >= 30 && !mosqueManager.typeIsMosque) {
-                        return _SettingItem(
-                          title: S.of(context).prayerTimeNotificationTitle,
-                          subtitle: S.of(context).prayerTimeNotificationDesc,
-                          icon: Icon(Icons.notifications_active, size: 35),
-                          onTap: () async {
-                            AppRouter.push(PermissionAdhanScreen(
-                              showAppBar: true,
-                              useAnimation: true,
-                            ));
-                          },
-                        );
-                      }
-                      return SizedBox.shrink();
-                    },
-                  ), */
-                  Divider(),
-                  SizedBox(height: 10),
-                  Text(
-                    S.of(context).applicationModes,
-                    style: theme.textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  _SettingSwitchItem(
-                    title: theme.brightness == Brightness.light ? S.of(context).darkMode : S.of(context).lightMode,
-                    icon: Icon(Icons.brightness_4, size: 35),
-                    onChanged: (value) => themeManager.toggleMode(),
-                    value: themeManager.isLightTheme ?? false,
-                  ),
-                  _SettingItem(
-                    title: S.of(context).orientation,
-                    subtitle: S.of(context).selectYourMawaqitTvAppOrientation,
-                    icon: Icon(Icons.portrait, size: 35),
-                    onTap: () => AppRouter.push(ScreenWithAnimationWidget(
-                      animation: 'welcome',
-                      child: OnBoardingOrientationWidget(
-                        onNext: AppRouter.pop,
                       ),
-                    )),
+                      _SettingSwitchItem(
+                        title: S.of(context).lightMode,
+                        icon: Icon(
+                          theme.brightness == Brightness.light ? Icons.dark_mode : Icons.light_mode,
+                          size: 35,
+                        ),
+                        onChanged: (value) => themeManager.toggleMode(),
+                        value: themeManager.isLightTheme ?? false,
+                      ),
+                      _SettingSwitchItem(
+                        title: S.of(context).iqamaShowClock,
+                        subtitle: S.of(context).iqamaShowClockDesc,
+                        icon: const Icon(Icons.access_time_outlined, size: 35),
+                        value: userPreferences.iqamaShowClock,
+                        onChanged: (value) => userPreferences.iqamaShowClock = value,
+                      ),
+                      _SettingItem(
+                        title: S.of(context).orientation,
+                        subtitle: S.of(context).selectYourMawaqitTvAppOrientation,
+                        icon: Icon(Icons.screen_rotation, size: 35),
+                        onTap: () => AppRouter.push(ScreenWithAnimationWidget(
+                          animation: 'welcome',
+                          child: OnBoardingOrientationWidget(
+                            onNext: AppRouter.pop,
+                          ),
+                        ),),
+                      ),
+                    ],
                   ),
-                  featureManager.isFeatureEnabled("timezone_shift") &&
+
+                  // Section 3: Device
+                  _CollapsibleSection(
+                    title: S.of(context).deviceSettings,
+                    icon: Icons.devices,
+                    children: [
+                      if (isDeviceRooted)
+                        _SettingItem(
+                          title: S.of(context).screenLock,
+                          subtitle: S.of(context).screenLockDesc,
+                          icon: Icon(Icons.power_settings_new, size: 35),
+                          onTap: () => showDialog(
+                            context: context,
+                            builder: (context) => ScreenLockModal(
+                              timeShiftManager: timeShiftManager,
+                            ),
+                          ),
+                        ),
+                      _SettingItem(
+                        title: S.of(context).timezone,
+                        subtitle: S.of(context).descTimezone,
+                        icon: Icon(Icons.schedule, size: 35),
+                        onTap: () => AppRouter.push(TimezoneScreen()),
+                      ),
+                      _SettingItem(
+                        title: S.of(context).wifi,
+                        subtitle: S.of(context).descWifi,
+                        icon: Icon(Icons.wifi, size: 35),
+                        onTap: () => AppRouter.push(WifiSelectorScreen()),
+                      ),
+                      if (featureManager.isFeatureEnabled("timezone_shift") &&
                           timeShiftManager.deviceModel == "MAWABOX" &&
-                          timeShiftManager.isLauncherInstalled
-                      ? _SettingItem(
+                          timeShiftManager.isLauncherInstalled)
+                        _SettingItem(
                           title: S.of(context).timeSetting,
                           subtitle: S.of(context).timeSettingDesc,
                           icon: Icon(MawaqitIcons.icon_clock, size: 35),
@@ -308,95 +389,34 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                               ),
                             );
                           },
-                        )
-                      : SizedBox(),
-                  if (!userPreferences.webViewMode)
-                    _SettingDropdownItem<AppMode>(
-                      title: S.of(context).appDisplayMode,
-                      subtitle: S.of(context).appDisplayModeExplanation,
-                      icon: Icon(Icons.display_settings, size: 35),
-                      value: userPreferences.appMode,
-                      items: AppMode.values,
-                      onChanged: (value) {
-                        if (value != null) {
-                          userPreferences.appMode = value;
-                        }
-                      },
-                      itemLabelBuilder: (mode) {
-                        switch (mode) {
-                          case AppMode.normal:
-                            return S.of(context).normalMode;
-                          case AppMode.announcement:
-                            return S.of(context).announcementOnlyMode;
-                          case AppMode.quran:
-                            return S.of(context).quranMode;
-                        }
-                      },
-                    ),
-                  if (!userPreferences.webViewMode && userPreferences.appMode == AppMode.normal)
-                    _SettingSwitchItem(
-                      title: S.of(context).secondaryScreen,
-                      subtitle: S.of(context).secondaryScreenExplanation,
-                      value: userPreferences.isSecondaryScreen,
-                      icon: Icon(Icons.monitor, size: 35),
-                      onChanged: (value) => userPreferences.isSecondaryScreen = value,
-                    ),
-                  _SettingSwitchItem(
-                    title: S.of(context).webView,
-                    subtitle: S.of(context).ifYouAreFacingAnIssueWithTheAppActivateThis,
-                    icon: Icon(Icons.online_prediction, size: 35),
-                    value: userPreferences.webViewMode,
-                    onChanged: (value) async {
-                      await ref.read(connectivityProvider.notifier).checkInternetConnection();
-                      ref.watch(connectivityProvider).maybeWhen(
-                        orElse: () {
-                          showCheckInternetDialog(
-                            context: context,
-                            onRetry: () {
-                              AppRouter.pop();
+                        ),
+                    ],
+                  ),
+
+                  // Section 4: Update
+                  _CollapsibleSection(
+                    title: S.of(context).update,
+                    icon: Icons.system_update_alt,
+                    children: [
+                      Consumer(
+                        builder: (context, ref, child) {
+                          return _SettingSwitchItem(
+                            title: S.of(context).automaticUpdate,
+                            subtitle: S.of(context).automaticUpdateDescription,
+                            icon: Icon(Icons.notifications_active, size: 35),
+                            onChanged: (value) {
+                              logger.d('setting: disable the update $value');
+                              ref.read(appUpdateProvider.notifier).toggleAutoUpdateChecking();
                             },
-                            title: checkInternet,
-                            content: checkInternetLegacyMode,
+                            value: ref.watch(appUpdateProvider).maybeWhen(
+                                  orElse: () => false,
+                                  data: (data) => data.isAutoUpdateChecking,
+                                ),
                           );
                         },
-                        data: (isConnectedToInternet) {
-                          if (isConnectedToInternet == ConnectivityStatus.disconnected) {
-                            showCheckInternetDialog(
-                              context: context,
-                              onRetry: () {
-                                AppRouter.pop();
-                              },
-                              title: checkInternet,
-                              content: checkInternetLegacyMode,
-                            );
-                          } else {
-                            userPreferences.webViewMode = value;
-                          }
-                        },
-                      );
-                    },
-                  ),
-                  _screenLock(context, ref),
-                  Divider(),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      return _SettingSwitchItem(
-                        title: S.of(context).automaticUpdate,
-                        subtitle: S.of(context).automaticUpdateDescription,
-                        icon: Icon(Icons.update, size: 35),
-                        onChanged: (value) {
-                          logger.d('setting: disable the update $value');
-                          ref.read(appUpdateProvider.notifier).toggleAutoUpdateChecking();
-                        },
-                        value: ref.watch(appUpdateProvider).maybeWhen(
-                              orElse: () => false,
-                              data: (data) => data.isAutoUpdateChecking,
-                            ),
-                      );
-                    },
-                  ),
-                  timeShiftManager.deviceModel != "MAWABOX"
-                      ? _SettingItem(
+                      ),
+                      if (timeShiftManager.deviceModel != "MAWABOX")
+                        _SettingItem(
                           title: S.of(context).checkForUpdates,
                           subtitle: S.of(context).checkForNewVersion,
                           icon: ref.watch(manualUpdateNotifierProvider).isLoading
@@ -442,9 +462,11 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                     },
                                   );
                                 },
-                        )
-                      : SizedBox(),
-                ],
+                        ),
+                    ],
+                  ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -452,52 +474,64 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       ),
     );
   }
+}
 
-  Widget _screenLock(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final timeShiftManager = TimeShiftManager();
-    final isDeviceRooted = ref.watch(onBoardingProvider).maybeWhen(
-          orElse: () => false,
-          data: (value) => value.isRootedDevice,
-        );
+class _CollapsibleSection extends StatefulWidget {
+  const _CollapsibleSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+    this.initiallyExpanded = false,
+  });
 
-    log('isDeviceRooted: ${isDeviceRooted} - isBoxOrAndroidTV: ${isBoxOrAndroidTV} - isLauncherInstalled: ${timeShiftManager.isLauncherInstalled}');
-    return isDeviceRooted
-        ? Column(
-            children: [
-              Divider(),
-              SizedBox(height: 10),
-              Text(
-                S.of(context).deviceSettings,
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              _SettingItem(
-                title: S.of(context).screenLock,
-                subtitle: S.of(context).screenLockDesc,
-                icon: Icon(Icons.power_settings_new, size: 35),
-                onTap: () => showDialog(
-                  context: context,
-                  builder: (context) => ScreenLockModal(
-                    timeShiftManager: timeShiftManager,
-                  ),
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+  final bool initiallyExpanded;
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            autofocus: true,
+            leading: Icon(widget.icon, size: 35),
+            title: Text(widget.title),
+            trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
+          if (_expanded)
+            Theme(
+              data: Theme.of(context).copyWith(
+                cardTheme: CardTheme(
+                  elevation: 0,
+                  color: Colors.transparent,
+                  margin: EdgeInsets.zero,
+                  shape: const RoundedRectangleBorder(),
                 ),
               ),
-              _SettingItem(
-                title: S.of(context).appTimezone,
-                subtitle: S.of(context).descTimezone,
-                icon: Icon(Icons.timelapse, size: 35),
-                onTap: () => AppRouter.push(TimezoneScreen()),
-              ),
-              _SettingItem(
-                title: S.of(context).appWifi,
-                subtitle: S.of(context).descWifi,
-                icon: Icon(Icons.wifi, size: 35),
-                onTap: () => AppRouter.push(WifiSelectorScreen()),
-              ),
-            ],
-          )
-        : SizedBox();
+              child: Column(children: widget.children),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -603,17 +637,21 @@ class _SettingDropdownItem<T> extends StatelessWidget {
         subtitle: subtitle != null
             ? Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10))
             : null,
-        trailing: DropdownButton<T>(
-          value: value,
-          underline: SizedBox(),
-          borderRadius: BorderRadius.circular(20),
-          onChanged: onChanged,
-          items: items.map((item) {
-            return DropdownMenuItem<T>(
-              value: item,
-              child: Text(itemLabelBuilder(item)),
-            );
-          }).toList(),
+        trailing: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 180),
+          child: DropdownButton<T>(
+            isExpanded: true,
+            value: value,
+            underline: SizedBox(),
+            borderRadius: BorderRadius.circular(20),
+            onChanged: onChanged,
+            items: items.map((item) {
+              return DropdownMenuItem<T>(
+                value: item,
+                child: Text(itemLabelBuilder(item)),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

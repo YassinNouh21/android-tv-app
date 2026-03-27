@@ -25,6 +25,7 @@ const _screenOrientation = 'UserPreferencesManager.screen.orientation';
 const quranLastPortraitKey = 'quran_last_portrait';
 const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
 const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
+const _iqamaShowClockKey = 'UserPreferencesManager.iqama.show.clock';
 
 /// this manager responsible for managing user preferences
 class UserPreferencesManager extends ChangeNotifier {
@@ -236,6 +237,13 @@ class UserPreferencesManager extends ChangeNotifier {
 
   set adhanNotificationEnabled(bool value) {
     _sharedPref.setBool(_adhanNotificationKey, value);
+    notifyListeners();
+  }
+
+  bool get iqamaShowClock => _sharedPref.getBool(_iqamaShowClockKey) ?? false;
+
+  set iqamaShowClock(bool value) {
+    _sharedPref.setBool(_iqamaShowClockKey, value);
     notifyListeners();
   }
 }

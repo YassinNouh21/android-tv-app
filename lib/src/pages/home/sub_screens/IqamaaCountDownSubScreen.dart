@@ -14,6 +14,7 @@ import 'package:mawaqit/src/pages/home/widgets/TimeWidget.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/iqamaa_time_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/WeatherWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:provider/provider.dart';
 
@@ -178,6 +179,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
   @override
   Widget build(BuildContext context) {
     final mosqueManager = context.read<MosqueManager>();
+    final showClock = context.watch<UserPreferencesManager>().iqamaShowClock;
 
     if (mosqueManager.mosqueConfig?.iqamaFullScreenCountdown == false) return const NormalHomeSubScreen();
 
@@ -185,14 +187,14 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
 
     // Portrait always uses new layout; landscape uses new for standard res, old for high res
     if (isPortrait || _isStandardResolution(context)) {
-      return _buildNewLayout(context, mosqueManager);
+      return _buildNewLayout(context, mosqueManager, showClock);
     } else {
-      return _buildOldLayout(context, mosqueManager);
+      return _buildOldLayout(context, mosqueManager, showClock);
     }
   }
 
   /// Old layout for high resolution screens (larger than 1920x1080)
-  Widget _buildOldLayout(BuildContext context, MosqueManager mosqueManager) {
+  Widget _buildOldLayout(BuildContext context, MosqueManager mosqueManager, bool showClock) {
     final tr = S.of(context);
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
@@ -201,12 +203,13 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
         children: [
           _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.vh)),
 
-          // Clock Widget - compact version without redundant black box
-          Container(
-            height: 20.vh,
-            alignment: Alignment.center,
-            child: const IqamaaTimeWidget(hideSeconds: true),
-          ),
+          // Clock Widget - compact version
+          if (showClock)
+            Container(
+              height: 20.vh,
+              alignment: Alignment.center,
+              child: const IqamaaTimeWidget(hideSeconds: true),
+            ),
 
           // Main countdown section - takes up available space
           Expanded(
@@ -244,7 +247,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
   }
 
   /// New layout for standard resolution screens (1920x1080 or less)
-  Widget _buildNewLayout(BuildContext context, MosqueManager mosqueManager) {
+  Widget _buildNewLayout(BuildContext context, MosqueManager mosqueManager, bool showClock) {
     final tr = S.of(context);
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
@@ -256,7 +259,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
           SizedBox(height: isPortrait ? 0.5.vh : 1.5.vh),
 
           // Clock Widget - Using custom widget for landscape mode
-          _buildClockWidget(isPortrait),
+          if (showClock) _buildClockWidget(isPortrait),
 
           SizedBox(height: isPortrait ? 1.vh : 4.vh),
 
