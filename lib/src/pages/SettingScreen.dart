@@ -158,277 +158,46 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                  // Section 1: Global (open by default)
-                  _CollapsibleSection(
-                    title: S.of(context).settingsSectionGlobal,
-                    icon: Icons.public,
-                    initiallyExpanded: true,
-                    children: [
-                      _SettingItem(
-                        title: S.of(context).hijriDateAdjustment,
-                        subtitle: S.of(context).hijriAdjustmentsDescription,
-                        icon: Icon(Icons.calendar_month, size: 35),
-                        onTap: () => AppRouter.push(HijriAdjustmentsScreen()),
-                      ),
-                      _SettingItem(
-                        title: S.of(context).interfaceLanguage,
-                        subtitle: S.of(context).descLang,
-                        icon: Icon(Icons.translate, size: 35),
-                        onTap: () {
-                          ref.invalidate(reciteNotifierProvider);
-                          AppRouter.push(LanguageScreen());
-                        },
-                      ),
-                      _SettingItem(
-                        title: S.of(context).randomHadithLanguage,
-                        subtitle: S.of(context).hadithLangDesc,
-                        icon: Icon(Icons.menu_book, size: 35),
-                        onTap: () async {
-                          final userPreference = await appLanguage.getHadithLanguagePreference();
-
-                          if (!mounted) return;
-
-                          AppRouter.push(
-                            LanguageScreen(
-                              isIconActivated: true,
-                              title: S.of(context).randomHadithLanguage,
-                              description: S.of(context).descLang,
-                              languages: appLanguage.hadithLocalizedLanguage.keys.toList(),
-                              isSelected: (langCode) {
-                                return userPreference == langCode;
-                              },
-                              onSelect: (langCode) async {
-                                await ref.read(connectivityProvider.notifier).checkInternetConnection();
-                                ref.watch(connectivityProvider).maybeWhen(
-                                  orElse: () {
-                                    showCheckInternetDialog(
-                                      context: context,
-                                      onRetry: () {
-                                        AppRouter.pop();
-                                      },
-                                      title: checkInternet,
-                                      content: hadithLanguage,
-                                    );
-                                  },
-                                  data: (isConnectedToInternet) async {
-                                    if (isConnectedToInternet == ConnectivityStatus.disconnected) {
-                                      showCheckInternetDialog(
-                                        context: context,
-                                        onRetry: () {
-                                          AppRouter.pop();
-                                        },
-                                        title: checkInternet,
-                                        content: hadithLanguage,
-                                      );
-                                    } else {
-                                      await context.read<AppLanguage>().setHadithLanguage(langCode);
-                                      if (!mounted) return;
-
-                                      final mosqueManager = context.read<MosqueManager>();
-                                      final actualLanguage =
-                                          await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
-                                      if (!mounted) return;
-
-                                      await ref
-                                          .read(randomHadithNotifierProvider.notifier)
-                                          .getRandomHadith(language: actualLanguage);
-                                      if (!mounted) return;
-
-                                      AppRouter.pop();
-                                    }
-                                  },
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                      _SettingItem(
-                        title: S.of(context).rtspCameraSettingTitle,
-                        subtitle: S.of(context).rtspCameraSettingDesc,
-                        icon: Icon(Icons.videocam, size: 35),
-                        onTap: () async {
-                          await ref.read(connectivityProvider.notifier).checkInternetConnection();
-                          ref.watch(connectivityProvider).maybeWhen(
-                            orElse: () {
-                              showCheckInternetDialog(
-                                context: context,
-                                onRetry: () {
-                                  AppRouter.pop();
-                                },
-                                title: checkInternet,
-                                content: S.of(context).checkInternetLiveCamera,
-                              );
-                            },
-                            data: (isConnectedToInternet) {
-                              if (isConnectedToInternet == ConnectivityStatus.disconnected) {
-                                showCheckInternetDialog(
-                                  context: context,
-                                  onRetry: () {
-                                    AppRouter.pop();
-                                  },
-                                  title: checkInternet,
-                                  content: S.of(context).checkInternetLiveCamera,
-                                );
-                              } else {
-                                AppRouter.push(RTSPCameraSettingsScreen());
-                              }
-                            },
-                          );
-                        },
-                      ),
-                      _SettingItem(
-                        title: S.of(context).changeMosque,
-                        subtitle: S.of(context).searchMosque,
-                        icon: Icon(MawaqitIcons.icon_mosque, size: 35),
-                        onTap: () => AppRouter.push(MosqueSearchScreen(
-                          nextButtonFocusNode: None(),
-                        ),),
-                      ),
-                    ],
-                  ),
-
-                  // Section 2: Display
-                  _CollapsibleSection(
-                    title: S.of(context).appDisplayMode,
-                    icon: Icons.display_settings,
-                    children: [
-                      _SettingDropdownItem<_LaunchMode>(
-                        title: S.of(context).applicationModes,
-                        subtitle: S.of(context).appDisplayModeExplanation,
-                        icon: Icon(Icons.dashboard, size: 35),
-                        value: _getLaunchMode(userPreferences),
-                        items: _LaunchMode.values,
-                        onChanged: (value) {
-                          if (value != null) _setLaunchMode(userPreferences, value);
-                        },
-                        itemLabelBuilder: (mode) {
-                          switch (mode) {
-                            case _LaunchMode.mainPrayer:
-                              return S.of(context).launchModeMainPrayer;
-                            case _LaunchMode.secondaryPrayer:
-                              return S.of(context).launchModeSecondaryPrayer;
-                            case _LaunchMode.announcement:
-                              return S.of(context).announcement;
-                            case _LaunchMode.quran:
-                              return S.of(context).quran;
-                          }
-                        },
-                      ),
-                      _SettingSwitchItem(
-                        title: S.of(context).lightMode,
-                        icon: Icon(
-                          theme.brightness == Brightness.light ? Icons.dark_mode : Icons.light_mode,
-                          size: 35,
-                        ),
-                        onChanged: (value) => themeManager.toggleMode(),
-                        value: themeManager.isLightTheme ?? false,
-                      ),
-                      _SettingSwitchItem(
-                        title: S.of(context).iqamaShowClock,
-                        subtitle: S.of(context).iqamaShowClockDesc,
-                        icon: const Icon(Icons.access_time_outlined, size: 35),
-                        value: userPreferences.iqamaShowClock,
-                        onChanged: (value) => userPreferences.iqamaShowClock = value,
-                      ),
-                      _SettingItem(
-                        title: S.of(context).orientation,
-                        subtitle: S.of(context).selectYourMawaqitTvAppOrientation,
-                        icon: Icon(Icons.screen_rotation, size: 35),
-                        onTap: () => AppRouter.push(ScreenWithAnimationWidget(
-                          animation: 'welcome',
-                          child: OnBoardingOrientationWidget(
-                            onNext: AppRouter.pop,
-                          ),
-                        ),),
-                      ),
-                    ],
-                  ),
-
-                  // Section 3: Device
-                  _CollapsibleSection(
-                    title: S.of(context).deviceSettings,
-                    icon: Icons.devices,
-                    children: [
-                      if (isDeviceRooted)
+                    // Section 1: Global (open by default)
+                    _CollapsibleSection(
+                      title: S.of(context).settingsSectionGlobal,
+                      icon: Icons.public,
+                      initiallyExpanded: true,
+                      children: [
                         _SettingItem(
-                          title: S.of(context).screenLock,
-                          subtitle: S.of(context).screenLockDesc,
-                          icon: Icon(Icons.power_settings_new, size: 35),
-                          onTap: () => showDialog(
-                            context: context,
-                            builder: (context) => ScreenLockModal(
-                              timeShiftManager: timeShiftManager,
-                            ),
-                          ),
+                          title: S.of(context).hijriDateAdjustment,
+                          subtitle: S.of(context).hijriAdjustmentsDescription,
+                          icon: Icon(Icons.calendar_month, size: 35),
+                          onTap: () => AppRouter.push(HijriAdjustmentsScreen()),
                         ),
-                      _SettingItem(
-                        title: S.of(context).timezone,
-                        subtitle: S.of(context).descTimezone,
-                        icon: Icon(Icons.schedule, size: 35),
-                        onTap: () => AppRouter.push(TimezoneScreen()),
-                      ),
-                      _SettingItem(
-                        title: S.of(context).wifi,
-                        subtitle: S.of(context).descWifi,
-                        icon: Icon(Icons.wifi, size: 35),
-                        onTap: () => AppRouter.push(WifiSelectorScreen()),
-                      ),
-                      if (featureManager.isFeatureEnabled("timezone_shift") &&
-                          timeShiftManager.deviceModel == "MAWABOX" &&
-                          timeShiftManager.isLauncherInstalled)
                         _SettingItem(
-                          title: S.of(context).timeSetting,
-                          subtitle: S.of(context).timeSettingDesc,
-                          icon: Icon(MawaqitIcons.icon_clock, size: 35),
+                          title: S.of(context).interfaceLanguage,
+                          subtitle: S.of(context).descLang,
+                          icon: Icon(Icons.translate, size: 35),
                           onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => TimePickerModal(
-                                timeShiftManager: timeShiftManager,
-                              ),
-                            );
+                            ref.invalidate(reciteNotifierProvider);
+                            AppRouter.push(LanguageScreen());
                           },
                         ),
-                    ],
-                  ),
-
-                  // Section 4: Update
-                  _CollapsibleSection(
-                    title: S.of(context).update,
-                    icon: Icons.system_update_alt,
-                    children: [
-                      Consumer(
-                        builder: (context, ref, child) {
-                          return _SettingSwitchItem(
-                            title: S.of(context).automaticUpdate,
-                            subtitle: S.of(context).automaticUpdateDescription,
-                            icon: Icon(Icons.notifications_active, size: 35),
-                            onChanged: (value) {
-                              logger.d('setting: disable the update $value');
-                              ref.read(appUpdateProvider.notifier).toggleAutoUpdateChecking();
-                            },
-                            value: ref.watch(appUpdateProvider).maybeWhen(
-                                  orElse: () => false,
-                                  data: (data) => data.isAutoUpdateChecking,
-                                ),
-                          );
-                        },
-                      ),
-                      if (timeShiftManager.deviceModel != "MAWABOX")
                         _SettingItem(
-                          title: S.of(context).checkForUpdates,
-                          subtitle: S.of(context).checkForNewVersion,
-                          icon: ref.watch(manualUpdateNotifierProvider).isLoading
-                              ? const SizedBox(
-                                  width: 35,
-                                  height: 35,
-                                  child: CircularProgressIndicator(),
-                                )
-                              : const Icon(Icons.system_update, size: 35),
-                          onTap: ref.watch(manualUpdateNotifierProvider).isLoading
-                              ? null
-                              : () async {
+                          title: S.of(context).randomHadithLanguage,
+                          subtitle: S.of(context).hadithLangDesc,
+                          icon: Icon(Icons.menu_book, size: 35),
+                          onTap: () async {
+                            final userPreference = await appLanguage.getHadithLanguagePreference();
+
+                            if (!mounted) return;
+
+                            AppRouter.push(
+                              LanguageScreen(
+                                isIconActivated: true,
+                                title: S.of(context).randomHadithLanguage,
+                                description: S.of(context).descLang,
+                                languages: appLanguage.hadithLocalizedLanguage.keys.toList(),
+                                isSelected: (langCode) {
+                                  return userPreference == langCode;
+                                },
+                                onSelect: (langCode) async {
                                   await ref.read(connectivityProvider.notifier).checkInternetConnection();
                                   ref.watch(connectivityProvider).maybeWhen(
                                     orElse: () {
@@ -438,7 +207,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                           AppRouter.pop();
                                         },
                                         title: checkInternet,
-                                        content: S.of(context).checkInternetUpdate,
+                                        content: hadithLanguage,
                                       );
                                     },
                                     data: (isConnectedToInternet) async {
@@ -449,22 +218,257 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                             AppRouter.pop();
                                           },
                                           title: checkInternet,
-                                          content: S.of(context).checkInternetUpdate,
+                                          content: hadithLanguage,
                                         );
-                                      } else if (hasPlayStore) {
-                                        ref.read(appUpdateProvider.notifier).openStore();
                                       } else {
-                                        var softwareFuture = await PackageInfo.fromPlatform();
-                                        ref
-                                            .read(manualUpdateNotifierProvider.notifier)
-                                            .checkForUpdates(softwareFuture.version);
+                                        await context.read<AppLanguage>().setHadithLanguage(langCode);
+                                        if (!mounted) return;
+
+                                        final mosqueManager = context.read<MosqueManager>();
+                                        final actualLanguage =
+                                            await context.read<AppLanguage>().getHadithLanguage(mosqueManager);
+                                        if (!mounted) return;
+
+                                        await ref
+                                            .read(randomHadithNotifierProvider.notifier)
+                                            .getRandomHadith(language: actualLanguage);
+                                        if (!mounted) return;
+
+                                        AppRouter.pop();
                                       }
                                     },
                                   );
                                 },
+                              ),
+                            );
+                          },
                         ),
-                    ],
-                  ),
+                        _SettingItem(
+                          title: S.of(context).rtspCameraSettingTitle,
+                          subtitle: S.of(context).rtspCameraSettingDesc,
+                          icon: Icon(Icons.videocam, size: 35),
+                          onTap: () async {
+                            await ref.read(connectivityProvider.notifier).checkInternetConnection();
+                            ref.watch(connectivityProvider).maybeWhen(
+                              orElse: () {
+                                showCheckInternetDialog(
+                                  context: context,
+                                  onRetry: () {
+                                    AppRouter.pop();
+                                  },
+                                  title: checkInternet,
+                                  content: S.of(context).checkInternetLiveCamera,
+                                );
+                              },
+                              data: (isConnectedToInternet) {
+                                if (isConnectedToInternet == ConnectivityStatus.disconnected) {
+                                  showCheckInternetDialog(
+                                    context: context,
+                                    onRetry: () {
+                                      AppRouter.pop();
+                                    },
+                                    title: checkInternet,
+                                    content: S.of(context).checkInternetLiveCamera,
+                                  );
+                                } else {
+                                  AppRouter.push(RTSPCameraSettingsScreen());
+                                }
+                              },
+                            );
+                          },
+                        ),
+                        _SettingItem(
+                          title: S.of(context).changeMosque,
+                          subtitle: S.of(context).searchMosque,
+                          icon: Icon(MawaqitIcons.icon_mosque, size: 35),
+                          onTap: () => AppRouter.push(
+                            MosqueSearchScreen(
+                              nextButtonFocusNode: None(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Section 2: Display
+                    _CollapsibleSection(
+                      title: S.of(context).appDisplayMode,
+                      icon: Icons.display_settings,
+                      children: [
+                        _SettingDropdownItem<_LaunchMode>(
+                          title: S.of(context).applicationModes,
+                          subtitle: S.of(context).appDisplayModeExplanation,
+                          icon: Icon(Icons.dashboard, size: 35),
+                          value: _getLaunchMode(userPreferences),
+                          items: _LaunchMode.values,
+                          onChanged: (value) {
+                            if (value != null) _setLaunchMode(userPreferences, value);
+                          },
+                          itemLabelBuilder: (mode) {
+                            switch (mode) {
+                              case _LaunchMode.mainPrayer:
+                                return S.of(context).launchModeMainPrayer;
+                              case _LaunchMode.secondaryPrayer:
+                                return S.of(context).launchModeSecondaryPrayer;
+                              case _LaunchMode.announcement:
+                                return S.of(context).announcement;
+                              case _LaunchMode.quran:
+                                return S.of(context).quran;
+                            }
+                          },
+                        ),
+                        _SettingSwitchItem(
+                          title: S.of(context).lightMode,
+                          icon: Icon(
+                            theme.brightness == Brightness.light ? Icons.dark_mode : Icons.light_mode,
+                            size: 35,
+                          ),
+                          onChanged: (value) => themeManager.toggleMode(),
+                          value: themeManager.isLightTheme ?? false,
+                        ),
+                        _SettingSwitchItem(
+                          title: S.of(context).iqamaShowClock,
+                          subtitle: S.of(context).iqamaShowClockDesc,
+                          icon: const Icon(Icons.access_time_outlined, size: 35),
+                          value: userPreferences.iqamaShowClock,
+                          onChanged: (value) => userPreferences.iqamaShowClock = value,
+                        ),
+                        _SettingItem(
+                          title: S.of(context).orientation,
+                          subtitle: S.of(context).selectYourMawaqitTvAppOrientation,
+                          icon: Icon(Icons.screen_rotation, size: 35),
+                          onTap: () => AppRouter.push(
+                            ScreenWithAnimationWidget(
+                              animation: 'welcome',
+                              child: OnBoardingOrientationWidget(
+                                onNext: AppRouter.pop,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Section 3: Device
+                    _CollapsibleSection(
+                      title: S.of(context).deviceSettings,
+                      icon: Icons.devices,
+                      children: [
+                        if (isDeviceRooted)
+                          _SettingItem(
+                            title: S.of(context).screenLock,
+                            subtitle: S.of(context).screenLockDesc,
+                            icon: Icon(Icons.power_settings_new, size: 35),
+                            onTap: () => showDialog(
+                              context: context,
+                              builder: (context) => ScreenLockModal(
+                                timeShiftManager: timeShiftManager,
+                              ),
+                            ),
+                          ),
+                        _SettingItem(
+                          title: S.of(context).timezone,
+                          subtitle: S.of(context).descTimezone,
+                          icon: Icon(Icons.schedule, size: 35),
+                          onTap: () => AppRouter.push(TimezoneScreen()),
+                        ),
+                        _SettingItem(
+                          title: S.of(context).wifi,
+                          subtitle: S.of(context).descWifi,
+                          icon: Icon(Icons.wifi, size: 35),
+                          onTap: () => AppRouter.push(WifiSelectorScreen()),
+                        ),
+                        if (featureManager.isFeatureEnabled("timezone_shift") &&
+                            timeShiftManager.deviceModel == "MAWABOX" &&
+                            timeShiftManager.isLauncherInstalled)
+                          _SettingItem(
+                            title: S.of(context).timeSetting,
+                            subtitle: S.of(context).timeSettingDesc,
+                            icon: Icon(MawaqitIcons.icon_clock, size: 35),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => TimePickerModal(
+                                  timeShiftManager: timeShiftManager,
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+
+                    // Section 4: Update
+                    _CollapsibleSection(
+                      title: S.of(context).update,
+                      icon: Icons.system_update_alt,
+                      children: [
+                        Consumer(
+                          builder: (context, ref, child) {
+                            return _SettingSwitchItem(
+                              title: S.of(context).automaticUpdate,
+                              subtitle: S.of(context).automaticUpdateDescription,
+                              icon: Icon(Icons.notifications_active, size: 35),
+                              onChanged: (value) {
+                                logger.d('setting: disable the update $value');
+                                ref.read(appUpdateProvider.notifier).toggleAutoUpdateChecking();
+                              },
+                              value: ref.watch(appUpdateProvider).maybeWhen(
+                                    orElse: () => false,
+                                    data: (data) => data.isAutoUpdateChecking,
+                                  ),
+                            );
+                          },
+                        ),
+                        if (timeShiftManager.deviceModel != "MAWABOX")
+                          _SettingItem(
+                            title: S.of(context).checkForUpdates,
+                            subtitle: S.of(context).checkForNewVersion,
+                            icon: ref.watch(manualUpdateNotifierProvider).isLoading
+                                ? const SizedBox(
+                                    width: 35,
+                                    height: 35,
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : const Icon(Icons.system_update, size: 35),
+                            onTap: ref.watch(manualUpdateNotifierProvider).isLoading
+                                ? null
+                                : () async {
+                                    await ref.read(connectivityProvider.notifier).checkInternetConnection();
+                                    ref.watch(connectivityProvider).maybeWhen(
+                                      orElse: () {
+                                        showCheckInternetDialog(
+                                          context: context,
+                                          onRetry: () {
+                                            AppRouter.pop();
+                                          },
+                                          title: checkInternet,
+                                          content: S.of(context).checkInternetUpdate,
+                                        );
+                                      },
+                                      data: (isConnectedToInternet) async {
+                                        if (isConnectedToInternet == ConnectivityStatus.disconnected) {
+                                          showCheckInternetDialog(
+                                            context: context,
+                                            onRetry: () {
+                                              AppRouter.pop();
+                                            },
+                                            title: checkInternet,
+                                            content: S.of(context).checkInternetUpdate,
+                                          );
+                                        } else if (hasPlayStore) {
+                                          ref.read(appUpdateProvider.notifier).openStore();
+                                        } else {
+                                          var softwareFuture = await PackageInfo.fromPlatform();
+                                          ref
+                                              .read(manualUpdateNotifierProvider.notifier)
+                                              .checkForUpdates(softwareFuture.version);
+                                        }
+                                      },
+                                    );
+                                  },
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
