@@ -127,6 +127,7 @@ class BackgroundScheduleAudioServiceConstant {
   static const String kRandomEnabled = 'isRandomEnabled';
   static const String kRandomUrls = 'random_urls';
   static const String kSelectedSurah = 'selected_surah';
+  static const String kSelectedSurahName = 'selected_surah_name';
   static const String kSelectedSurahUrl = 'selected_surah_url';
   static const String kSelectedReciter = 'selected_reciter';
   static const String kSelectedMoshaf = 'selected_moshaf';

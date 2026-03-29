@@ -26,6 +26,7 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   /// Creates an AudioControlNotifier with an optional background service
   AudioControlNotifier({FlutterBackgroundService? service}) : _service = service ?? FlutterBackgroundService();
 
+
   @override
   Future<AudioControlState> build() async {
     // Register cleanup when the provider is disposed
@@ -90,6 +91,9 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
         state.value!.copyWith(
           status: isPlaying ? AudioStatus.playing : AudioStatus.paused,
           isLoading: false,
+          // Reset isStopped when the background service reports playing,
+          // so the indicator reappears on new schedule windows.
+          isStopped: isPlaying ? false : state.value!.isStopped,
         ),
       );
     } catch (e) {
@@ -202,6 +206,8 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
         state.value!.copyWith(
           status: newStatus,
           isLoading: true,
+          isStopped: false,
+          clearError: true,
         ),
       );
 
@@ -218,6 +224,28 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     } catch (e) {
       _handleError('Failed to toggle playback: $e');
       await _checkPlaybackState();
+    }
+  }
+
+  /// Stops playback and hides the audio indicator (shows countdown again).
+  Future<void> stopPlayback() async {
+    if (state.value == null) return;
+
+    try {
+      state = AsyncData(
+        state.value!.copyWith(
+          status: AudioStatus.paused,
+          isStopped: true,
+          isLoading: true,
+        ),
+      );
+
+      _service.invoke('kStopAudio');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      state = AsyncData(state.value!.copyWith(isLoading: false, clearError: true));
+    } catch (e) {
+      _handleError('Failed to stop playback: $e');
     }
   }
 

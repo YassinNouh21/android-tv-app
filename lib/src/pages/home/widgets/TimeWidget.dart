@@ -5,8 +5,8 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';
 
+import 'CountdownOrAudioWidget.dart';
 import 'HomeDateWidget.dart';
-import 'SalahInWidget.dart';
 
 class HomeTimeWidget extends TimerRefreshWidget {
   const HomeTimeWidget({
@@ -54,7 +54,7 @@ class HomeTimeWidget extends TimerRefreshWidget {
                     padding: EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
                     child: timeContent,
                   ),
-                  if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: SalahInWidget())),
+                  if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: CountdownOrAudioWidget())),
                 ],
               )
             : Container(
@@ -76,7 +76,7 @@ class HomeTimeWidget extends TimerRefreshWidget {
                       padding: EdgeInsets.symmetric(vertical: showOuterBackground ? 4.47.vw : 2.5.vw, horizontal: 5.vw),
                       child: timeContent,
                     ),
-                    if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: SalahInWidget())),
+                    if (showSalahIn) Padding(padding: EdgeInsets.all(1.vwr), child: Center(child: CountdownOrAudioWidget())),
                   ],
                 ),
               ),
