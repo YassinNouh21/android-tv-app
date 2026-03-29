@@ -1,9 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:mawaqit/src/pages/home/sub_screens/DuhaTimeSubScreen.dart';
 import 'package:mawaqit/src/pages/home/workflow/jumua_workflow_screen.dart';
 import 'package:mawaqit/src/pages/home/workflow/normal_workflow.dart';
 import 'package:mawaqit/src/pages/home/workflow/salah_workflow.dart';
+import 'package:mawaqit/src/services/mixins/mosque_helpers_mixins.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:provider/provider.dart';
@@ -42,29 +44,47 @@ class AppWorkflowScreen extends StatelessWidget {
         : mosqueManager.actualIqamaTimes(now);
 
     final hijri = mosqueManager.mosqueHijriDate(userPrefs.hijriAdjustments);
+    final shuruqTime = mosqueManager.times?.shuruq(now);
 
     return RepeatingWorkFlowWidget(
       key: workflowKey,
       debugName: "App workflow",
       child: NormalWorkflowScreen(),
       items: [
-        ...times.mapIndexed((index, elem) => RepeatingWorkflowItem(
-              debugName: 'SalahWorkflowScreen $index',
-              builder: (context, next) => SalahWorkflowScreen(salahIndex: index, onDone: next),
-              repeatingDuration: 1.days,
+        ...times.mapIndexed(
+          (index, elem) => RepeatingWorkflowItem(
+            debugName: 'SalahWorkflowScreen $index',
+            builder: (context, next) => SalahWorkflowScreen(salahIndex: index, onDone: next),
+            repeatingDuration: 1.days,
+            dateTime: hijri.islamicMonth == 8 ? elem.add(-2.minutes) : elem,
 
-              dateTime: hijri.islamicMonth == 8 ? elem.add(-2.minutes) : elem,
+            /// auto start Workflow if user starts the app during the Salah time
+            /// give 4 minute for the salah and 2 for azkar
+            showInitial: () =>
+                now.isAfter(hijri.islamicMonth == 8 ? elem.add(-2.minutes) : elem) &&
+                now.isBefore(iqama[index].add(6.minutes)),
 
-              /// auto start Workflow if user starts the app during the Salah time
-              /// give 4 minute for the salah and 2 for azkar
-              showInitial: () =>
-                  now.isAfter(hijri.islamicMonth == 8 ? elem.add(-2.minutes) : elem) &&
-                  now.isBefore(iqama[index].add(6.minutes)),
+            // disable Duhr if it's Friday
+            disabled: index == 1 && now.weekday == DateTime.friday,
+          ),
+        ),
 
-              // dateTime: e,
-              // disable Duhr if it's Friday
-              disabled: index == 1 && now.weekday == DateTime.friday,
-            )),
+        // Duha Workflow — 30s announcement triggered after 25-min countdown
+        // (countdown is now shown inline in SalahInWidget under the clock)
+        RepeatingWorkflowItem(
+          debugName: 'DuhaWorkflowScreen',
+          builder: (context, next) => DuhaTimeSubScreen(onDone: next),
+          repeatingDuration: 1.days,
+          dateTime: shuruqTime?.add(kDuhaDurationAfterShuruq),
+          disabled: shuruqTime == null,
+          showInitial: () {
+            if (shuruqTime == null) return false;
+            final currentTime = mosqueManager.mosqueDate();
+            final duhaAnnouncementStart = shuruqTime.add(kDuhaDurationAfterShuruq);
+            final duhaAnnouncementEnd = duhaAnnouncementStart.add(const Duration(seconds: 30));
+            return currentTime.isAfter(duhaAnnouncementStart) && currentTime.isBefore(duhaAnnouncementEnd);
+          },
+        ),
 
         // Jumuaa Workflow
         RepeatingWorkflowItem(

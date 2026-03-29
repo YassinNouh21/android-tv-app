@@ -45,7 +45,7 @@ class AboveSalahBar extends StatelessWidget {
                     color: mosqueManager.getColorTheme().withOpacity(.7),
                   ),
                   child: Text(
-                    mosqueManager.isShurukTime ? mosqueManager.getShurukInString(context) : countDownText,
+                    mosqueManager.getActiveCountdownText(context, countDownText),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           shadows: kHomeTextShadow,
