@@ -147,7 +147,7 @@ abstract class MawaqitBackendSettingsConstant {
 }
 
 abstract class ManualUpdateConstant {
-  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?prefix=android/tv/apk/&list-type=2';
+  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?prefix=android/tv/sideload-apk/&list-type=2';
   static const String s3DownloadBaseUrl = 'https://cdn.mawaqit.net';
   static const String apkPrefix = 'MAWAQIT-For-TV-v';
 }
