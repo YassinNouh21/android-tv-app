@@ -296,7 +296,11 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
         throw Exception('APK file not found');
       }
 
-      final result = await platform.invokeMethod('installApk', {
+      // Sideload flavor: use FileProvider + REQUEST_INSTALL_PACKAGES
+      // Googleplay flavor: use root (su pm install)
+      final method = kIsSideloadFlavor ? 'installApk' : 'installApkRoot';
+
+      final result = await platform.invokeMethod(method, {
         'filePath': filePath,
       });
 

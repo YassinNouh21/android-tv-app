@@ -16,6 +16,9 @@ const kApiToken = String.fromEnvironment('mawaqit.api.key');
 const kSentryDns = String.fromEnvironment('mawaqit.sentry.dns');
 const kGooglePlayId = 'com.mawaqit.androidtv';
 
+const kAppFlavor = String.fromEnvironment('APP_FLAVOR', defaultValue: 'sideload');
+const kIsSideloadFlavor = kAppFlavor == 'sideload';
+
 class CacheKey {
   static const String kMosqueBackgroundScreen = 'mosque_background_screen';
   static const String kLastPopupDisplay = 'last_popup_display';
@@ -147,7 +150,10 @@ abstract class MawaqitBackendSettingsConstant {
 }
 
 abstract class ManualUpdateConstant {
-  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?prefix=android/tv/sideload-apk/&list-type=2';
+  static const String _s3BucketBase = 'https://cdn.mawaqit.net.s3.amazonaws.com/?list-type=2&prefix=';
+  static const String s3BucketListUrl = kIsSideloadFlavor
+      ? '${_s3BucketBase}android/tv/sideload-apk/'
+      : '${_s3BucketBase}android/tv/apk/';
   static const String s3DownloadBaseUrl = 'https://cdn.mawaqit.net';
   static const String apkPrefix = 'MAWAQIT-For-TV-v';
 }
