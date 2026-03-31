@@ -16,7 +16,7 @@ graph TD
     AAB --> PLAY["Google Play"]
     APK_CLEAN --> GITHUB["GitHub Releases"]
     APK_CLEAN --> S3_APK["S3: android/tv/apk/"]
-    APK_SIDE --> S3_SIDE["S3: android/tv/sideload-apk/"]
+    APK_SIDE --> S3_SIDE["S3: android/tv/onvo-apks/"]
 ```
 
 ## Update Flow - Sideload Flavor
@@ -25,9 +25,7 @@ graph TD
 flowchart TD
     START["User taps 'Check for Updates'"] --> INTERNET{Connected to internet?}
     INTERNET -- No --> NO_NET["Show 'No Internet' dialog"]
-    INTERNET -- Yes --> PLAYSTORE{Has Play Store?}
-    PLAYSTORE -- Yes --> OPEN_PLAY["Open Google Play Store"]
-    PLAYSTORE -- No --> CHECK_S3["Check S3 bucket<br/>(sideload-apk/)"]
+    INTERNET -- Yes --> CHECK_S3["Check S3 bucket<br/>(onvo-apks/)"]
     CHECK_S3 --> UPDATE{Update available?}
     UPDATE -- No --> UP_TO_DATE["Show 'Up to date' dialog"]
     UPDATE -- Yes --> DIALOG["Show update dialog<br/>User confirms"]
@@ -35,7 +33,6 @@ flowchart TD
     DOWNLOAD --> INSTALL["Install via FileProvider<br/>(REQUEST_INSTALL_PACKAGES)<br/><br/>Native: installApk<br/>ACTION_VIEW intent"]
 
     style INSTALL fill:#4CAF50,color:#fff
-    style OPEN_PLAY fill:#2196F3,color:#fff
     style NO_NET fill:#f44336,color:#fff
     style UP_TO_DATE fill:#FF9800,color:#fff
 ```
@@ -80,7 +77,7 @@ flowchart TD
     A1 --> PLAY["Google Play"]
     A2 --> GITHUB["GitHub Release"]
     A2 --> S3_APK["S3: android/tv/apk/"]
-    A3 --> S3_SIDE["S3: android/tv/sideload-apk/"]
+    A3 --> S3_SIDE["S3: android/tv/onvo-apks/"]
 
     style PLAY fill:#2196F3,color:#fff
     style GITHUB fill:#333,color:#fff
@@ -92,8 +89,7 @@ flowchart TD
 
 | Scenario | Flavor | Update Source | S3 Bucket | Install Method |
 |---|---|---|---|---|
-| Device has Play Store | sideload | Google Play | - | Play Store |
-| Device without Play Store | sideload | S3 | `sideload-apk/` | FileProvider (intent) |
+| Any device | sideload | S3 | `onvo-apks/` | FileProvider (REQUEST_INSTALL_PACKAGES) |
 | Rooted device | googleplay | S3 | `apk/` | `su -c "pm install -r -d"` |
 | Non-rooted device | googleplay | Google Play | - | Play Store |
 
