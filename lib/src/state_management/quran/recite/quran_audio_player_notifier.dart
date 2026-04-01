@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/domain/model/quran/moshaf_model.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/state_management/quran/recite/quran_audio_player_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mawaqit/src/data/repository/quran/recite_impl.dart';
 import 'package:mawaqit/src/domain/model/quran/audio_file_model.dart';
@@ -21,6 +24,49 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   List<SurahModel> localSuwar = [];
   late StreamSubscription<int?> currentIndexSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  // Persisted session context
+  String _sessionReciterId = ''; // ignore: prefer_final_fields
+  String _sessionMoshafId = ''; // ignore: prefer_final_fields
+
+  Future<void> _savePlaybackSession() async {
+    final currentIndex = audioPlayer.currentIndex ?? 0;
+    if (localSuwar.isEmpty || currentIndex >= localSuwar.length) return;
+    final surah = localSuwar[currentIndex];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(QuranConstant.kLastPlayedReciterId, _sessionReciterId);
+    await prefs.setString(QuranConstant.kLastPlayedMoshafId, _sessionMoshafId);
+    await prefs.setInt(QuranConstant.kLastPlayedSurahId, surah.id);
+    await prefs.setInt(QuranConstant.kLastPlayedPositionMs, audioPlayer.position.inMilliseconds);
+    await prefs.setString(QuranConstant.kLastPlayedSurahJson, jsonEncode(surah.toJson()));
+    log('quran: QuranAudioPlayer: saved session surah=${surah.id} pos=${audioPlayer.position.inMilliseconds}ms');
+  }
+
+  static Future<Map<String, dynamic>?> getLastPlaybackSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final reciterId = prefs.getString(QuranConstant.kLastPlayedReciterId);
+    final moshafId = prefs.getString(QuranConstant.kLastPlayedMoshafId);
+    final surahId = prefs.getInt(QuranConstant.kLastPlayedSurahId);
+    final positionMs = prefs.getInt(QuranConstant.kLastPlayedPositionMs);
+    final surahJson = prefs.getString(QuranConstant.kLastPlayedSurahJson);
+    if (reciterId == null || moshafId == null || surahId == null || surahJson == null) return null;
+    return {
+      'reciterId': reciterId,
+      'moshafId': moshafId,
+      'surahId': surahId,
+      'positionMs': positionMs ?? 0,
+      'surahJson': surahJson,
+    };
+  }
+
+  static Future<void> clearLastPlaybackSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(QuranConstant.kLastPlayedReciterId);
+    await prefs.remove(QuranConstant.kLastPlayedMoshafId);
+    await prefs.remove(QuranConstant.kLastPlayedSurahId);
+    await prefs.remove(QuranConstant.kLastPlayedPositionMs);
+    await prefs.remove(QuranConstant.kLastPlayedSurahJson);
+  }
 
   @override
   QuranAudioPlayerState build() {
@@ -229,6 +275,9 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
     required String reciterId,
   }) async {
     try {
+      _sessionReciterId = reciterId;
+      _sessionMoshafId = moshaf.id.toString();
+
       final audioRepository = await ref.read(reciteImplProvider.future);
       List<AudioSource> audioSources = [];
       localSuwar = [];
@@ -264,16 +313,32 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       playlist.clear();
       playlist.addAll(audioSources);
       index = localSuwar.indexOf(surah);
-      await audioPlayer.setAudioSource(playlist, initialIndex: index);
+
+      // Check for a saved playback position for this exact surah/reciter/moshaf
+      Duration initialPosition = Duration.zero;
+      final savedSession = await getLastPlaybackSession();
+      if (savedSession != null &&
+          savedSession['reciterId'] == reciterId &&
+          savedSession['moshafId'] == moshaf.id.toString() &&
+          savedSession['surahId'] == surah.id) {
+        initialPosition = Duration(milliseconds: savedSession['positionMs'] as int);
+        log('quran: QuranAudioPlayer: restoring position ${initialPosition.inSeconds}s for surah ${surah.id}');
+      }
+
+      await audioPlayer.setAudioSource(playlist, initialIndex: index, initialPosition: initialPosition);
 
       currentIndexSubscription = audioPlayer.currentIndexStream.listen((index) {
         log('quran: QuranAudioPlayer: currentIndexStream called');
+        _savePlaybackSession();
         _updatePlayerState();
       });
 
       // Cancel existing subscription before creating a new one
       await _playerStateSubscription?.cancel();
       _playerStateSubscription = audioPlayer.playerStateStream.listen((playerState) {
+        if (playerState.processingState == ProcessingState.completed) {
+          clearLastPlaybackSession();
+        }
         _updatePlayerState();
       });
 
@@ -304,6 +369,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       ),
     );
     await audioPlayer.pause();
+    await _savePlaybackSession();
   }
 
   Future<void> stop() async {
@@ -313,6 +379,11 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
         playerState: AudioPlayerState.stopped,
       ),
     );
+  }
+
+  Future<void> saveAndStop() async {
+    await _savePlaybackSession();
+    await stop();
   }
 
   Future<void> seekTo(Duration position) async {

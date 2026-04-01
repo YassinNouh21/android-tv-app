@@ -71,7 +71,7 @@ class _QuranPlayerScreenState extends ConsumerState<QuranPlayerScreen> {
     final quranPlayerState = ref.watch(quranPlayerNotifierProvider);
     return WillPopScope(
       onWillPop: () async {
-        ref.read(quranPlayerNotifierProvider.notifier).stop();
+        await ref.read(quranPlayerNotifierProvider.notifier).saveAndStop();
         ref.read(navigateIntoNewPageProvider.notifier).state = false;
         return true;
       },
@@ -84,8 +84,8 @@ class _QuranPlayerScreenState extends ConsumerState<QuranPlayerScreen> {
           leading: InkWell(
             borderRadius: BorderRadius.circular(20.sp),
             child: Icon(Icons.arrow_back),
-            onTap: () {
-              ref.read(quranPlayerNotifierProvider.notifier).stop();
+            onTap: () async {
+              await ref.read(quranPlayerNotifierProvider.notifier).saveAndStop();
               Navigator.of(context).pop();
             },
           ),

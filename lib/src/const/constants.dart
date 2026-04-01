@@ -95,6 +95,14 @@ abstract class QuranConstant {
   static const String kQuranReciterImagesBaseUrl = 'https://cdn.mawaqit.net/quran/reciters-pictures/';
   static const String kQuranCacheBoxName = 'timestamp_box';
   static const String kQuranReciterRetentionTime = 'quran_reciter_retention_time';
+
+  // Playback session persistence keys
+  static const String kLastPlayedReciterId = 'quran_last_reciter_id';
+  static const String kLastPlayedMoshafId = 'quran_last_moshaf_id';
+  static const String kLastPlayedSurahId = 'quran_last_surah_id';
+  static const String kLastPlayedPositionMs = 'quran_last_position_ms';
+  static const String kLastPlayedSurahJson = 'quran_last_surah_json';
+
   static const int kCacheWidth = 300;
   static const int kCacheHeight = 300;
   static const String kArabicLanguage = 'ar';
