@@ -64,6 +64,16 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("googleplay") {
+            dimension = "distribution"
+        }
+        create("sideload") {
+            dimension = "distribution"
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false

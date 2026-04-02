@@ -3,11 +3,11 @@ import 'dart:developer';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
 import 'package:fpdart/fpdart.dart';
 
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/data/data_source/device_info_data_source.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/connectivity_provider.dart';
@@ -57,7 +57,6 @@ class SettingScreen extends ConsumerStatefulWidget {
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool isBoxOrAndroidTV = false;
   int androidSdkVersion = 0;
-  bool hasPlayStore = false;
 
   @override
   void initState() {
@@ -67,13 +66,9 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       await ref.read(onBoardingProvider.notifier).isDeviceRooted();
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final bool deviceIsBoxOrAndroidTV = await DeviceInfoDataSource().isBoxOrAndroidTV();
-      final bool playStoreInstalled = await const MethodChannel('nativeMethodsChannel')
-              .invokeMethod<bool>('isPackageInstalled', {'packageName': 'com.android.vending'}) ??
-          false;
       setState(() {
         isBoxOrAndroidTV = deviceIsBoxOrAndroidTV;
         androidSdkVersion = androidInfo.version.sdkInt;
-        hasPlayStore = playStoreInstalled;
       });
 
       final appLanguage = Provider.of<AppLanguage>(context, listen: false);
@@ -431,13 +426,26 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                           title: checkInternet,
                                           content: S.of(context).checkInternetUpdate,
                                         );
-                                      } else if (hasPlayStore) {
-                                        ref.read(appUpdateProvider.notifier).openStore();
-                                      } else {
+                                      } else if (kIsSideloadFlavor) {
+                                        // Sideload flavor: always use S3 + package manager install
                                         var softwareFuture = await PackageInfo.fromPlatform();
                                         ref
                                             .read(manualUpdateNotifierProvider.notifier)
                                             .checkForUpdates(softwareFuture.version);
+                                      } else {
+                                        // Googleplay flavor: rooted → S3 + su install, otherwise → Play Store
+                                        final isDeviceRooted = ref.read(onBoardingProvider).maybeWhen(
+                                              orElse: () => false,
+                                              data: (value) => value.isRootedDevice,
+                                            );
+                                        if (isDeviceRooted) {
+                                          var softwareFuture = await PackageInfo.fromPlatform();
+                                          ref
+                                              .read(manualUpdateNotifierProvider.notifier)
+                                              .checkForUpdates(softwareFuture.version);
+                                        } else {
+                                          ref.read(appUpdateProvider.notifier).openStore();
+                                        }
                                       }
                                     },
                                   );
