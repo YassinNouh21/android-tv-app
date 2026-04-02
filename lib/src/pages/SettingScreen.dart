@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
 import 'package:fpdart/fpdart.dart' hide State;
 
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/data/data_source/device_info_data_source.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/connectivity_provider.dart';
@@ -449,13 +450,26 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                             title: checkInternet,
                                             content: S.of(context).checkInternetUpdate,
                                           );
-                                        } else if (hasPlayStore) {
-                                          ref.read(appUpdateProvider.notifier).openStore();
-                                        } else {
+                                        } else if (kIsSideloadFlavor) {
+                                          // Sideload flavor: always use S3 + package manager install
                                           var softwareFuture = await PackageInfo.fromPlatform();
                                           ref
                                               .read(manualUpdateNotifierProvider.notifier)
                                               .checkForUpdates(softwareFuture.version);
+                                        } else {
+                                          // Googleplay flavor: rooted → S3 + su install, otherwise → Play Store
+                                          final isDeviceRooted = ref.read(onBoardingProvider).maybeWhen(
+                                                orElse: () => false,
+                                                data: (value) => value.isRootedDevice,
+                                              );
+                                          if (isDeviceRooted) {
+                                            var softwareFuture = await PackageInfo.fromPlatform();
+                                            ref
+                                                .read(manualUpdateNotifierProvider.notifier)
+                                                .checkForUpdates(softwareFuture.version);
+                                          } else {
+                                            ref.read(appUpdateProvider.notifier).openStore();
+                                          }
                                         }
                                       },
                                     );
