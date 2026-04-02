@@ -153,7 +153,7 @@ workflows:
 
           echo "Tag ${CM_TAG} is marked as latest, uploading APKs to S3"
           aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk s3://cdn.mawaqit.net/android/tv/apk/
-          aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-sideload.apk s3://cdn.mawaqit.net/android/tv/onvo-apks/
+          aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-sideload.apk s3://cdn.mawaqit.net/android/tv/apk/
 
       - name: Upload clean APK to the Github release
         script: |
