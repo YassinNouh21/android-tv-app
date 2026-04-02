@@ -171,6 +171,28 @@ class MainActivity : FlutterActivity() {
               result.error("INVALID_PATH", "File path is null", null)
             }
           }
+          "installApkRoot" -> {
+            val filePath = call.argument<String>("filePath")
+            if (filePath != null) {
+              try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                  result.error("FILE_NOT_FOUND", "APK file not found", null)
+                  return@setMethodCallHandler
+                }
+                if (!checkRoot()) {
+                  result.error("NOT_ROOTED", "Device is not rooted", null)
+                  return@setMethodCallHandler
+                }
+                executeCommand(listOf("pm install -r $filePath"), result)
+              } catch (e: Exception) {
+                Log.e("APK_INSTALL", "Failed to install APK via root", e)
+                result.error("INSTALL_FAILED", e.message, null)
+              }
+            } else {
+              result.error("INVALID_PATH", "File path is null", null)
+            }
+          }
 
           else -> result.notImplemented()
         }
