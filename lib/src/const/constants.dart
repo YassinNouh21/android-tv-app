@@ -16,7 +16,7 @@ const kApiToken = String.fromEnvironment('mawaqit.api.key');
 const kSentryDns = String.fromEnvironment('mawaqit.sentry.dns');
 const kGooglePlayId = 'com.mawaqit.androidtv';
 
-const kAppFlavor = String.fromEnvironment('APP_FLAVOR', defaultValue: 'sideload');
+const kAppFlavor = String.fromEnvironment('APP_FLAVOR', defaultValue: 'googleplay');
 const kIsSideloadFlavor = kAppFlavor == 'sideload';
 
 class CacheKey {

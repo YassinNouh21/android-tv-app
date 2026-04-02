@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/module/dio_module.dart';
+import 'package:mawaqit/src/state_management/app_update/app_update_notifier.dart';
 import 'package:mawaqit/src/state_management/manual_app_update/manual_update_state.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -307,6 +308,13 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       if (result != true) {
         throw Exception('Installation failed');
       }
+    } on PlatformException catch (e) {
+      if (!kIsSideloadFlavor && (e.code == 'NOT_ROOTED' || e.code == 'INSTALL_FAILED')) {
+        // Root install not available — fall back to opening the Play Store
+        await ref.read(appUpdateProvider.notifier).openStore();
+        return;
+      }
+      throw Exception('Error installing APK: $e');
     } catch (e) {
       throw Exception('Error installing APK: $e');
     }

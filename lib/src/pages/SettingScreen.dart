@@ -3,7 +3,6 @@ import 'dart:developer';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
 import 'package:fpdart/fpdart.dart';
 
@@ -58,7 +57,6 @@ class SettingScreen extends ConsumerStatefulWidget {
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool isBoxOrAndroidTV = false;
   int androidSdkVersion = 0;
-  bool hasPlayStore = false;
 
   @override
   void initState() {
@@ -68,13 +66,9 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       await ref.read(onBoardingProvider.notifier).isDeviceRooted();
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final bool deviceIsBoxOrAndroidTV = await DeviceInfoDataSource().isBoxOrAndroidTV();
-      final bool playStoreInstalled = await const MethodChannel('nativeMethodsChannel')
-              .invokeMethod<bool>('isPackageInstalled', {'packageName': 'com.android.vending'}) ??
-          false;
       setState(() {
         isBoxOrAndroidTV = deviceIsBoxOrAndroidTV;
         androidSdkVersion = androidInfo.version.sdkInt;
-        hasPlayStore = playStoreInstalled;
       });
 
       final appLanguage = Provider.of<AppLanguage>(context, listen: false);

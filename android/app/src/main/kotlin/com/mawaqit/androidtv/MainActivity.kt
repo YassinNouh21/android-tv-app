@@ -184,7 +184,7 @@ class MainActivity : FlutterActivity() {
                   result.error("NOT_ROOTED", "Device is not rooted", null)
                   return@setMethodCallHandler
                 }
-                executeCommand(listOf("pm install -r -d $filePath"), result)
+                executeCommand(listOf("pm install -r $filePath"), result)
               } catch (e: Exception) {
                 Log.e("APK_INSTALL", "Failed to install APK via root", e)
                 result.error("INSTALL_FAILED", e.message, null)
