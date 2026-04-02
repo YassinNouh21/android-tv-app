@@ -75,16 +75,18 @@ class _StreamReplacementScreenState extends ConsumerState<StreamReplacementScree
           );
         }
 
+        final notifier = ref.read(liveStreamProvider.notifier);
+
         // Show YouTube stream if available
         if (state.streamType == LiveStreamType.youtubeLive &&
-            state.youtubeController != null &&
+            notifier.youtubeController != null &&
             state.streamStatus == LiveStreamStatus.active) {
           try {
             return _buildStreamUI(
               context,
               ref,
               YoutubePlayer(
-                controller: state.youtubeController!,
+                controller: notifier.youtubeController!,
                 onEnded: (_) {
                   ref.read(liveStreamProvider.notifier).updateStreamStatus(LiveStreamStatus.ended);
                   ref.read(liveStreamProvider.notifier).toggleReplaceWorkflow(false);
@@ -99,14 +101,14 @@ class _StreamReplacementScreenState extends ConsumerState<StreamReplacementScree
 
         // Show RTSP stream if available
         if (state.streamType == LiveStreamType.rtsp &&
-            state.videoController != null &&
+            notifier.videoController != null &&
             state.streamStatus == LiveStreamStatus.active) {
           try {
             return _buildStreamUI(
               context,
               ref,
               Video(
-                controller: state.videoController!,
+                controller: notifier.videoController!,
                 controls: null,
               ),
             );
@@ -143,8 +145,10 @@ class _StreamReplacementScreenState extends ConsumerState<StreamReplacementScree
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
           if (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowRight) {
-            scaffoldKey.currentState?.openDrawer();
-            return KeyEventResult.handled;
+            if (!(scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+              scaffoldKey.currentState?.openDrawer();
+              return KeyEventResult.handled;
+            }
           }
         }
         return KeyEventResult.ignored;

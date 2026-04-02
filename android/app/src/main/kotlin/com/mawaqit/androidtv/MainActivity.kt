@@ -24,20 +24,57 @@ import android.os.AsyncTask
 import android.util.Log
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
-import  android.net.ConnectivityManager
+import android.net.ConnectivityManager
 import java.util.concurrent.Executors
 import android.os.Looper
 import android.os.Handler
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.app.AlarmManager
+import android.view.KeyEvent
+import android.view.MotionEvent
+import androidx.core.content.FileProvider
+
 
 class MainActivity : FlutterActivity() {
   private lateinit var mAdminComponentName: ComponentName
   private lateinit var mDevicePolicyManager: DevicePolicyManager
 
+  private var jx11Handler: Jx11RingHandler? = null
+
+  // Pending APK install path — saved when user is redirected to enable unknown sources
+  private var pendingInstallApkPath: String? = null
+  private val REQUEST_INSTALL_PERMISSION = 1234
+
+  // --- JX-11 ring: forward raw input to handler, fall through for other devices ---
+  override fun dispatchGenericMotionEvent(event: MotionEvent) =
+    jx11Handler?.handleGenericMotionEvent(event) == true || super.dispatchGenericMotionEvent(event)
+
+  override fun dispatchTouchEvent(event: MotionEvent) =
+    jx11Handler?.handleTouchEvent(event) == true || super.dispatchTouchEvent(event)
+
+  override fun onKeyDown(keyCode: Int, event: KeyEvent) =
+    jx11Handler?.handleKeyDown(keyCode, event) == true || super.onKeyDown(keyCode, event)
+
+  override fun onKeyUp(keyCode: Int, event: KeyEvent) =
+    jx11Handler?.handleKeyUp(keyCode, event) == true || super.onKeyUp(keyCode, event)
+
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
+
+    val jx11Channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "jx11Channel")
+    jx11Handler = Jx11RingHandler(jx11Channel)
+
+    // Allow Flutter to enable/disable JX-11 input handling per screen
+    jx11Channel.setMethodCallHandler { call, result ->
+      when (call.method) {
+        "setEnabled" -> {
+          jx11Handler?.isEnabled = call.arguments as? Boolean ?: false
+          result.success(null)
+        }
+        else -> result.notImplemented()
+      }
+    }
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "nativeMethodsChannel")
       .setMethodCallHandler { call, result ->
@@ -71,6 +108,10 @@ class MainActivity : FlutterActivity() {
             val isSuccess = grantOnvoOverlayPermission()
             result.success(isSuccess)
           }
+          "openOnvoStore" -> {
+            val isSuccess = openOnvoStore()
+            result.success(isSuccess)
+          }
           "requestExactAlarmPermission" -> {
             if (VERSION.SDK_INT >= VERSION_CODES.S) {
               val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -94,27 +135,59 @@ class MainActivity : FlutterActivity() {
           "installApk" -> {
             val filePath = call.argument<String>("filePath")
             if (filePath != null) {
-              AsyncTask.execute {
-                try {
-                  // Check if file exists
-                  val file = java.io.File(filePath)
-                  if (!file.exists()) {
-                    Log.e("APK_INSTALL", "APK file not found at path: $filePath")
-                    result.error("FILE_NOT_FOUND", "APK file not found", null)
-                    return@execute
-                  }
-                  // Check if device is rooted
-                  if (!checkRoot()) {
-                    Log.e("APK_INSTALL", "Device is not rooted")
-                    result.error("NOT_ROOTED", "Device is not rooted", null)
-                    return@execute
-                  }
-                  val commands = listOf("pm install -r -d $filePath")
-                  executeCommand(commands, result)
-                } catch (e: Exception) {
-                  Log.e("APK_INSTALL", "Failed to install APK", e)
-                  result.error("INSTALL_FAILED", e.message, null)
+              try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                  result.error("FILE_NOT_FOUND", "APK file not found", null)
+                  return@setMethodCallHandler
                 }
+
+                // On Android 8.0+, check if we have install permission
+                if (VERSION.SDK_INT >= VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+                  // Save path so we can retry after user grants permission
+                  pendingInstallApkPath = filePath
+                  try {
+                    val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                      data = Uri.parse("package:$packageName")
+                    }
+                    startActivityForResult(permIntent, REQUEST_INSTALL_PERMISSION)
+                    result.success(true)
+                    return@setMethodCallHandler
+                  } catch (e: android.content.ActivityNotFoundException) {
+                    // Device doesn't have unknown sources settings (e.g. some Android TV boxes)
+                    // Fall through to try direct install anyway
+                    Log.w("APK_INSTALL", "No MANAGE_UNKNOWN_APP_SOURCES activity, trying direct install")
+                    pendingInstallApkPath = null
+                  }
+                }
+
+                launchInstallIntent(filePath)
+                result.success(true)
+              } catch (e: Exception) {
+                Log.e("APK_INSTALL", "Failed to install APK", e)
+                result.error("INSTALL_FAILED", e.message, null)
+              }
+            } else {
+              result.error("INVALID_PATH", "File path is null", null)
+            }
+          }
+          "installApkRoot" -> {
+            val filePath = call.argument<String>("filePath")
+            if (filePath != null) {
+              try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                  result.error("FILE_NOT_FOUND", "APK file not found", null)
+                  return@setMethodCallHandler
+                }
+                if (!checkRoot()) {
+                  result.error("NOT_ROOTED", "Device is not rooted", null)
+                  return@setMethodCallHandler
+                }
+                executeCommand(listOf("pm install -r $filePath"), result)
+              } catch (e: Exception) {
+                Log.e("APK_INSTALL", "Failed to install APK via root", e)
+                result.error("INSTALL_FAILED", e.message, null)
               }
             } else {
               result.error("INVALID_PATH", "File path is null", null)
@@ -124,6 +197,37 @@ class MainActivity : FlutterActivity() {
           else -> result.notImplemented()
         }
       }
+  }
+
+  private fun launchInstallIntent(filePath: String) {
+    val file = File(filePath)
+    val uri = FileProvider.getUriForFile(
+      applicationContext,
+      "${applicationContext.packageName}.update_provider",
+      file
+    )
+
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+    }
+
+    startActivity(intent)
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == REQUEST_INSTALL_PERMISSION) {
+      val path = pendingInstallApkPath
+      pendingInstallApkPath = null
+      if (path != null && VERSION.SDK_INT >= VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
+        try {
+          launchInstallIntent(path)
+        } catch (e: Exception) {
+          Log.e("APK_INSTALL", "Failed to install APK after permission grant", e)
+        }
+      }
+    }
   }
 
   private fun checkRoot(): Boolean {
@@ -166,6 +270,26 @@ class MainActivity : FlutterActivity() {
       processBuilder.command(
         "sh", "-c", """
             appops set com.mawaqit.androidtv SYSTEM_ALERT_WINDOW allow
+        """.trimIndent()
+      )
+
+      val process = processBuilder.start()
+      val exitCode = process.waitFor()
+
+      exitCode == 0
+    } catch (e: Exception) {
+      e.printStackTrace()
+      false
+    }
+  }
+  
+  private fun openOnvoStore(): Boolean {
+    return try {
+      val processBuilder = ProcessBuilder()
+
+      processBuilder.command(
+        "sh", "-c", """
+            am start com.stark.store
         """.trimIndent()
       )
 

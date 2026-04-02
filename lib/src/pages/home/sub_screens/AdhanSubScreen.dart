@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/mawaqit_icons_icons.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
 import 'package:mawaqit/src/pages/home/widgets/FlashAnimation.dart';
+import 'package:mawaqit/src/pages/home/widgets/footer.dart';
 import 'package:mawaqit/src/pages/home/widgets/mosque_background_screen.dart';
+import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
@@ -41,11 +42,16 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   Timer? _noAdhanDisplayTimer;
   bool _audioStarted = false;
   bool _closeCalled = false;
+  bool _isBipAdhan = false;
+  late final MosqueManager _mosqueManager;
+  late final PrayerAudioNotifier _audioNotifier;
 
   @override
   void initState() {
     super.initState();
     log('AdhanSubScreen: initState');
+    _mosqueManager = context.read<MosqueManager>();
+    _audioNotifier = ref.read(prayerAudioProvider.notifier);
     _initializeAdhan();
     _startFallbackTimer();
   }
@@ -53,7 +59,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   void _initializeAdhan() {
     log('AdhanSubScreen: _initializeAdhan');
     // Access MosqueManager via provider
-    final mosqueManager = context.read<MosqueManager>();
+    final mosqueManager = _mosqueManager;
     final mosqueConfig = mosqueManager.mosqueConfig;
 
     // Stop Quran player if running
@@ -68,6 +74,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     if (widget.forceAdhan || mosqueManager.adhanVoiceEnable()) {
       log('AdhanSubScreen: Starting adhan playback');
       _audioStarted = true;
+      _isBipAdhan = mosqueConfig?.adhanVoice?.contains('bip') ?? false;
 
       // Ensure ref is accessed on the next frame after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -84,11 +91,24 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
           log('AdhanSubScreen: Error calling playAdhan', error: e);
         }
       });
+
+      // For bip adhan, use adhanDuration from API to keep the screen open
+      if (_isBipAdhan) {
+        final screenDuration = Duration(seconds: mosqueConfig?.adhanDuration ?? 150);
+        log('AdhanSubScreen: Bip adhan detected, using adhanDuration: $screenDuration');
+        _noAdhanDisplayTimer = Timer(screenDuration, () {
+          log('AdhanSubScreen: Bip adhan display timer elapsed. Closing screen.');
+          _closeScreenSafely();
+        });
+      }
     } else {
-      // No Adhan audio will be played. Start a 150-second timer to close the screen.
-      log('AdhanSubScreen: No Adhan audio activated. Starting 150-second display timer.');
+      // No Adhan audio will be played. For mosque type, use configured duration from API; otherwise fallback to 150s.
+      final adhanDurationSeconds = _mosqueManager.typeIsMosque && _mosqueManager.mosqueConfig?.adhanDuration != null
+          ? _mosqueManager.mosqueConfig!.adhanDuration!
+          : 150;
+      log('AdhanSubScreen: No Adhan audio activated. Starting $adhanDurationSeconds-second display timer.');
       _noAdhanDisplayTimer?.cancel(); // Cancel any existing one
-      _noAdhanDisplayTimer = Timer(const Duration(seconds: 150), () {
+      _noAdhanDisplayTimer = Timer(Duration(seconds: adhanDurationSeconds), () {
         log('AdhanSubScreen: 150-second display timer elapsed. Closing screen.');
         _closeScreenSafely();
       });
@@ -116,6 +136,12 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     _cancelTimers();
 
     if (mounted) {
+      // Hide flash if Iqama is disabled (so it won't be shown during dua after prayer)
+      if (_mosqueManager.mosqueConfig?.iqamaEnabled == false) {
+        log('AdhanSubScreen: Iqama disabled, hiding flash');
+        _mosqueManager.hideFlashTemporarily();
+      }
+
       log('AdhanSubScreen: Calling onDone callback');
       widget.onDone?.call();
     } else {
@@ -138,14 +164,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     // Stop audio playback when the screen is disposed prematurely
     if (_audioStarted) {
       log('AdhanSubScreen: Stopping audio in dispose');
-      try {
-        // Use Future.microtask to avoid calling during build/layout
-        Future.microtask(() {
-          ref.read(prayerAudioProvider.notifier).stop();
-        });
-      } catch (e) {
-        log('AdhanSubScreen: Error stopping audio in dispose', error: e);
-      }
+      _audioNotifier.stop();
     }
 
     _cancelTimers();
@@ -167,7 +186,8 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
             'next: ${next.processingState}');
 
         // Detect completion: if the new state is completed
-        if (next.processingState == ProcessingState.completed) {
+        // For bip adhan, don't close on audio completion — screen duration is controlled by adhanDuration timer
+        if (next.processingState == ProcessingState.completed && !_isBipAdhan) {
           log('AdhanSubScreen: Playback COMPLETED detected - closing screen');
           _closeScreenSafely();
         }
@@ -177,6 +197,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     // Watch MosqueManager for UI updates
     final mosqueProvider = context.watch<MosqueManager>();
     final mosque = mosqueProvider.mosque!;
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
     // Debug current audio state
     final audioStateValue = ref.watch(prayerAudioProvider);
@@ -229,7 +250,10 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
           mosqueProvider.times!.isTurki
               ? ResponsiveMiniSalahBarTurkishWidget(activeItem: mosqueProvider.salahIndex)
               : ResponsiveMiniSalahBarWidget(activeItem: mosqueProvider.salahIndex),
-          SizedBox(height: 2.vh),
+          if (mosqueProvider.flashEnabled && mosque.flash != null) ...[
+            if (isPortrait) SizedBox(height: 1.vh),
+            isPortrait ? PortraitFooterWidget(mosque: mosque) : Footer(),
+          ],
         ],
       ),
     );

@@ -92,6 +92,14 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
   /// if set to null use [child]
   int? activeItem;
 
+  // Track when the active item started and when it should end
+  DateTime? _activeItemStartTime;
+  DateTime? _activeItemScheduledEnd;
+
+  /// Track the pending next item trigger to cancel it if needed
+  int? _pendingNextItemIndex;
+  bool _pendingNextItemCancelled = false;
+
   @override
   void initState() {
     super.initState();
@@ -100,7 +108,30 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
     checkInitialItem();
   }
 
-  /// check if there are any initial item and start it
+  @override
+  void didUpdateWidget(RepeatingWorkFlowWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final now = mosqueManager.mosqueDate();
+
+    // CRITICAL FIX: If there's an active workflow, preserve it if it hasn't finished yet
+    if (activeItem != null && _activeItemScheduledEnd != null) {
+      if (now.isBefore(_activeItemScheduledEnd!)) {
+        return; // Don't interrupt the active workflow
+      } else {
+        // Clean up and check for next workflow
+        activeItem = null;
+        _activeItemStartTime = null;
+        _activeItemScheduledEnd = null;
+      }
+    }
+
+    // If no active workflow or it expired, check if we should start a new one
+    if (activeItem == null) {
+      addNextItemHandled();
+    }
+  }
+
   checkInitialItem() {
     for (var i = 0; i < widget.items.length; i++) {
       if (widget.items[i].showInitial?.call() ?? false) {
@@ -125,7 +156,27 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
     /// if there are active item and the item isn't forced to start will do nothing
     if (activeItem != null && !item.forceStart) return false;
 
+    final now = mosqueManager.mosqueDate();
+
     print('[Repeating ${widget.debugName ?? 'workflow'}] [Starting] ${item.debugName ?? itemIndex}');
+
+    // Track when this workflow started
+    _activeItemStartTime = now;
+
+    // Calculate when this workflow should end
+    Duration? workflowDuration;
+    if (nextEndTimeDuration(item) != null) {
+      workflowDuration = nextEndTimeDuration(item);
+    } else if (item.duration != null) {
+      workflowDuration = item.duration;
+    }
+
+    if (workflowDuration != null) {
+      _activeItemScheduledEnd = now.add(workflowDuration);
+    } else {
+      _activeItemScheduledEnd = null;
+    }
+
     setState(() => activeItem = itemIndex);
 
     /// set the minimum duration if set
@@ -155,6 +206,11 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
     if (minimumDurationFuture != null) await minimumDurationFuture;
 
     print('[Repeating ${widget.debugName ?? 'workflow'}] [Done] ${widget.items[itemIndex].debugName ?? itemIndex}');
+
+    // Clear tracking variables
+    _activeItemStartTime = null;
+    _activeItemScheduledEnd = null;
+
     setState(() {
       activeItem = null;
 
@@ -189,12 +245,28 @@ class _RepeatingWorkFlowWidgetState extends State<RepeatingWorkFlowWidget> {
     /// if the item has past his time will do nothing
     if (nextActiveItemDuration?.isNegative ?? true) return;
 
+    // Cancel any pending next item trigger if it's for a different item
+    if (_pendingNextItemIndex != null && _pendingNextItemIndex != nextItemIndex) {
+      _pendingNextItemCancelled = true;
+    }
+
+    _pendingNextItemIndex = nextItemIndex;
+    _pendingNextItemCancelled = false;
+
     print(
       '[Repeating ${widget.debugName ?? 'workflow'}] [Next] ${firstItem.debugName ?? nextItemIndex} in $nextActiveItemDuration',
     );
 
     /// add the trigger
-    Future.delayed(nextActiveItemDuration!, () => startItem(nextItemIndex));
+    Future.delayed(nextActiveItemDuration!, () {
+      // Check if this trigger was cancelled before starting the item
+      if (_pendingNextItemCancelled || _pendingNextItemIndex != nextItemIndex) {
+        print('[Repeating ${widget.debugName ?? 'workflow'}] [Cancelled] ${firstItem.debugName ?? nextItemIndex}');
+        return;
+      }
+      _pendingNextItemIndex = null;
+      startItem(nextItemIndex);
+    });
   }
 
   /// return the next repeat time for this item

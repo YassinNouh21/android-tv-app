@@ -13,6 +13,8 @@ import 'package:mawaqit/src/models/mosque.dart';
 import 'package:mawaqit/src/models/mosqueConfig.dart';
 import 'package:mawaqit/src/models/times.dart';
 
+const kDuhaDurationAfterShuruq = Duration(minutes: 25);
+
 mixin MosqueHelpersMixin on ChangeNotifier {
   abstract Mosque? mosque;
   abstract Times? times;
@@ -100,6 +102,30 @@ mixin MosqueHelpersMixin on ChangeNotifier {
   String getShurukInString(BuildContext context) {
     final shurukTime = times!.shuruq(AppDateTime.now())!.difference(AppDateTime.now());
     return StringManager.getCountDownText(context, shurukTime, S.of(context).shuruk);
+  }
+
+  /// Returns true when we are between shuruq and shuruq + 25 minutes (Duha countdown period).
+  bool get isDuhaTime {
+    final now = AppDateTime.now();
+    final shuruqDate = times?.shuruq(now);
+    if (shuruqDate == null) return false;
+    return now.isAfter(shuruqDate) && now.isBefore(shuruqDate.add(kDuhaDurationAfterShuruq));
+  }
+
+  String getDuhaInString(BuildContext context) {
+    final now = AppDateTime.now();
+    final shuruqDate = times?.shuruq(now);
+    if (shuruqDate == null) return '';
+    final duhaEnd = shuruqDate.add(kDuhaDurationAfterShuruq);
+    final remaining = duhaEnd.difference(now);
+    if (remaining.isNegative) return '';
+    return StringManager.getCountDownText(context, remaining, S.of(context).duha);
+  }
+
+  String getActiveCountdownText(BuildContext context, String defaultCountdown) {
+    if (isDuhaTime) return getDuhaInString(context);
+    if (isShurukTime) return getShurukInString(context);
+    return defaultCountdown;
   }
 
   String? getShurukTimeString([DateTime? date]) {

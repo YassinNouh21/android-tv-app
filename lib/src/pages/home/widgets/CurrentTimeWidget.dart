@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:mawaqit/src/helpers/LocaleHelper.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:provider/provider.dart';
 
 class CurrentTimeWidget extends StatelessWidget {
-  CurrentTimeWidget({Key? key}) : super(key: key);
+  const CurrentTimeWidget({
+    Key? key,
+    this.hideSeconds = false,
+  }) : super(key: key);
+
+  final bool hideSeconds;
 
   @override
   Widget build(BuildContext context) {
@@ -34,43 +40,59 @@ class CurrentTimeWidget extends StatelessWidget {
               // letterSpacing: 1,
             ),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                ':${DateFormat('ss', 'en').format(now)}',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontWeight: FontWeight.bold,
-                  fontSize: is12hourFormat ? 4.vwr : 6.vwr,
-                  shadows: kHomeTextShadow,
-                  height: is12hourFormat ? 1 : null,
-                  // letterSpacing: 1.vw,
+          if (!hideSeconds)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  ':${DateFormat('ss', 'en').format(now)}',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.bold,
+                    fontSize: is12hourFormat ? 4.vwr : 6.vwr,
+                    shadows: kHomeTextShadow,
+                    height: is12hourFormat ? 1 : null,
+                    // letterSpacing: 1.vw,
+                  ),
                 ),
-              ),
-              if (is12hourFormat)
-                Padding(
-                  padding: EdgeInsets.only(bottom: .6.vh, left: .9.vw),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 8.vwr),
-                    child: FittedBox(
-                      child: Text(
-                        '${DateFormat('a', Localizations.localeOf(context).languageCode).format(now)}',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.2.vwr,
-                          shadows: kHomeTextShadow,
-                          height: .9,
+                if (is12hourFormat)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: .6.vh, left: .9.vw),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: 8.vwr),
+                      child: FittedBox(
+                        child: Text(
+                          DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode))
+                              .format(now),
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 3.2.vwr,
+                            shadows: kHomeTextShadow,
+                            height: .9,
 
-                          // letterSpacing: 1.vw,
+                            // letterSpacing: 1.vw,
+                          ),
                         ),
                       ),
                     ),
                   ),
+              ],
+            ),
+          if (hideSeconds && is12hourFormat)
+            Padding(
+              padding: EdgeInsets.only(left: 1.vw),
+              child: Text(
+                DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode)).format(now),
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 4.vwr,
+                  shadows: kHomeTextShadow,
+                  // letterSpacing: 1.vw,
                 ),
-            ],
-          ),
+              ),
+            ),
         ],
 
         // date time

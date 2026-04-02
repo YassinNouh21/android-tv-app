@@ -5,6 +5,7 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:mawaqit/main.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/domain/error/screen_on_off_exceptions.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
 import 'package:mawaqit/src/helpers/TimeShiftManager.dart';
@@ -24,6 +25,32 @@ void prayerAlarmCallback(int id) async {
 
     if (dataString != null) {
       final Map<String, dynamic> inputData = jsonDecode(dataString);
+
+      // Validate and check if the scheduled time has already passed
+      if (!inputData.containsKey('time')) {
+        print('⚠️ Prayer alarm missing time field - ID: $id, skipping stale check');
+        print('⚠️ Proceeding with alarm execution without staleness validation');
+      } else {
+        try {
+          final scheduledTime = DateTime.parse(inputData['time']);
+          final now = DateTime.now();
+          final timeDifference = now.difference(scheduledTime);
+
+          if (timeDifference.inMinutes > AlarmManagerConstants.staleAlarmThresholdMinutes) {
+            print('⏰ Stale alarm detected - ID: $id');
+            print('   Scheduled: $scheduledTime');
+            print('   Now: $now');
+            print('   Difference: ${timeDifference.inMinutes} minutes');
+            print('   Threshold: ${AlarmManagerConstants.staleAlarmThresholdMinutes} minutes');
+            await prefs.remove('alarm_data_$id');
+            return;
+          }
+        } catch (e) {
+          print('⚠️ Failed to parse time field for alarm ID: $id, Error: $e');
+          print('⚠️ Proceeding with alarm execution despite parse error');
+        }
+      }
+
       final service = FlutterBackgroundService();
       print('📿 Prayer task triggered successfully - ID: $id');
       print('📿 Prayer data: $inputData');
@@ -31,6 +58,7 @@ void prayerAlarmCallback(int id) async {
 
       // Record execution for debugging
       await _recordAlarmExecution('PRAYER', id);
+      await prefs.remove('alarm_data_$id');
     } else {
       print('❌ Prayer alarm data not found for ID: $id');
     }

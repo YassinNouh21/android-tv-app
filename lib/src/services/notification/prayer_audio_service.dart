@@ -12,30 +12,21 @@ class PrayerAudioService {
   static AudioPlayer? _audioPlayer;
   static final _dio = Dio();
 
-  static Future<void> playPrayer(String adhanAsset, bool adhanFromAssets) async {
+  static Future<void> playPrayer(String adhanAsset) async {
     _audioPlayer = AudioPlayer();
     final session = await _configureAudioSession();
     await session.setActive(true);
     await _audioPlayer?.setVolume(1);
 
     try {
-      if (adhanFromAssets) {
-        await _audioPlayer?.setAsset(adhanAsset);
-        Future.delayed(const Duration(minutes: 1), () {
-          NotificationService.dismissNotification();
-        });
-      } else {
-        await _loadAudioFromCacheOrUrl(adhanAsset);
-      }
+      await _loadAudioFromCacheOrUrl(adhanAsset);
 
       await _audioPlayer?.play();
 
       _audioPlayer?.playbackEventStream.listen((event) {
         if (event.processingState == ProcessingState.completed) {
           session.setActive(false);
-          if (!adhanFromAssets) {
-            NotificationService.dismissNotification();
-          }
+          NotificationService.dismissNotification();
         }
       });
     } catch (e) {

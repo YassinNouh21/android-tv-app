@@ -73,7 +73,6 @@ class _MosqueSimpleTileState extends ConsumerState<MosqueSimpleTile> {
                     MaterialPageRoute(builder: (context) => OfflineHomeScreen()),
                     (route) => false,
                   );
-                  return widget.onTap?.call();
                 },
                 (node) async {
                   // Add a small delay to ensure state updates are complete

@@ -17,22 +17,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final appLanguage = context.read<AppLanguage>();
 
-    return RawKeyboardListener(
-      focusNode: FocusNode(),
-      onKey: (event) {
-        if (event is RawKeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-              event.logicalKey == LogicalKeyboardKey.arrowUp ||
-              event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-              event.logicalKey == LogicalKeyboardKey.arrowRight) {
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && event.isArrow) {
+          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
             _scaffoldKey.currentState?.openDrawer();
+            return KeyEventResult.handled;
           }
         }
+        return KeyEventResult.ignored;
       },
       child: Scaffold(
         key: _scaffoldKey,
@@ -43,4 +56,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+extension on KeyEvent {
+  bool get isArrow =>
+      logicalKey == LogicalKeyboardKey.arrowDown ||
+      logicalKey == LogicalKeyboardKey.arrowUp ||
+      logicalKey == LogicalKeyboardKey.arrowLeft ||
+      logicalKey == LogicalKeyboardKey.arrowRight;
 }

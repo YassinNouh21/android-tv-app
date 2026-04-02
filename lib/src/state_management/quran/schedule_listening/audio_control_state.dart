@@ -8,32 +8,37 @@ class AudioControlState extends Equatable {
   final bool isLoading;
   final String? error;
   final bool shouldShowControls;
-  final bool isConfigured; // Add this field
+  final bool isConfigured;
+  final bool isStopped;
 
   const AudioControlState({
     this.status = AudioStatus.paused,
     this.isLoading = false,
     this.error,
     this.shouldShowControls = false,
-    this.isConfigured = false, // Initialize it
+    this.isConfigured = false,
+    this.isStopped = false,
   });
 
   AudioControlState copyWith({
     AudioStatus? status,
     bool? isLoading,
     String? error,
+    bool clearError = false,
     bool? shouldShowControls,
-    bool? isConfigured, // Add to copyWith
+    bool? isConfigured,
+    bool? isStopped,
   }) {
     return AudioControlState(
       status: status ?? this.status,
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
       shouldShowControls: shouldShowControls ?? this.shouldShowControls,
       isConfigured: isConfigured ?? this.isConfigured,
+      isStopped: isStopped ?? this.isStopped,
     );
   }
 
   @override
-  List<Object?> get props => [status, isLoading, error, shouldShowControls, isConfigured];
+  List<Object?> get props => [status, isLoading, error, shouldShowControls, isConfigured, isStopped];
 }

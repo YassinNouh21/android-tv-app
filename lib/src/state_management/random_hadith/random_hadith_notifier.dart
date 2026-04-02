@@ -16,14 +16,26 @@ class RandomHadithNotifier extends AsyncNotifier<RandomHadithState> {
     return RandomHadithState(hadith: '', language: '');
   }
 
+  /// Cleans up whitespace from hadith text.
+  ///
+  /// Trims leading/trailing spaces from each line and removes empty lines,
+  /// ensuring proper text centering in the UI without being affected by invisible whitespace.
+  String _cleanHadithText(String text) {
+    if (text.isEmpty) return text;
+
+    return text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).join('\n').trim();
+  }
+
   Future<void> getRandomHadith({
     String language = 'ar',
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final randomHadithUseCase = await ref.read(randomHadithUseCaseProvider.future);
-      final hadith = await randomHadithUseCase.getRandomHadith(language: language);
-      return RandomHadithState(hadith: hadith, language: language);
+      final hadithModel = await randomHadithUseCase.getRandomHadith(language: language);
+      final cleanedHadith = _cleanHadithText(hadithModel.hadith);
+
+      return RandomHadithState(hadith: cleanedHadith, language: hadithModel.language);
     });
   }
 

@@ -11,7 +11,6 @@ import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/models/mosqueConfig.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../const/resource.dart';
 import '../../main.dart';
 import 'audio_stream_offline_manager.dart';
 
@@ -55,21 +54,17 @@ class AudioManager extends ChangeNotifier {
     bool useFajrAdhan = false,
   }) async {
     final url = adhanLink(mosqueConfig, useFajrAdhan: useFajrAdhan);
-    if (url.contains('bip')) {
-      return loadAndPlayIqamaBipVoice(mosqueConfig, onDone: onDone);
-    } else {
-      return loadAndPlay(
-        url: url,
-        onDone: onDone,
-      );
-    }
+    return loadAndPlay(
+      url: url,
+      onDone: onDone,
+    );
   }
 
   Future<Duration?> loadAndPlayIqamaBipVoice(
     MosqueConfig? mosqueConfig, {
     VoidCallback? onDone,
   }) async {
-    return loadAssetsAndPlay(R.ASSETS_VOICES_ADHAN_BIP_MP3, onDone: onDone);
+    return loadAndPlay(url: bipLink, onDone: onDone);
   }
 
   Future<Duration?> loadAndPlayDuaAfterAdhanVoice(
@@ -162,14 +157,9 @@ class AudioManager extends ChangeNotifier {
     await Future.wait([
       getFile(adhanLink(config)),
       getFile(adhanLink(config, useFajrAdhan: true)),
-      getFileFromAssets(R.ASSETS_VOICES_ADHAN_BIP_MP3),
+      getFile(bipLink),
       getFile(duaAfterAdhanLink),
     ]);
-  }
-
-  Future<ByteData> getFileFromAssets(String url) async {
-    final file = await rootBundle.load(url);
-    return file;
   }
 
   Future<ByteData> getFile(String url, {bool enableCache = true}) async {

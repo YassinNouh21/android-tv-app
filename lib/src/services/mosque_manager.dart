@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HandshakeException;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -35,7 +37,7 @@ import 'mixins/connectivity_mixin.dart';
 
 final mawaqitApi = "https://mawaqit.net/api/2.0";
 
-const kAzkarDuration = const Duration(seconds: 140);
+const kAzkarDuration = const Duration(seconds: 160);
 
 class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, MosqueHelpersMixin, NetworkConnectivity {
   final sharedPref = SharedPref();
@@ -44,8 +46,9 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
   String? mosqueUUID;
 
   bool _flashEnabled = false;
+  bool _hideFlashTemporarily = false;
 
-  bool get flashEnabled => _flashEnabled;
+  bool get flashEnabled => _flashEnabled && !_hideFlashTemporarily;
 
   void _updateFlashEnabled() {
     if (mosque != null) {
@@ -71,6 +74,43 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       }
       notifyListeners();
     }
+  }
+
+  /// Sync stream URL from backoffice to LiveStream feature
+  Future<void> _syncStreamUrlToLiveStream(String? streamUrl) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (streamUrl == null || streamUrl.isEmpty) {
+        // Remove backoffice URL if not provided
+        await prefs.remove(LiveStreamConstants.prefKeyBackofficeUrl);
+      } else {
+        // Convert bare YouTube channel IDs to full URLs
+        String processedUrl = streamUrl;
+        if (!streamUrl.startsWith('http://') && !streamUrl.startsWith('https://') && !streamUrl.startsWith('rtsp://')) {
+          // Assume it's a YouTube channel ID and convert to full URL
+          processedUrl = 'https://www.youtube.com/channel/$streamUrl';
+        }
+
+        await prefs.setString(LiveStreamConstants.prefKeyBackofficeUrl, processedUrl);
+      }
+    } catch (e) {
+      debugPrint('Error syncing stream URL to LiveStream: $e');
+    }
+  }
+
+  /// Temporarily hide the flash message (used during prayer workflow)
+  void hideFlashTemporarily() {
+    if (_hideFlashTemporarily) return;
+    _hideFlashTemporarily = true;
+    notifyListeners();
+  }
+
+  /// Show the flash message again (reset temporary hide)
+  void showFlashAgain() {
+    if (!_hideFlashTemporarily) return;
+    _hideFlashTemporarily = false;
+    notifyListeners();
   }
 
   bool get loaded => mosque != null && times != null && mosqueConfig != null;
@@ -156,6 +196,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       _saveToLocale();
     } catch (e, stack) {
       debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -193,10 +234,49 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
     onItemError(e, stack) async {
       logger.e(e, stackTrace: stack);
       bool hasCachedMosque = await sharedPref.read(MosqueManagerConstant.khasCachedMosque) ?? false;
+
+      // Check if this is a network/connection error or server error
+      bool isRecoverableError = false;
+      int? statusCode;
+
+      if (e is DioException) {
+        statusCode = e.response?.statusCode;
+        isRecoverableError = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.badCertificate ||
+            e.type == DioExceptionType.unknown ||
+            (statusCode != null && statusCode >= 500 && statusCode < 600); // Server errors (5xx)
+
+        // Check for underlying HandshakeException (SSL issues)
+        // Fixes: ANDROIDTV-3E - "HandshakeException: Connection terminated during handshake"
+        if (e.error is HandshakeException) {
+          isRecoverableError = true;
+        }
+      }
+
+      // If it's a recoverable error (network/server) and we have cached data, just log and continue
+      if (isRecoverableError && hasCachedMosque) {
+        logger.w('Recoverable error occurred (${statusCode ?? 'network issue'}), using cached mosque data. Error: $e');
+        // Don't throw the error, let the app continue with cached data
+        return;
+      }
+
+      // Handle 404 errors specifically - if mosque not found but we have cache, use cache
+      if (statusCode == 404 && hasCachedMosque) {
+        logger.w('Mosque not found (404), but using cached data. Mosque may be temporarily unavailable.');
+        // Don't throw - continue with cached data
+        return;
+      }
+
+      // If no cached data, clear the mosque and notify
       if (!hasCachedMosque) {
         mosque = null;
         notifyListeners();
       }
+
+      // Only throw for unrecoverable errors when no cache is available
       throw e;
     }
 
@@ -231,6 +311,10 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
         mosque = e;
         await sharedPref.save(MosqueManagerConstant.khasCachedMosque, true);
         _updateFlashEnabled();
+
+        // Sync stream URL to LiveStream feature
+        await _syncStreamUrlToLiveStream(e.streamUrl);
+
         notifyListeners();
       },
       onError: onItemError,

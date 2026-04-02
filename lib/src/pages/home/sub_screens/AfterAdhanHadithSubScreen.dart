@@ -1,7 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations_ar.dart';
+import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
@@ -30,18 +30,20 @@ class AfterAdhanSubScreen extends ConsumerStatefulWidget {
 }
 
 class _AfterAdhanSubScreenState extends ConsumerState<AfterAdhanSubScreen> {
-  final arTranslation = AppLocalizationsAr();
+  final arTranslation = MawaqitTvLocalizationsAr();
   static const _minimumScreenDuration = Duration(seconds: 20);
 
   Timer? _completionTimer;
   bool _audioStarted = false;
   bool _audioCompleted = false;
   bool _closeCalled = false;
+  late final PrayerAudioNotifier _audioNotifier;
 
   @override
   void initState() {
     super.initState();
     log('AfterAdhanSubScreen: initState');
+    _audioNotifier = ref.read(prayerAudioProvider.notifier);
     _initializeScreen();
   }
 
@@ -148,14 +150,7 @@ class _AfterAdhanSubScreenState extends ConsumerState<AfterAdhanSubScreen> {
     // Stop audio playback when the screen is disposed prematurely
     if (_audioStarted) {
       log('AfterAdhanSubScreen: Stopping audio in dispose');
-      try {
-        // Use Future.microtask to avoid calling during build/layout
-        Future.microtask(() {
-          ref.read(prayerAudioProvider.notifier).stop();
-        });
-      } catch (e) {
-        log('AfterAdhanSubScreen: Error stopping audio in dispose', error: e);
-      }
+      _audioNotifier.stop();
     }
 
     _cancelTimers();

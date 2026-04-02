@@ -16,7 +16,7 @@ import 'package:path/path.dart' as path;
 import 'package:mawaqit/src/domain/model/quran/audio_file_model.dart';
 
 class ReciteLocalDataSource {
-  final Box<ReciterModel> _reciterBox;
+  final LazyBox<ReciterModel> _reciterBox;
   final Box<int> _favoriteReciterBox;
   final Box<DateTime> _timestampBox;
 
@@ -30,9 +30,10 @@ class ReciteLocalDataSource {
     try {
       if (reciters.isEmpty) return;
       log('recite: ReciteLocalDataSource: saveReciters: ${reciters[0]} len ${reciters.length}');
-      final reciterMap = {for (var r in reciters) r.id: r};
 
+      final reciterMap = {for (var r in reciters) r.id: r};
       await _reciterBox.putAll(reciterMap);
+      await _reciterBox.compact();
       await _timestampBox.put(QuranConstant.kQuranReciterRetentionTime, DateTime.now());
     } catch (e) {
       log('saveReciters: ${e.toString()}');
@@ -93,7 +94,11 @@ class ReciteLocalDataSource {
 
   Future<List<ReciterModel>> getReciters() async {
     try {
-      final reciters = _reciterBox.values.toList();
+      final reciters = <ReciterModel>[];
+      for (var key in _reciterBox.keys) {
+        final reciter = await _reciterBox.get(key);
+        if (reciter != null) reciters.add(reciter);
+      }
       if (reciters.isEmpty) return [];
       log('recite: ReciteLocalDataSource: getReciters: ${reciters[0]}');
       return reciters;
@@ -104,8 +109,11 @@ class ReciteLocalDataSource {
 
   Future<List<ReciterModel>> getReciterBySurah(int surahId) async {
     try {
-      // Retrieve all reciters
-      final allReciters = _reciterBox.values.toList();
+      final allReciters = <ReciterModel>[];
+      for (var key in _reciterBox.keys) {
+        final reciter = await _reciterBox.get(key);
+        if (reciter != null) allReciters.add(reciter);
+      }
 
       final recitersForSurah =
           allReciters.where((reciter) => reciter.moshaf.any((moshaf) => moshaf.surahList.contains(surahId))).toList();
@@ -164,7 +172,13 @@ class ReciteLocalDataSource {
   Future<List<ReciterModel>> getFavoriteReciters() async {
     try {
       final favoriteReciterIds = _favoriteReciterBox.values.toList();
-      final favoriteReciters = _reciterBox.values.where((reciter) => favoriteReciterIds.contains(reciter.id)).toList();
+      final favoriteReciters = <ReciterModel>[];
+
+      for (var reciterId in favoriteReciterIds) {
+        final reciter = await _reciterBox.get(reciterId);
+        if (reciter != null) favoriteReciters.add(reciter);
+      }
+
       log('recite: ReciteLocalDataSource: getFavoriteReciters: ${favoriteReciters.length}');
       return favoriteReciters;
     } catch (e) {
@@ -219,8 +233,9 @@ class ReciteLocalDataSource {
 }
 
 final reciteLocalDataSourceProvider = FutureProvider<ReciteLocalDataSource>((ref) async {
-  final reciterBox = await Hive.openBox<ReciterModel>(QuranConstant.kReciterBox);
+  final reciterBox = await Hive.openLazyBox<ReciterModel>(QuranConstant.kReciterBox);
   final favoriteReciterBox = await Hive.openBox<int>(QuranConstant.kFavoriteReciterBox);
   final timestampBox = await Hive.openBox<DateTime>(QuranConstant.kQuranCacheBoxName);
+
   return ReciteLocalDataSource(reciterBox, favoriteReciterBox, timestampBox);
 });

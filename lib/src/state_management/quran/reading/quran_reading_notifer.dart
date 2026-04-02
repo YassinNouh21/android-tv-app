@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mawaqit/src/const/constants.dart';
@@ -7,15 +8,20 @@ import 'package:mawaqit/src/domain/model/quran/moshaf_type_model.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/domain/repository/quran/quran_reading_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 import 'package:mawaqit/src/module/shared_preference_module.dart';
-import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_state.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/moshaf_type_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_state.dart';
 import 'package:mawaqit/src/data/repository/quran/quran_reading_impl.dart';
 
 class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
+  /// True while [updatePage] is driving the PageController programmatically.
+  /// Widgets should skip their [onPageChanged] callback when this is set.
+  bool _isProgrammaticJump = false;
+  bool get isProgrammaticJump => _isProgrammaticJump;
+
   @override
   Future<QuranReadingState> build() async {
     final link = ref.keepAlive();
@@ -38,10 +44,39 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
     }
   }
 
+  /// Toggles rotation (software rotation using RotatedBox)
+  /// Called when user presses the rotation button
+  void toggleRotation() {
+    state.whenData((data) {
+      final newRotation = !data.isRotated;
+      state = AsyncValue.data(data.copyWith(isRotated: newRotation));
+    });
+  }
+
+  void replaceControllerForMode(bool isPortrait) async {
+    // Save orientation FIRST (before state change which can break async continuation)
+    try {
+      final sharedPref = await ref.read(sharedPreferenceModule.future);
+      await sharedPref.setBool(quranLastPortraitKey, isPortrait);
+    } catch (e) {
+      log('quran: QuranReadingNotifier: failed to save orientation: $e');
+    }
+
+    state.whenData((data) {
+      final initialPage = isPortrait ? data.currentPage : (data.currentPage / 2).floor();
+      final newController = PageController(initialPage: initialPage);
+      final oldController = data.pageController;
+      state = AsyncValue.data(data.copyWith(pageController: newController));
+      WidgetsBinding.instance.addPostFrameCallback((_) => oldController.dispose());
+    });
+  }
+
   void nextPage({bool isPortrait = false}) async {
     log('quran: QuranReadingNotifier: nextPage:');
+    final currentValue = state.valueOrNull;
+    if (currentValue == null) return;
     state = await AsyncValue.guard(() async {
-      final currentState = state.value!;
+      final currentState = currentValue;
       final currentPage = currentState.currentPage;
       final nextPage = isPortrait ? currentPage + 1 : currentPage + 2;
       if (nextPage < currentState.totalPages) {
@@ -56,9 +91,11 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
   }
 
   void previousPage({bool isPortrait = false}) async {
-    log('quran: QuranReadingNotifier: nextPage:');
+    log('quran: QuranReadingNotifier: previousPage:');
+    final currentValue = state.valueOrNull;
+    if (currentValue == null) return;
     state = await AsyncValue.guard(() async {
-      final currentState = state.value!;
+      final currentState = currentValue;
       final previousPage = isPortrait ? currentState.currentPage : currentState.currentPage - 2;
       if (previousPage >= 0) {
         await _saveLastReadPage(previousPage);
@@ -72,9 +109,12 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
 
   Future<void> updatePage(int page, {bool isPortairt = false}) async {
     log('quran: QuranReadingNotifier: updatePage: $page');
+    final currentValue = state.valueOrNull;
+    if (currentValue == null) return;
 
+    _isProgrammaticJump = true;
     state = await AsyncValue.guard(() async {
-      final currentState = state.value!;
+      final currentState = currentValue;
       if (page >= 0 && page < currentState.totalPages) {
         await _saveLastReadPage(page);
 
@@ -94,9 +134,12 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
       }
       return currentState;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _isProgrammaticJump = false);
   }
 
   Future<void> getAllSuwarPage() async {
+    final previousValue = state.valueOrNull;
+    if (previousValue == null) return;
     state = AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final sharedPref = await ref.read(sharedPreferenceModule.future);
@@ -104,11 +147,11 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
       await ref.read(quranNotifierProvider.notifier).getSuwarByLanguage(languageCode: language);
       return ref.read(quranNotifierProvider).maybeWhen(
         orElse: () {
-          return state.value!;
+          return previousValue;
         },
         data: (quranState) {
           final suwar = quranState.suwar;
-          return state.value!.copyWith(suwar: suwar);
+          return previousValue.copyWith(suwar: suwar);
         },
       );
     });
@@ -138,17 +181,17 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
 
       state = AsyncLoading();
 
-      // Clear any existing SVGs in memory
-      await _clearSvgCache();
-
       final svgs = await _loadSvgs(moshafType: moshafType);
 
       if (svgs.isEmpty) {
         throw Exception('No SVGs found for moshaf type: ${moshafType.name}');
       }
 
-      final lastReadPage = await repository.getLastReadPage();
-      final pageController = PageController(initialPage: (lastReadPage / 2).floor());
+      final lastReadPage = await repository.getLastReadPage(moshafType: moshafType);
+      final sharedPref = await ref.read(sharedPreferenceModule.future);
+      final wasPortrait = sharedPref.getBool(quranLastPortraitKey) ?? false;
+      final initialPage = wasPortrait ? lastReadPage : (lastReadPage / 2).floor();
+      final pageController = PageController(initialPage: initialPage);
       final suwar = await getAllSuwar();
 
       return QuranReadingState(
@@ -159,28 +202,25 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
         svgs: svgs,
         pageController: pageController,
         currentSurahName: _getCurrentSurahName(lastReadPage, suwar),
+        moshafType: moshafType,
       );
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> _clearSvgCache() async {
-    // Clear any existing state
-    state = AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      return state.value!.copyWith(
-        svgs: [],
-        pageController: PageController(),
-      );
-    });
-  }
-
   Future<void> _saveLastReadPage(int index) async {
     try {
       final quranRepository = await ref.read(quranReadingRepositoryProvider.future);
-      await quranRepository.saveLastReadPage(index);
+      final currentState = state.value;
+      if (currentState != null) {
+        await quranRepository.saveLastReadPage(index, moshafType: currentState.moshafType);
+      } else {
+        log('Warning: Saving page without moshafType - state is unexpectedly null');
+        await quranRepository.saveLastReadPage(index);
+      }
     } catch (e, s) {
+      CrashlyticsWrapper.sendException(e, s);
       state = AsyncError(e, s);
     }
   }
@@ -205,20 +245,6 @@ class QuranReadingNotifier extends AutoDisposeAsyncNotifier<QuranReadingState> {
     }
 
     return "";
-  }
-
-  Future<void> toggleRotation() async {
-    state = await AsyncValue.guard(() async {
-      final currentPage = state.value!.currentPage;
-      state.value!.pageController.dispose();
-
-      return state.value!.copyWith(
-        isRotated: !state.value!.isRotated,
-        pageController:
-            PageController(initialPage: !state.value!.isRotated ? currentPage : currentPage ~/ 2, keepPage: true),
-        currentPage: currentPage,
-      );
-    });
   }
 
   Future<List<SvgPicture>> _loadSvgs({required MoshafType moshafType}) async {

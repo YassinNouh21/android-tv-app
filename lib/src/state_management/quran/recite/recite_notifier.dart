@@ -162,7 +162,11 @@ class ReciteNotifier extends AsyncNotifier<ReciteState> {
     if (query.isEmpty) {
       return reciters;
     }
-    return reciters.where((reciter) => reciter.name.toLowerCase().contains(query)).toList();
+    return reciters.where((reciter) {
+      final matchesName = reciter.name.toLowerCase().contains(query);
+      final matchesAlternateName = reciter.nameAlternate?.toLowerCase().contains(query) ?? false;
+      return matchesName || matchesAlternateName;
+    }).toList();
   }
 
   bool get isQueryEmpty => _currentQuery.isEmpty;

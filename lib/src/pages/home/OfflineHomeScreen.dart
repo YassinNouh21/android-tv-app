@@ -21,10 +21,16 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_notifier.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_state.dart';
+import 'package:mawaqit/src/pages/quran/quran_mode_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 
 import '../HomeScreen.dart';
+
+/// When true, OfflineHomeScreen shows prayer times instead of quran
+/// even though appMode is still quran. This allows navigating freely
+/// without stacking routes.
+final quranHomeOverrideProvider = StateProvider<bool>((ref) => false);
 
 class OfflineHomeScreen extends ConsumerWidget {
   OfflineHomeScreen({Key? key}) : super(key: key);
@@ -51,21 +57,35 @@ class OfflineHomeScreen extends ConsumerWidget {
   }
 
   /// show online home if enabled
-  /// show announcement mode if enabled
-  /// show offline home if enabled
+  /// show the appropriate screen based on app mode
   Widget activeHomeScreen(
     MosqueManager mosqueManager,
     bool onlineMode,
-    bool announcementMode,
+    AppMode appMode,
+    bool showHomeOverride,
   ) {
     if (onlineMode) return HomeScreen();
 
-    if (announcementMode) return AnnouncementScreen();
+    // If quran mode but user navigated to "Home" via drawer, show prayer times
+    if (appMode == AppMode.quran && showHomeOverride) {
+      final now = mosqueManager.mosqueDate();
+      return AppWorkflowScreen(
+        key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
+      );
+    }
 
-    final now = mosqueManager.mosqueDate();
-    return AppWorkflowScreen(
-      key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
-    );
+    switch (appMode) {
+      case AppMode.announcement:
+        return AnnouncementScreen();
+      case AppMode.quran:
+        return const QuranModeScreen();
+      case AppMode.normal:
+      default:
+        final now = mosqueManager.mosqueDate();
+        return AppWorkflowScreen(
+          key: ValueKey(now.day ^ now.month ^ now.year ^ (mosqueManager.mosque?.id ?? 1)),
+        );
+    }
   }
 
   @override
@@ -74,6 +94,7 @@ class OfflineHomeScreen extends ConsumerWidget {
     final mosqueProvider = context.watch<MosqueManager>();
     final userPrefs = context.watch<UserPreferencesManager>();
     final streamState = ref.watch(liveStreamProvider);
+    final showHomeOverride = ref.watch(quranHomeOverrideProvider);
 
     if (!mosqueProvider.loaded)
       return ErrorScreen(
@@ -87,6 +108,7 @@ class OfflineHomeScreen extends ConsumerWidget {
       );
 
     final shouldShowStream = streamState.valueOrNull?.shouldReplaceWorkflow == true;
+    final isShowingQuran = userPrefs.appMode == AppMode.quran && !showHomeOverride;
 
     return WillPopScope(
       onWillPop: () async {
@@ -101,17 +123,30 @@ class OfflineHomeScreen extends ConsumerWidget {
       // Otherwise show the normal app workflow
       child: shouldShowStream
           ? const StreamReplacementScreen()
-          : MosqueBackgroundScreen(
-              key: ValueKey(mosqueProvider.mosque?.uuid),
-              child: SafeArea(
-                bottom: true,
-                child: activeHomeScreen(
-                  mosqueProvider,
-                  userPrefs.webViewMode,
-                  userPrefs.announcementsOnly,
+          // Quran mode has its own full-screen UI — skip the mosque background
+          // and drawer wrapper so arrow keys reach the Quran page navigation.
+          : isShowingQuran
+              ? SafeArea(
+                  bottom: true,
+                  child: activeHomeScreen(
+                    mosqueProvider,
+                    userPrefs.webViewMode,
+                    userPrefs.appMode,
+                    showHomeOverride,
+                  ),
+                )
+              : MosqueBackgroundScreen(
+                  key: ValueKey(mosqueProvider.mosque?.uuid),
+                  child: SafeArea(
+                    bottom: true,
+                    child: activeHomeScreen(
+                      mosqueProvider,
+                      userPrefs.webViewMode,
+                      userPrefs.appMode,
+                      showHomeOverride,
+                    ),
+                  ),
                 ),
-              ),
-            ),
     );
   }
 }

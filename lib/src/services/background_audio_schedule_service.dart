@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -13,6 +12,10 @@ import 'package:audio_session/audio_session.dart';
 class BackgroundAudioScheduleService {
   static AudioPlayer? _audioPlayer;
   static Duration? _savedPosition;
+
+  // Store subscriptions for cleanup
+  static StreamSubscription? _playbackEventSubscription;
+  static StreamSubscription? _playerStateSubscription;
 
   static bool isPlaying() => _audioPlayer?.playing ?? false;
   static AudioPlayer? get player => _audioPlayer;
@@ -65,7 +68,7 @@ class BackgroundAudioScheduleService {
     try {
       print('Pausing surah playback');
       // Save the current position before pausing
-      _savedPosition = await _audioPlayer?.position;
+      _savedPosition = _audioPlayer?.position;
       await _audioPlayer?.pause();
       _service.invoke('kAudioStateChanged', {'isPlaying': false});
     } catch (e) {
@@ -139,7 +142,12 @@ class BackgroundAudioScheduleService {
   /// Start playback and configure completion handling
   static Future<void> _startPlayback(bool createPlaylist) async {
     await _audioPlayer?.play();
-    _audioPlayer?.playbackEventStream.listen((event) {
+
+    // Cancel existing subscriptions before creating new ones
+    await _playbackEventSubscription?.cancel();
+    await _playerStateSubscription?.cancel();
+
+    _playbackEventSubscription = _audioPlayer?.playbackEventStream.listen((event) {
       if (event.processingState == ProcessingState.completed && !createPlaylist) {
         _audioPlayer?.seek(Duration.zero);
         _audioPlayer?.play();
@@ -148,10 +156,21 @@ class BackgroundAudioScheduleService {
       }
     });
 
-    _audioPlayer?.playerStateStream.listen((playerState) {
+    _playerStateSubscription = _audioPlayer?.playerStateStream.listen((playerState) {
       final isPlaying = playerState.playing;
       _service.invoke('kAudioStateChanged', {'isPlaying': isPlaying});
     });
+  }
+
+  /// Cleanup all resources
+  static Future<void> dispose() async {
+    await _playbackEventSubscription?.cancel();
+    await _playerStateSubscription?.cancel();
+    await _audioPlayer?.dispose();
+    _playbackEventSubscription = null;
+    _playerStateSubscription = null;
+    _audioPlayer = null;
+    _savedPosition = null;
   }
 }
 
@@ -231,7 +250,10 @@ class ScheduleManager {
 
   /// Handle schedule execution
   static Future<void> _handleScheduleExecution(
-      TimeOfDay currentTime, ScheduleData scheduleData, SharedPreferences prefs) async {
+    TimeOfDay currentTime,
+    ScheduleData scheduleData,
+    SharedPreferences prefs,
+  ) async {
     final service = FlutterBackgroundService();
 
     if (_isTimeInRange(currentTime, scheduleData.startTime, scheduleData.endTime)) {
@@ -307,6 +329,10 @@ class ScheduleData {
   });
 }
 
+// Store event subscriptions and timer for cleanup
+final List<StreamSubscription> _eventSubscriptions = [];
+Timer? _scheduleCheckTimer;
+
 /// Service entry points
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
@@ -319,55 +345,89 @@ void onStart(ServiceInstance service) async {
 
 /// Setup periodic schedule check
 void _setupPeriodicScheduleCheck(ServiceInstance service) {
-  Timer.periodic(Duration(minutes: 1), (timer) async {
+  // Cancel existing timer before creating a new one
+  _scheduleCheckTimer?.cancel();
+
+  _scheduleCheckTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
     print("Checking schedule: ${DateTime.now()}");
     await ScheduleManager.checkSchedule();
   });
 }
 
+/// Cleanup all event subscriptions
+void _cleanupEventSubscriptions() {
+  for (var subscription in _eventSubscriptions) {
+    subscription.cancel();
+  }
+  _eventSubscriptions.clear();
+}
+
+/// Cleanup all resources
+Future<void> _cleanupAllResources() async {
+  _cleanupEventSubscriptions();
+  _scheduleCheckTimer?.cancel();
+  await BackgroundAudioScheduleService.dispose();
+  _scheduleCheckTimer = null;
+}
+
 /// Setup service listeners
 void _setupServiceListeners(ServiceInstance service) {
-  service.on('update_schedule').listen((event) async {
-    print("Schedule updated, reloading preferences");
-    await ScheduleManager.checkSchedule();
-  });
-  service.on('restart_schedule').listen((event) async {
-    // Stop current playback
-    if (BackgroundAudioScheduleService.isPlaying()) {
-      await BackgroundAudioScheduleService.stopPlayback();
-    }
+  // Clear existing subscriptions before setting up new ones
+  _cleanupEventSubscriptions();
 
-    // Reset the audio player to force new configuration
-    BackgroundAudioScheduleService._audioPlayer?.dispose();
-    BackgroundAudioScheduleService._audioPlayer = null;
-
-    // Check schedule with fresh state
-    await ScheduleManager.checkSchedule();
-  });
-  service.on('kStopAudio').listen((event) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, true);
-    await BackgroundAudioScheduleService.stopPlayback();
-    service.invoke('kAudioStateChanged', {'isPlaying': false});
-  });
-
-  service.on('stopService').listen((event) {
-    service.stopSelf();
-  });
-
-  service.on('kGetPlaybackState').listen((event) async {
-    service.invoke('kAudioStateChanged', {'isPlaying': BackgroundAudioScheduleService.isPlaying()});
-  });
-
-  service.on('kResumeAudio').listen((event) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, false);
-
-    if (BackgroundAudioScheduleService.isPlaying()) {
-      await BackgroundAudioScheduleService.player?.play();
-      service.invoke('kAudioStateChanged', {'isPlaying': true});
-    } else {
+  _eventSubscriptions.add(
+    service.on('update_schedule').listen((event) async {
+      print("Schedule updated, reloading preferences");
       await ScheduleManager.checkSchedule();
-    }
-  });
+    }),
+  );
+  _eventSubscriptions.add(
+    service.on('restart_schedule').listen((event) async {
+      // Stop current playback
+      if (BackgroundAudioScheduleService.isPlaying()) {
+        await BackgroundAudioScheduleService.stopPlayback();
+      }
+
+      // Reset the audio player to force new configuration
+      await BackgroundAudioScheduleService.dispose();
+
+      // Check schedule with fresh state
+      await ScheduleManager.checkSchedule();
+    }),
+  );
+  _eventSubscriptions.add(
+    service.on('kStopAudio').listen((event) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, true);
+      await BackgroundAudioScheduleService.stopPlayback();
+      service.invoke('kAudioStateChanged', {'isPlaying': false});
+    }),
+  );
+
+  _eventSubscriptions.add(
+    service.on('stopService').listen((event) async {
+      await _cleanupAllResources();
+      service.stopSelf();
+    }),
+  );
+
+  _eventSubscriptions.add(
+    service.on('kGetPlaybackState').listen((event) async {
+      service.invoke('kAudioStateChanged', {'isPlaying': BackgroundAudioScheduleService.isPlaying()});
+    }),
+  );
+
+  _eventSubscriptions.add(
+    service.on('kResumeAudio').listen((event) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(BackgroundScheduleAudioServiceConstant.kManualPause, false);
+
+      if (BackgroundAudioScheduleService.isPlaying()) {
+        await BackgroundAudioScheduleService.player?.play();
+        service.invoke('kAudioStateChanged', {'isPlaying': true});
+      } else {
+        await ScheduleManager.checkSchedule();
+      }
+    }),
+  );
 }

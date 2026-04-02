@@ -1,5 +1,7 @@
+import '../model/random_hadith_model.dart';
+
 abstract class RandomHadithRepository {
-  Future<String> getRandomHadith({required String language});
+  Future<RandomHadithModel> getRandomHadith({required String language});
   Future<void> fetchAndCacheHadith(String language);
   Future<void> ensureHadithsAreCached(String language);
 }

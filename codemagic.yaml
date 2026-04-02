@@ -14,7 +14,7 @@ workflows:
       flutter: 3.24.5
       vars:
         PACKAGE_NAME: "com.mawaqit.androidtv"
-        GOOGLE_PLAY_TRACK: internal
+        GOOGLE_PLAY_TRACK: Internal testing
 
       android_signing:
         - Mawaqit Mobile App + Android TV Android keystore
@@ -77,11 +77,13 @@ workflows:
             --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET \
           > test-results/results.json
 
-      - name: Build AAB with Flutter
+      - name: Build AAB with Flutter (Google Play)
         script: |
           flutter build appbundle --release \
+            --flavor googleplay \
             --build-name=$VERSION \
             --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=googleplay \
             --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
             --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
             --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
@@ -90,11 +92,28 @@ workflows:
             --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
             --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET
 
-      - name: Build APK with Flutter
+      - name: Build APK with Flutter (Google Play - clean)
         script: |
           flutter build apk --release \
+            --flavor googleplay \
             --build-name=$VERSION \
             --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=googleplay \
+            --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
+            --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
+            --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
+            --dart-define=mawaqit.firebase.app_id=$MAWAQIT_FIREBASE_APP_ID \
+            --dart-define=mawaqit.firebase.messaging_sender_id=$MAWAQIT_FIREBASE_MESSAGING_SENDER_ID \
+            --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
+            --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET
+
+      - name: Build APK with Flutter (Sideload)
+        script: |
+          flutter build apk --release \
+            --flavor sideload \
+            --build-name=$VERSION \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=sideload \
             --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
             --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
             --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
@@ -106,17 +125,40 @@ workflows:
       - name: Copy artifacts
         script: |
           mkdir build/artifacts;
-          cp build/app/outputs/bundle/release/app-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.aab
-          cp build/app/outputs/flutter-apk/app-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk
+          cp build/app/outputs/bundle/googleplayRelease/app-googleplay-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.aab
+          cp build/app/outputs/flutter-apk/app-googleplay-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk
+          cp build/app/outputs/flutter-apk/app-sideload-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-sideload.apk
 
-      - name: Upload to AWS S3 bucket
+      - name: Upload sideload APK to AWS S3 bucket
         script: |
-          aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk s3://cdn.mawaqit.net/android/tv/apk/
+          if [ -z "${CM_TAG}" ]; then
+            echo "Not a tag build, skipping S3 upload"
+            exit 0
+          fi
 
-      - name: Upload apk to the Github release
+          IS_PRERELEASE=$(gh release view "${CM_TAG}" --json isPrerelease -q '.isPrerelease') || {
+            echo "ERROR: Cannot determine release status. Refusing to upload."
+            exit 1
+          }
+
+          if [ -z "$IS_PRERELEASE" ]; then
+            echo "ERROR: Empty response from gh. Refusing to upload."
+            exit 1
+          fi
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "Tag ${CM_TAG} is a pre-release, skipping S3 upload"
+            exit 0
+          fi
+
+          echo "Tag ${CM_TAG} is marked as latest, uploading APKs to S3"
+          aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER.apk s3://cdn.mawaqit.net/android/tv/apk/
+          aws s3 cp build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-sideload.apk s3://cdn.mawaqit.net/android/tv/apk/
+
+      - name: Upload clean APK to the Github release
         script: |
           if [ -z ${CM_TAG} ]; then
-           echo "Not a tag build, will not upload apk"
+           echo "Not a tag build, will not upload apk to GitHub release"
            exit 0
           fi
 
@@ -132,3 +174,126 @@ workflows:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: $GOOGLE_PLAY_TRACK
+
+  android-tv-dev:
+    name: Building android TV application (Dev)
+    environment:
+      flutter: 3.24.5
+      vars:
+        PACKAGE_NAME: "com.mawaqit.androidtv"
+
+      android_signing:
+        - Mawaqit Mobile App + Android TV Android keystore
+
+      groups:
+        - APP
+        - mawaqit_firebase
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/.gradle/caches
+
+    scripts:
+      - name: Load Firebase configuration
+        script: |
+          #!/usr/bin/env sh
+          set -e
+          echo "FIREBASE_SECRET" > "$CM_BUILD_DIR/android/app/google-services.json"
+
+      - name: Retrieve version
+        script: |
+          VERSION=$(cat "pubspec.yaml" | sed -nE 's/version:.*([0-9]+\.[0-9]+\.[0-9])(-tv)?\+.*/\1/p')
+          BUILD_NUMBER=${BUILD_NUMBER}
+          echo "VERSION=$VERSION" >> $CM_ENV
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+
+      - name: Test version
+        script: |
+          echo "App version: $VERSION"
+          echo "BUILD NUMBER: $BUILD_NUMBER"
+
+          if [ -z ${VERSION} ]; then
+           echo "Version is empty, will not build"
+           exit 1
+          fi
+          if [ -z ${BUILD_NUMBER} ]; then
+           echo "BUILD NUMBER is empty, will not build"
+           exit 1
+          fi
+
+      - name: Install dependencies
+        script: |
+          flutter pub get
+          dart run build_runner build
+
+      - name: Run flutter Unit tests
+        script: |
+          mkdir -p test-results
+          flutter test \
+            --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
+            --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
+            --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
+            --dart-define=mawaqit.firebase.app_id=$MAWAQIT_FIREBASE_APP_ID \
+            --dart-define=mawaqit.firebase.messaging_sender_id=$MAWAQIT_FIREBASE_MESSAGING_SENDER_ID \
+            --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
+            --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET \
+          > test-results/results.json
+
+      - name: Build AAB with Flutter (Google Play)
+        script: |
+          flutter build appbundle --release \
+            --flavor googleplay \
+            --build-name=$VERSION \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=googleplay \
+            --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
+            --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
+            --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
+            --dart-define=mawaqit.firebase.app_id=$MAWAQIT_FIREBASE_APP_ID \
+            --dart-define=mawaqit.firebase.messaging_sender_id=$MAWAQIT_FIREBASE_MESSAGING_SENDER_ID \
+            --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
+            --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET
+
+      - name: Build APK with Flutter (Google Play - clean)
+        script: |
+          flutter build apk --release \
+            --flavor googleplay \
+            --build-name=$VERSION \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=googleplay \
+            --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
+            --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
+            --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
+            --dart-define=mawaqit.firebase.app_id=$MAWAQIT_FIREBASE_APP_ID \
+            --dart-define=mawaqit.firebase.messaging_sender_id=$MAWAQIT_FIREBASE_MESSAGING_SENDER_ID \
+            --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
+            --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET
+
+      - name: Build APK with Flutter (Sideload)
+        script: |
+          flutter build apk --release \
+            --flavor sideload \
+            --build-name=$VERSION \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=APP_FLAVOR=sideload \
+            --dart-define=mawaqit.sentry.dns=$MAWAQIT_SENTRY_DNS \
+            --dart-define=mawaqit.api.key=$MAWAQIT_API_KEY \
+            --dart-define=mawaqit.firebase.api_key=$MAWAQIT_FIREBASE_API_KEY \
+            --dart-define=mawaqit.firebase.app_id=$MAWAQIT_FIREBASE_APP_ID \
+            --dart-define=mawaqit.firebase.messaging_sender_id=$MAWAQIT_FIREBASE_MESSAGING_SENDER_ID \
+            --dart-define=mawaqit.firebase.project_id=$MAWAQIT_FIREBASE_PROJECT_ID \
+            --dart-define=mawaqit.firebase.storage_bucket=$MAWAQIT_FIREBASE_STORAGE_BUCKET
+
+      - name: Copy artifacts
+        script: |
+          mkdir build/artifacts;
+          cp build/app/outputs/bundle/googleplayRelease/app-googleplay-release.aab build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.aab
+          cp build/app/outputs/flutter-apk/app-googleplay-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev.apk
+          cp build/app/outputs/flutter-apk/app-sideload-release.apk build/artifacts/MAWAQIT-For-TV-v$VERSION-$BUILD_NUMBER-dev-sideload.apk
+
+    artifacts:
+      - build/artifacts/*
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+      - test-results/*

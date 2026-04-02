@@ -1,18 +1,25 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 
 import 'package:mawaqit/src/domain/error/quran_exceptions.dart';
 import 'package:mawaqit/src/domain/model/quran/moshaf_type_model.dart';
+import 'package:mawaqit/src/helpers/connectivity_provider.dart';
+import 'package:mawaqit/src/models/address_model.dart';
+import 'package:mawaqit/src/pages/home/widgets/show_check_internet_dialog.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/download_quran/download_quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/reading/moshaf_type_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer.dart';
 
 class DownloadQuranDialog extends ConsumerStatefulWidget {
-  const DownloadQuranDialog({super.key});
+  /// Called when the download completes successfully.
+  final VoidCallback? onSuccess;
+
+  /// Called when the user cancels or dismisses the dialog.
+  final VoidCallback? onCancel;
+
+  const DownloadQuranDialog({super.key, this.onSuccess, this.onCancel});
 
   @override
   _DownloadQuranDialogState createState() => _DownloadQuranDialogState();
@@ -42,6 +49,16 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
     // notifier.checkForUpdate(notifier.selectedMoshafType);
   }
 
+  /// Check if internet is available before proceeding with download
+  Future<bool> _checkInternetConnection() async {
+    await ref.read(connectivityProvider.notifier).checkInternetConnection();
+    final connectivityStatus = ref.read(connectivityProvider);
+    return connectivityStatus.whenOrNull(
+          data: (status) => status == ConnectivityStatus.connected,
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final downloadState = ref.watch(downloadQuranNotifierProvider);
@@ -59,7 +76,7 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       Downloading() => _buildDownloadingDialog(context, state),
       Extracting() => _buildExtractingDialog(context, state),
       Success() => _handleSuccess(context),
-      CancelDownload() => const SizedBox(),
+      CancelDownload() => _handleCancel(context),
       UpdateAvailable() => _buildUpdateAvailableDialog(context, state),
       _ => const SizedBox(),
     };
@@ -69,6 +86,15 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
     // Auto close dialog on success
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.of(context).pop();
+      widget.onSuccess?.call();
+    });
+    return const SizedBox();
+  }
+
+  Widget _handleCancel(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pop();
+      widget.onCancel?.call();
     });
     return const SizedBox();
   }
@@ -99,12 +125,27 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       content: Text(S.of(context).quranUpdateDialogContent(moshafName, state.version)),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onCancel?.call();
+          },
           child: Text(S.of(context).cancel),
         ),
         TextButton(
           autofocus: true,
-          onPressed: () {
+          onPressed: () async {
+            // Check internet connection before downloading
+            final hasInternet = await _checkInternetConnection();
+            if (!hasInternet) {
+              showCheckInternetDialog(
+                context: context,
+                onRetry: () => Navigator.pop(context),
+                title: S.of(context).error,
+                content: S.of(context).connectDownloadQuran,
+              );
+              return;
+            }
+
             final notifier = ref.read(downloadQuranNotifierProvider.notifier);
             notifier.downloadQuran(state.moshafType);
           },
@@ -197,57 +238,67 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
   }
 
   Widget _buildChooseDownloadMoshaf(BuildContext context) {
-    return Focus(
-      focusNode: _dialogFocusNode,
-      child: AlertDialog(
-        title: Text(S.of(context).chooseQuranType),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildMoshafTypeRadio(
-              context,
-              title: S.of(context).warsh,
-              value: MoshafType.warsh,
-              setState: setState,
-              autofocus: selectedMoshafType == MoshafType.warsh,
-            ),
-            _buildMoshafTypeRadio(
-              context,
-              title: S.of(context).hafs,
-              value: MoshafType.hafs,
-              setState: setState,
-              autofocus: selectedMoshafType == MoshafType.hafs,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              final moshafType = ref.watch(moshafTypeNotifierProvider);
-              moshafType.when(
-                data: (data) {
-                  if (data.isFirstTime) {
-                    Navigator.pushNamedAndRemoveUntil(context, Routes.quranModeSelection, (route) => route.isFirst);
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-                error: (_, __) {},
-                loading: () {},
-              );
-            },
-            child: Text(S.of(context).cancel),
+    return AlertDialog(
+      title: Text(S.of(context).chooseQuranType),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildMoshafTypeRadio(
+            context,
+            title: S.of(context).hafs,
+            value: MoshafType.hafs,
+            setState: setState,
+            autofocus: selectedMoshafType == MoshafType.hafs,
           ),
-          TextButton(
-            autofocus: true,
-            onPressed: () async {
-              Navigator.pop(context);
-              await ref.read(downloadQuranNotifierProvider.notifier).downloadQuran(selectedMoshafType);
-            },
-            child: Text(S.of(context).download),
+          _buildMoshafTypeRadio(
+            context,
+            title: S.of(context).warsh,
+            value: MoshafType.warsh,
+            setState: setState,
+            autofocus: selectedMoshafType == MoshafType.warsh,
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            final moshafType = ref.watch(moshafTypeNotifierProvider);
+            moshafType.when(
+              data: (data) {
+                if (data.isFirstTime) {
+                  Navigator.pushNamedAndRemoveUntil(context, Routes.quranModeSelection, (route) => route.isFirst);
+                } else {
+                  Navigator.pop(context);
+                }
+                widget.onCancel?.call();
+              },
+              error: (_, __) {},
+              loading: () {},
+            );
+          },
+          child: Text(S.of(context).cancel),
+        ),
+        TextButton(
+          autofocus: true,
+          onPressed: () async {
+            // Check internet connection before downloading
+            final hasInternet = await _checkInternetConnection();
+            if (!hasInternet) {
+              showCheckInternetDialog(
+                context: context,
+                onRetry: () => Navigator.pop(context),
+                title: S.of(context).error,
+                content: S.of(context).connectDownloadQuran,
+              );
+              return;
+            }
+
+            Navigator.pop(context);
+            await ref.read(downloadQuranNotifierProvider.notifier).downloadQuran(selectedMoshafType);
+          },
+          child: Text(S.of(context).download),
+        ),
+      ],
     );
   }
 
@@ -259,9 +310,14 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
     bool autofocus = false,
   }) {
     return RadioListTile<MoshafType>(
-      title: Text(title),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: selectedMoshafType == value ? Colors.white : null,
+        ),
+      ),
       value: value,
-      autofocus: autofocus,
+      selected: selectedMoshafType == value,
       groupValue: selectedMoshafType,
       onChanged: (MoshafType? selected) {
         setState(() {
@@ -281,14 +337,17 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
 
   Widget _buildErrorDialog(BuildContext context, Object error) {
     if (error is CancelDownloadException) {
-      return SizedBox();
+      return _handleCancel(context);
     }
     return AlertDialog(
       title: Text(S.of(context).error),
       content: Text(error.toString()),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onCancel?.call();
+          },
           child: Text(S.of(context).ok),
         ),
       ],

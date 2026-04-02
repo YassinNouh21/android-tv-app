@@ -24,6 +24,11 @@ void main() {
 
   group('getAllReciters with caching', () {
     final testReciters = [ReciterModel(1, 'Reciter 1', 'A', []), ReciterModel(2, 'Reciter 2', 'B', [])];
+    // Expected reciters after merging with alternate language (nameAlternate is populated)
+    final mergedReciters = [
+      ReciterModel(1, 'Reciter 1', 'A', [], 'Reciter 1'),
+      ReciterModel(2, 'Reciter 2', 'B', [], 'Reciter 2'),
+    ];
 
     test('returns cached data when cache is valid and not empty', () async {
       // Arrange
@@ -54,12 +59,18 @@ void main() {
       // Assert
       verify(() => mockLocalDataSource.clearAllReciters()).called(1);
       verify(() => mockRemoteDataSource.getReciters(language: 'en')).called(1);
-      verify(() => mockLocalDataSource.saveReciters(testReciters)).called(1);
-      expect(result, equals(testReciters));
+      // Verify saveReciters is called with merged reciters (nameAlternate populated)
+      verify(() => mockLocalDataSource.saveReciters(mergedReciters)).called(1);
+      expect(result, equals(mergedReciters));
     });
 
     group('getAllReciters with caching', () {
       final testReciters = [ReciterModel(1, 'Reciter 1', 'A', []), ReciterModel(2, 'Reciter 2', 'B', [])];
+      // Expected reciters after merging with alternate language
+      final mergedReciters = [
+        ReciterModel(1, 'Reciter 1', 'A', [], 'Reciter 1'),
+        ReciterModel(2, 'Reciter 2', 'B', [], 'Reciter 2'),
+      ];
 
       test('fetches from remote when cache is empty', () async {
         // Arrange
@@ -67,18 +78,17 @@ void main() {
         when(() => mockLocalDataSource.getLastUpdatedTimestamp()).thenReturn(Option.of(DateTime.now()));
         when(() => mockRemoteDataSource.getReciters(language: any(named: 'language')))
             .thenAnswer((_) async => testReciters);
-        when(() => mockLocalDataSource.clearAllReciters())
-            .thenAnswer((_) async => Future<void>.value()); // Add this line
-        when(() => mockLocalDataSource.saveReciters(any()))
-            .thenAnswer((_) async => Future<void>.value()); // Explicit Future<void>
+        when(() => mockLocalDataSource.clearAllReciters()).thenAnswer((_) async => Future<void>.value());
+        when(() => mockLocalDataSource.saveReciters(any())).thenAnswer((_) async => Future<void>.value());
 
         // Act
         final result = await reciteImpl.getAllReciters(language: 'en');
 
         // Assert
         verify(() => mockRemoteDataSource.getReciters(language: 'en')).called(1);
-        verify(() => mockLocalDataSource.saveReciters(testReciters)).called(1);
-        expect(result, equals(testReciters));
+        // Verify saveReciters is called with merged reciters (nameAlternate populated)
+        verify(() => mockLocalDataSource.saveReciters(mergedReciters)).called(1);
+        expect(result, equals(mergedReciters));
       });
     });
 

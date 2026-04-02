@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mawaqit/src/domain/model/random_hadith_model.dart';
 import 'package:mawaqit/src/domain/repository/random_hadith_repository.dart';
 
-import '../../../main.dart';
 import '../../data/repository/random_hadith_impl.dart';
 
 class RandomHadithUseCase {
@@ -9,7 +9,7 @@ class RandomHadithUseCase {
 
   RandomHadithUseCase(this._hadithRepository);
 
-  Future<String> getRandomHadith({
+  Future<RandomHadithModel> getRandomHadith({
     String language = 'ar',
   }) async {
     try {

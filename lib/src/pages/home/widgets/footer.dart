@@ -17,7 +17,7 @@ class Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mosqueManager = context.read<MosqueManager>();
+    final mosqueManager = context.watch<MosqueManager>();
     final Mosque? mosque = mosqueManager.mosque;
     final mosqueConfig = mosqueManager.mosqueConfig;
     final TextDirection textDirection = Directionality.of(context);
@@ -27,7 +27,8 @@ class Footer extends StatelessWidget {
     }
 
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    final showMosqueInfo = !isPortrait && mosque.flash == null && mosqueConfig.footer == true;
+    final showFlash = mosqueManager.flashEnabled && mosque.flash != null;
+    final showMosqueInfo = !isPortrait && !showFlash && mosqueConfig.footer == true;
     final qrCodeSection = Expanded(
       flex: showMosqueInfo ? 2 : 1,
       child: Row(
@@ -60,7 +61,7 @@ class Footer extends StatelessWidget {
     Widget middleSection;
     if (isPortrait) {
       middleSection = Spacer(flex: 6);
-    } else if (mosque.flash != null) {
+    } else if (showFlash) {
       middleSection = flashWidget;
     } else if (showMosqueInfo) {
       middleSection = mosqueInfoSection;
@@ -70,7 +71,7 @@ class Footer extends StatelessWidget {
 
     return Column(
       children: [
-        if (isPortrait && mosque.flash != null)
+        if (isPortrait && showFlash)
           Container(
             color: Colors.black26,
             height: 5.h,
@@ -80,7 +81,7 @@ class Footer extends StatelessWidget {
         Container(
           height: 6.5.h,
           color: mosque.flash?.content.isEmpty != false ? null : Colors.black.withOpacity(.3),
-          padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 0.5.h),
+          padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 0.3.h),
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: Row(
@@ -99,30 +100,33 @@ class Footer extends StatelessWidget {
 
   Widget _buildQrCodeSection(Mosque mosque, TextDirection textDirection) {
     return Container(
-      margin: textDirection == TextDirection.ltr ? EdgeInsets.only(right: 2.w) : EdgeInsets.only(left: 2.w),
+      margin: textDirection == TextDirection.ltr ? EdgeInsets.only(right: 0.5.w) : EdgeInsets.only(left: 0.5.w),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             "ID ${mosque.id}",
             textDirection: TextDirection.ltr,
             style: TextStyle(
-              fontSize: 6.sp,
+              fontSize: 5.5.sp,
               color: Colors.white,
               fontWeight: FontWeight.bold,
               shadows: kAfterAdhanTextShadow,
             ),
           ),
-          SizedBox(height: 0.5.h),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.contain,
-              child: MawaqitNetworkImage(
-                imageUrl: kFooterQrLink,
-                errorBuilder: (context, url, error) => SizedBox(),
-                width: 5.h,
-                height: 5.h,
+          SizedBox(height: 0.1.h),
+          Flexible(
+            child: Container(
+              height: 4.5.h,
+              width: 4.5.h,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: MawaqitNetworkImage(
+                  imageUrl: kFooterQrLink,
+                  errorBuilder: (context, url, error) => SizedBox(),
+                ),
               ),
             ),
           ),

@@ -324,6 +324,7 @@ class ScheduleNotifier extends AsyncNotifier<ScheduleState> {
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedReciter),
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedMoshaf),
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedSurah),
+      _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedSurahName),
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedSurahUrl),
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kRandomEnabled),
       _prefs.remove(BackgroundScheduleAudioServiceConstant.kRandomUrls),

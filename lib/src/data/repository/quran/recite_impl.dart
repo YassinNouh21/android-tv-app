@@ -13,6 +13,7 @@ import 'package:mawaqit/src/domain/repository/quran/recite_repository.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
 
 import '../../../domain/model/quran/audio_file_model.dart';
+import '../../../const/constants.dart';
 
 class ReciteImpl implements ReciteRepository {
   final ReciteRemoteDataSource _remoteDataSource;
@@ -48,14 +49,40 @@ class ReciteImpl implements ReciteRepository {
       }
 
       // If not cached or cache is outdated, fetch from the remote API
-      log('ReciteImpl: Fetching reciters from remote API');
-      final reciters = await _remoteDataSource.getReciters(language: language);
-      reciters.sort((a, b) => a.name.compareTo(b.name));
+      log('ReciteImpl: Fetching reciters from remote API in both languages');
 
-      // Save the fetched reciters to the local cache
-      await _localDataSource.saveReciters(reciters);
+      // Determine alternate language
+      final alternateLanguage =
+          language == QuranConstant.kArabicLanguage ? QuranConstant.kEnglishLanguage : QuranConstant.kArabicLanguage;
 
-      return reciters;
+      // Fetch reciters in both languages in parallel for better performance
+      final results = await Future.wait([
+        _remoteDataSource.getReciters(language: language),
+        _remoteDataSource.getReciters(language: alternateLanguage).catchError((e) {
+          log('ReciteImpl: Alternate language fetch failed: $e');
+          return <ReciterModel>[]; // Return empty list on error
+        }),
+      ]);
+      final reciters = results[0];
+      final alternateReciters = results[1];
+
+      // Create a map of alternate reciters by ID for quick lookup
+      final alternateReciterMap = {
+        for (var reciter in alternateReciters) reciter.id: reciter.name,
+      };
+
+      // Merge the alternate names with the main reciters
+      final mergedReciters = reciters.map((reciter) {
+        final alternateName = alternateReciterMap[reciter.id];
+        return reciter.copyWith(nameAlternate: alternateName);
+      }).toList();
+
+      mergedReciters.sort((a, b) => a.name.compareTo(b.name));
+
+      // Save the merged reciters to the local cache
+      await _localDataSource.saveReciters(mergedReciters);
+
+      return mergedReciters;
     } catch (e) {
       // If an error occurs, try to return cached data as a fallback
       log('ReciteImpl: Error fetching reciters: $e');

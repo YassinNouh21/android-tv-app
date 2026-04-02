@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:sizer/sizer.dart';
 
 class QuranReadingPageSelector extends ConsumerStatefulWidget {
   final int totalPages;
   final int currentPage;
   final bool isPortrait;
-  final ScrollController scrollController;
 
   const QuranReadingPageSelector({
     required this.totalPages,
     required this.currentPage,
-    required this.scrollController,
     required this.isPortrait,
   });
 
@@ -22,35 +21,40 @@ class QuranReadingPageSelector extends ConsumerStatefulWidget {
 }
 
 class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelector> {
-  // late FocusNode _initialFocusNode;
+  final AutoScrollController _scrollController = AutoScrollController();
 
   @override
   void initState() {
     super.initState();
-    // _initialFocusNode = FocusNode(debugLabel: 'node_page_${widget.currentPage}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // _scrollToIndex(widget.currentPage);
-      // FocusScope.of(context).requestFocus(_initialFocusNode);
+      _scrollController.scrollToIndex(
+        widget.currentPage,
+        preferPosition: AutoScrollPosition.middle,
+      );
     });
   }
 
   @override
   void dispose() {
-    // _initialFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // void _scrollToIndex(int index) {
-  //   final itemHeight = 60.h / 4;
-  //   final rowIndex = index ~/ 6;
-  //   final offset = rowIndex * itemHeight;
-  //   widget.scrollController.jumpTo(offset);
-  // }
+  bool get _isActuallyPortrait {
+    final deviceOrientation = MediaQuery.of(context).orientation;
+    return (deviceOrientation == Orientation.portrait && !widget.isPortrait) ||
+        (deviceOrientation == Orientation.landscape && widget.isPortrait);
+  }
+
+  int get _crossAxisCount => _isActuallyPortrait ? 4 : 6;
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final needsRotation = widget.isPortrait && size.width > size.height;
+
     return RotatedBox(
-      quarterTurns: widget.isPortrait ? -1 : 0,
+      quarterTurns: needsRotation ? -1 : 0,
       child: AlertDialog(
         title: SizedBox(
           width: double.maxFinite,
@@ -67,33 +71,39 @@ class _QuranReadingPageSelectorState extends ConsumerState<QuranReadingPageSelec
           width: double.maxFinite,
           height: 60.h,
           child: GridView.builder(
-            controller: widget.scrollController,
+            controller: _scrollController,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: widget.isPortrait ? 4 : 6,
+              crossAxisCount: _crossAxisCount,
               childAspectRatio: 3 / 2,
             ),
             itemCount: widget.totalPages,
             itemBuilder: (BuildContext context, int index) {
               final isSelected = index == widget.currentPage;
-              return InkWell(
-                onTap: () {
-                  widget.isPortrait
-                      ? ref.read(quranReadingNotifierProvider.notifier).updatePage(index, isPortairt: true)
-                      : ref.read(quranReadingNotifierProvider.notifier).updatePage(index);
-                  Navigator.of(context).pop(); // Close the dialog after selection
-                },
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected ? Theme.of(context).focusColor : null,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: isSelected ? FontWeight.bold : null,
-                      color: isSelected ? Colors.white : null,
+              return AutoScrollTag(
+                key: ValueKey(index),
+                controller: _scrollController,
+                index: index,
+                child: InkWell(
+                  onTap: () {
+                    ref.read(quranReadingNotifierProvider.notifier).updatePage(
+                          index,
+                          isPortairt: _isActuallyPortrait,
+                        );
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected ? Theme.of(context).focusColor : null,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: isSelected ? FontWeight.bold : null,
+                        color: isSelected ? Colors.white : null,
+                      ),
                     ),
                   ),
                 ),

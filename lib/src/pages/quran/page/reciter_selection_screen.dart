@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:developer';
+import 'dart:convert';
+import 'package:collection/collection.dart';
 
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +14,13 @@ import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/src/helpers/connectivity_provider.dart';
 import 'package:mawaqit/src/models/address_model.dart';
 import 'package:mawaqit/src/pages/quran/page/schedule_screen.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/services/theme_manager.dart';
+import 'package:provider/provider.dart' as provider;
+import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
+import 'package:mawaqit/src/state_management/quran/recite/quran_audio_player_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/recite/recite_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/recite/recite_state.dart';
 import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_notifier.dart';
@@ -25,6 +30,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/pages/quran/widget/reciter_list_view.dart';
+import 'package:mawaqit/src/pages/quran/widget/reciter_error_widget.dart';
 import '../reading/quran_reading_screen.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
 
@@ -76,7 +82,9 @@ class AudioControlWidget extends ConsumerWidget {
                   child: FloatingActionButton(
                     focusNode: focusNode,
                     focusColor: Theme.of(context).primaryColor,
-                    backgroundColor: state.status == AudioStatus.playing ? Colors.red : Colors.black.withOpacity(.5),
+                    backgroundColor: state.status == AudioStatus.playing
+                        ? Theme.of(context).primaryColor
+                        : Colors.black.withOpacity(.5),
                     child: Icon(
                       color: Colors.white,
                       state.status == AudioStatus.playing ? Icons.pause : Icons.play_arrow,
@@ -93,7 +101,7 @@ class AudioControlWidget extends ConsumerWidget {
             );
           },
           loading: () => const CircularProgressIndicator(),
-          error: (error, _) => Text('Error: $error'),
+          error: (error, _) => const SizedBox.shrink(),
         );
   }
 }
@@ -124,11 +132,16 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   late FocusNode searchFocusScopeNode;
   late FocusNode changeIntoReadingMode;
   late FocusNode playPauseSchedule;
+  late FocusNode errorRetryFocusNode;
 
   late StreamSubscription<bool> keyboardSubscription;
 
   bool _isSearching = false;
   bool _foundReciters = false;
+
+  Map<String, dynamic>? _savedSession;
+  bool _isResuming = false;
+  late FocusNode resumeBannerFocusNode;
 
   @override
   void initState() {
@@ -154,13 +167,28 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     changeIntoReadingMode = FocusNode(debugLabel: 'change_into_reading_mode_focus_node');
     playPauseSchedule = FocusNode(debugLabel: 'pla_pause_schedule');
     searchListFocusNode = FocusScopeNode(debugLabel: 'search_list_focus_scope_node');
-    var keyboardVisibilityController = KeyboardVisibilityController();
+    errorRetryFocusNode = FocusNode(debugLabel: 'error_retry_focus_node');
+    resumeBannerFocusNode = FocusNode(debugLabel: 'resume_banner_focus_node');
 
-    keyboardSubscription = keyboardVisibilityController.onChange.listen((bool visible) {
-      if (!visible) {
-        _setInitialFocus();
+    _refreshSavedSession();
+
+    // Setup search field key handler for navigation
+    searchFocusScopeNode.onKey = (node, event) {
+      if (event is RawKeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        final state = ref.read(reciteNotifierProvider);
+        // If there's an error, navigate to the retry button
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (_savedSession != null) {
+          resumeBannerFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
       }
-    });
+      return KeyEventResult.ignored;
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(reciteNotifierProvider.notifier);
@@ -169,12 +197,19 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     });
   }
 
+  Future<void> _refreshSavedSession() async {
+    final session = await QuranAudioPlayer.getLastPlaybackSession();
+    if (mounted) setState(() => _savedSession = session);
+  }
+
   void _disposeFocusNodes() {
     searchFocusScopeNode.dispose();
     favoritesListFocusNode.dispose();
     allRecitersListFocusNode.dispose();
     changeReadingModeFocusNode.dispose();
     searchListFocusNode.dispose();
+    errorRetryFocusNode.dispose();
+    resumeBannerFocusNode.dispose();
   }
 
   void _setupKeyboardListener() {
@@ -202,8 +237,19 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   }
 
   void _navigateToReading() {
+    final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
     ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
-    Navigator.pushReplacementNamed(context, Routes.quranReading);
+    if (userPrefs.appMode == AppMode.quran) {
+      // In Quran mode, pop back to the reading screen if possible
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        // Fallback: came here via pushReplacement, restart to get back to quran mode root
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    } else {
+      Navigator.pushReplacementNamed(context, Routes.quranReading);
+    }
   }
 
   @override
@@ -214,13 +260,30 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
 
     _setupFocusNodeCallbacks();
 
-    return Scaffold(
-      key: _scaffoldKey,
-      resizeToAvoidBottomInset: true,
-      floatingActionButton: _buildFloatingColumn(spacerWidth, buttonSize, iconSize, context),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      appBar: _buildAppBar(),
-      body: _buildBody(),
+    return WillPopScope(
+      onWillPop: () async {
+        final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
+        if (userPrefs.appMode == AppMode.quran) {
+          // In Quran mode, just pop back to quran reading
+          ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
+          return true;
+        }
+        if (!Navigator.canPop(context)) {
+          _navigateToReading();
+          return false;
+        }
+        // Reset quran mode and allow normal pop
+        ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.none);
+        return true;
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        resizeToAvoidBottomInset: true,
+        floatingActionButton: _buildFloatingColumn(spacerWidth, buttonSize, iconSize, context),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        appBar: _buildAppBar(),
+        body: _buildBody(),
+      ),
     );
   }
 
@@ -228,8 +291,36 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     favoritesListFocusNode.onKey = _handleFavoritesListKeyEvent;
     allRecitersListFocusNode.onKey = _handleAllRecitersListKeyEvent;
     changeReadingModeFocusNode.onKey = _handleChangeReadingModeKeyEvent;
+    changeIntoReadingMode.onKey = _handleChangeIntoReadingModeKeyEvent;
     playPauseSchedule.onKey = _handlePlayPauseScheduleKeyEvent;
     searchListFocusNode.onKey = _handleSearchListKeyEvent;
+    resumeBannerFocusNode.onKey = _handleResumeBannerKeyEvent;
+  }
+
+  KeyEventResult _handleResumeBannerKeyEvent(FocusNode node, RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        searchFocusScopeNode.requestFocus();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        if (_hasFavorites()) {
+          favoritesListFocusNode.requestFocus();
+        } else {
+          allRecitersListFocusNode.requestFocus();
+        }
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.select || event.logicalKey == LogicalKeyboardKey.enter) {
+        if (_savedSession != null && !_isResuming) {
+          try {
+            final surahJson = _savedSession!['surahJson'] as String;
+            final surah = SurahModel.fromJson(jsonDecode(surahJson) as Map<String, dynamic>);
+            _onResumeTap(_savedSession!, surah);
+          } catch (_) {}
+        }
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   KeyEventResult _handleFavoritesListKeyEvent(FocusNode node, RawKeyEvent event) {
@@ -239,7 +330,11 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         allRecitersListFocusNode.requestFocus();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        searchFocusScopeNode.requestFocus();
+        if (_savedSession != null) {
+          resumeBannerFocusNode.requestFocus();
+        } else {
+          searchFocusScopeNode.requestFocus();
+        }
         return KeyEventResult.handled;
       }
     }
@@ -251,6 +346,8 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         if (_hasFavorites()) {
           favoritesListFocusNode.requestFocus();
+        } else if (_savedSession != null) {
+          resumeBannerFocusNode.requestFocus();
         } else {
           searchFocusScopeNode.requestFocus();
         }
@@ -266,6 +363,13 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   KeyEventResult _handleChangeReadingModeKeyEvent(FocusNode node, RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        // Check if there's an error state first
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+
         if (_foundReciters && !ref.read(reciteNotifierProvider.notifier).isQueryEmpty) {
           searchListFocusNode.requestFocus();
         } else {
@@ -277,11 +381,41 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         }
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Check if there's an error state first
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+
         if (!_foundReciters && !changeIntoReadingMode.hasFocus) {
           searchFocusScopeNode.requestFocus();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleChangeIntoReadingModeKeyEvent(FocusNode node, RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Check if there's an error state
+        final state = ref.read(reciteNotifierProvider);
+        if (state.hasError) {
+          errorRetryFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        // Otherwise go to search or reciters list
+        searchFocusScopeNode.requestFocus();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        // Try to focus on the play/pause schedule button if it exists
+        if (playPauseSchedule.canRequestFocus) {
+          playPauseSchedule.requestFocus();
+          return KeyEventResult.handled;
+        }
       }
     }
     return KeyEventResult.ignored;
@@ -331,13 +465,24 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         ),
       ),
       centerTitle: true,
-      // leading: IconButton(
-      //   icon: Icon(
-      //     Icons.arrow_back,
-      //     color: Colors.white,
-      //   ),
-      //   onPressed: () => Navigator.pop(context),
-      // ),
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: Colors.white,
+        ),
+        onPressed: () {
+          final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
+          if (userPrefs.appMode == AppMode.quran) {
+            // In Quran mode, just pop back to quran reading
+            ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.reading);
+            Navigator.pop(context);
+          } else if (!Navigator.canPop(context)) {
+            _navigateToReading();
+          } else {
+            Navigator.pop(context);
+          }
+        },
+      ),
     );
   }
 
@@ -375,11 +520,11 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
                             _buildReciterListShimmer(true),
                           ],
                         ),
-                        error: (error, stackTrace) => Center(
-                          child: Text(
-                            'Error: $error',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                        error: (error, stackTrace) => ReciterErrorWidget(
+                          error: error,
+                          focusNode: errorRetryFocusNode,
+                          onNavigateUp: () => searchFocusScopeNode.requestFocus(),
+                          onNavigateDown: () => changeReadingModeFocusNode.requestFocus(),
                         ),
                       ),
                 ),
@@ -398,6 +543,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_savedSession != null) _buildResumeBanner(),
         if (hasFavorites) ...[
           Expanded(
             child: Column(
@@ -467,17 +613,15 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
 
   List<Widget> _buildFavoriteSection(ReciteState reciterState) {
     return [
-      SizedBox(height: 1.h),
-      Expanded(
-        flex: 1,
-        child: _buildFavoritesHeader(),
-      ),
-      SizedBox(height: 1.h),
+      SizedBox(height: 0.5.h),
+      _buildFavoritesHeader(),
+      SizedBox(height: 0.5.h),
       if (reciterState.favoriteReciters.isEmpty)
-        _buildEmptyFavorites()
+        Expanded(
+          child: _buildEmptyFavorites(),
+        )
       else
         Expanded(
-          flex: 5,
           child: FocusScope(
             node: favoritesListFocusNode,
             autofocus: _hasFavorites(),
@@ -487,7 +631,6 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
             ),
           ),
         ),
-      SizedBox(height: 2.h),
     ];
   }
 
@@ -613,7 +756,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
           Icon(
             Icons.favorite,
             color: Theme.of(context).primaryColor,
-            size: 16.sp,
+            size: 12.sp,
           ),
           SizedBox(width: 12),
           AutoSizeText(
@@ -621,7 +764,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
             style: TextStyle(
               color: Colors.white,
               fontFamily: 'Roboto',
-              fontSize: 14.sp,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -651,8 +794,8 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
 
   Widget _buildEmptyFavorites() {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding, vertical: 10),
-      padding: EdgeInsets.all(8.sp),
+      margin: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding, vertical: 4),
+      padding: EdgeInsets.all(4.sp),
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(10),
@@ -757,6 +900,133 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildResumeBanner() {
+    final session = _savedSession!;
+    final positionMs = session['positionMs'] as int;
+    final surahJson = session['surahJson'] as String;
+    late final SurahModel surah;
+    try {
+      surah = SurahModel.fromJson(jsonDecode(surahJson) as Map<String, dynamic>);
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+    final minutes = (positionMs ~/ 60000).toString().padLeft(2, '0');
+    final seconds = ((positionMs % 60000) ~/ 1000).toString().padLeft(2, '0');
+    final positionLabel = '$minutes:$seconds';
+
+    final reciterId = session['reciterId'] as String;
+    final reciterState = ref.read(reciteNotifierProvider).valueOrNull;
+    final allReciters = [...?reciterState?.reciters, ...?reciterState?.favoriteReciters];
+    final reciterName = allReciters.firstWhereOrNull((r) => r.id.toString() == reciterId)?.name ?? '';
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding, vertical: 0.5.h),
+      child: Focus(
+        focusNode: resumeBannerFocusNode,
+        child: Builder(
+          builder: (context) {
+            final isFocused = Focus.of(context).hasFocus;
+            return InkWell(
+              focusColor: Colors.transparent,
+              onTap: _isResuming ? null : () => _onResumeTap(session, surah),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.8.h),
+                decoration: BoxDecoration(
+                  color: isFocused ? Theme.of(context).primaryColor : Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isFocused ? Theme.of(context).primaryColor : Colors.white24,
+                    width: isFocused ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    _isResuming
+                        ? SizedBox(
+                            width: 18.sp,
+                            height: 18.sp,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Icon(Icons.play_circle_filled, color: Colors.white, size: 18.sp),
+                    SizedBox(width: 1.5.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            S.of(context).continueListening,
+                            style: TextStyle(color: Colors.white70, fontSize: 9.sp),
+                          ),
+                          Text(
+                            '${surah.name}  •  $reciterName  •  $positionLabel',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 10.sp),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onResumeTap(Map<String, dynamic> session, SurahModel surah) async {
+    final reciterState = ref.read(reciteNotifierProvider).valueOrNull;
+    if (reciterState == null) return;
+
+    final reciterId = session['reciterId'] as String;
+    final moshafId = session['moshafId'] as String;
+
+    final allReciters = [...reciterState.reciters, ...reciterState.favoriteReciters];
+    final reciter = allReciters.firstWhereOrNull((r) => r.id.toString() == reciterId);
+    if (reciter == null) return;
+
+    final moshaf = reciter.moshaf.firstWhereOrNull((m) => m.id.toString() == moshafId);
+    if (moshaf == null) return;
+
+    setState(() => _isResuming = true);
+    try {
+      await ref.read(quranNotifierProvider.notifier).getSuwarByReciter(selectedMoshaf: moshaf);
+      final suwar = ref.read(quranNotifierProvider).valueOrNull?.suwar;
+      if (suwar == null || suwar.isEmpty) return;
+
+      ref.read(quranPlayerNotifierProvider.notifier).initialize(
+            moshaf: moshaf,
+            surah: surah,
+            suwar: suwar,
+            reciterId: reciterId,
+          );
+
+      if (mounted) {
+        await Navigator.pushNamed(
+          context,
+          Routes.quranPlayer,
+          arguments: {
+            'reciterId': reciterId,
+            'selectedMoshaf': moshaf,
+            'surah': surah,
+          },
+        );
+        // Refresh saved session after returning from player
+        await _refreshSavedSession();
+      }
+    } finally {
+      if (mounted) setState(() => _isResuming = false);
+    }
   }
 
   Widget _buildReciterListShimmer(bool isDarkMode) {

@@ -28,8 +28,9 @@ class VerticalPageViewWidget extends ConsumerWidget {
       scrollDirection: Axis.vertical,
       controller: quranReadingState.pageController,
       onPageChanged: (index) {
-        if (index != quranReadingState.currentPage) {
-          ref.read(quranReadingNotifierProvider.notifier).updatePage(index, isPortairt: true);
+        final notifier = ref.read(quranReadingNotifierProvider.notifier);
+        if (!notifier.isProgrammaticJump && index != quranReadingState.currentPage) {
+          notifier.updatePage(index, isPortairt: true);
         }
       },
       itemCount: quranReadingState.totalPages,
@@ -81,9 +82,10 @@ class HorizontalPageViewWidget extends ConsumerWidget {
           reverse: Directionality.of(context) == TextDirection.ltr ? true : false,
           controller: quranReadingState.pageController,
           onPageChanged: (index) {
+            final notifier = ref.read(quranReadingNotifierProvider.notifier);
             final actualPage = index * 2;
-            if (actualPage != quranReadingState.currentPage) {
-              ref.read(quranReadingNotifierProvider.notifier).updatePage(actualPage);
+            if (!notifier.isProgrammaticJump && actualPage != quranReadingState.currentPage) {
+              notifier.updatePage(actualPage);
             }
           },
           itemCount: (quranReadingState.totalPages / 2).ceil(),
@@ -307,8 +309,23 @@ class BackButtonWidget extends ConsumerWidget {
     required this.focusNode,
   }) : super(key: key);
 
+  void _handleBackPress(BuildContext context) {
+    if (userPrefs.appMode == AppMode.quran) {
+      // In Quran mode, open the drawer menu
+      Scaffold.maybeOf(context)?.openDrawer();
+    } else {
+      // Normal behavior - just pop
+      if (isPortrait) {
+        userPrefs.orientationLandscape = true;
+      }
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isQuranMode = userPrefs.appMode == AppMode.quran;
+
     return Positioned.directional(
       start: 10,
       top: 10,
@@ -317,12 +334,7 @@ class BackButtonWidget extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           focusNode: focusNode,
-          onTap: () {
-            if (isPortrait) {
-              userPrefs.orientationLandscape = true;
-            }
-            Navigator.pop(context);
-          },
+          onTap: () => _handleBackPress(context),
           borderRadius: BorderRadius.circular(40),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -332,7 +344,7 @@ class BackButtonWidget extends ConsumerWidget {
             ),
             child: Center(
               child: Icon(
-                Icons.arrow_back_rounded,
+                isQuranMode ? Icons.menu : Icons.arrow_back_rounded,
                 color: Colors.white,
                 size: 14.sp,
               ),

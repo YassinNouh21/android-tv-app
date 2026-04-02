@@ -9,6 +9,7 @@ import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
 
 class QuranModeSelection extends ConsumerStatefulWidget {
   const QuranModeSelection({super.key});
@@ -29,6 +30,7 @@ class _QuranModeSelectionState extends ConsumerState<QuranModeSelection> {
     _readingFocusNode = FocusNode();
     _listeningFocusNode = FocusNode();
     _mainFocusNode = FocusNode();
+    setJx11Enabled(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mainFocusNode.requestFocus();
     });
@@ -36,6 +38,7 @@ class _QuranModeSelectionState extends ConsumerState<QuranModeSelection> {
 
   @override
   void dispose() {
+    setJx11Enabled(false);
     _readingFocusNode.dispose();
     _listeningFocusNode.dispose();
     _mainFocusNode.dispose();
@@ -92,6 +95,18 @@ class _QuranModeSelectionState extends ConsumerState<QuranModeSelection> {
 
   @override
   Widget build(BuildContext context) {
+    // JX-11 ring: navigate toggles mode, activate selects it
+    ref.listen(jx11EventProvider, (_, next) {
+      final event = next.valueOrNull;
+      if (event == null) return;
+      if (event.isActivate) {
+        _handleNavigation(_selectedIndex);
+      } else if (event.isNext || event.isPrevious) {
+        setState(() => _selectedIndex = _selectedIndex == 0 ? 1 : 0);
+        (_selectedIndex == 0 ? _readingFocusNode : _listeningFocusNode).requestFocus();
+      }
+    });
+
     return RawKeyboardListener(
       focusNode: _mainFocusNode,
       onKey: _handleKeyEvent,

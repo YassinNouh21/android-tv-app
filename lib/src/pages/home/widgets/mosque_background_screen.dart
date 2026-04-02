@@ -1,26 +1,30 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/HexColor.dart';
+import 'package:mawaqit/src/pages/home/widgets/schedule_audio_indicator.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_notifier.dart';
 import 'package:mawaqit/src/widgets/MawaqitDrawer.dart';
 import 'package:provider/provider.dart';
 
-import '../../../const/constants.dart';
-
-class MosqueBackgroundScreen extends StatefulWidget {
+class MosqueBackgroundScreen extends riverpod.ConsumerStatefulWidget {
   final Widget child;
 
   const MosqueBackgroundScreen({Key? key, required this.child}) : super(key: key);
 
   @override
-  State<MosqueBackgroundScreen> createState() => _MosqueBackgroundScreenState();
+  riverpod.ConsumerState<MosqueBackgroundScreen> createState() => _MosqueBackgroundScreenState();
 }
 
-class _MosqueBackgroundScreenState extends State<MosqueBackgroundScreen> {
+class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgroundScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late FocusNode _focusNode;
+  DateTime? _enterKeyDownTime;
+
+  static const _longPressDuration = Duration(milliseconds: 600);
 
   @override
   void initState() {
@@ -38,20 +42,56 @@ class _MosqueBackgroundScreenState extends State<MosqueBackgroundScreen> {
   Widget build(BuildContext context) {
     final mosqueProvider = context.watch<MosqueManager>();
     if (!mosqueProvider.loaded) return const SizedBox();
-    return RawKeyboardListener(
+    return Focus(
       focusNode: _focusNode,
-      onKey: (event) {
-        if (event is RawKeyDownEvent && event.isArrow) {
-          _scaffoldKey.currentState?.openDrawer();
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        final isEnterOrSelect =
+            event.logicalKey == LogicalKeyboardKey.select || event.logicalKey == LogicalKeyboardKey.enter;
+
+        if (event is KeyDownEvent) {
+          // Arrow keys open the drawer
+          if (event.isArrow) {
+            if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+              _scaffoldKey.currentState?.openDrawer();
+              return KeyEventResult.handled;
+            }
+          }
+
+          // Record when Enter/Select is first pressed down (only when drawer is closed and not stopped)
+          // Guard _enterKeyDownTime == null to ignore key-repeat events from remotes
+          if (isEnterOrSelect &&
+              _enterKeyDownTime == null &&
+              !(_scaffoldKey.currentState?.isDrawerOpen ?? false) &&
+              isScheduleAudioActive(ref) &&
+              !(ref.read(audioControlProvider).value?.isStopped ?? false)) {
+            _enterKeyDownTime = DateTime.now();
+            return KeyEventResult.handled;
+          }
         }
+
+        if (event is KeyUpEvent && isEnterOrSelect && _enterKeyDownTime != null) {
+          final holdDuration = DateTime.now().difference(_enterKeyDownTime!);
+          _enterKeyDownTime = null;
+
+          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false) && isScheduleAudioActive(ref)) {
+            if (holdDuration >= _longPressDuration) {
+              // Long press → stop
+              ref.read(audioControlProvider.notifier).stopPlayback();
+            } else {
+              // Short press → toggle pause/play
+              ref.read(audioControlProvider.notifier).togglePlayback();
+            }
+          }
+          return KeyEventResult.handled;
+        }
+
+        return KeyEventResult.ignored;
       },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          key: _scaffoldKey,
-          drawer: MawaqitDrawer(goHome: () => AppRouter.popAll()),
-          body: _buildBackgroundDecoration(mosqueProvider),
-        ),
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: MawaqitDrawer(goHome: () => AppRouter.popAll()),
+        body: _buildBackgroundDecoration(mosqueProvider),
       ),
     );
   }
@@ -115,7 +155,7 @@ class _MosqueBackgroundScreenState extends State<MosqueBackgroundScreen> {
   }
 }
 
-extension on RawKeyDownEvent {
+extension on KeyEvent {
   bool get isArrow =>
       logicalKey == LogicalKeyboardKey.arrowDown ||
       logicalKey == LogicalKeyboardKey.arrowUp ||

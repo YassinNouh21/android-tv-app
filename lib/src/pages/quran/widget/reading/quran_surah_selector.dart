@@ -19,11 +19,6 @@ class SurahSelectorWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Don't show the widget in portrait mode
-    if (isPortrait) {
-      return const SizedBox.shrink();
-    }
-
     final quranReadingState = ref.watch(quranReadingNotifierProvider);
     final screenHeight = MediaQuery.of(context).size.height;
     final topPosition = screenHeight * 0.015; // 1.5% of screen height
@@ -80,83 +75,125 @@ class SurahSelectorWidget extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            S.of(context).surahSelector,
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.bold,
+        final size = MediaQuery.of(context).size;
+        final needsRotation = isPortrait && size.width > size.height;
+
+        return RotatedBox(
+          quarterTurns: needsRotation ? -1 : 0,
+          child: AlertDialog(
+            title: Text(
+              S.of(context).surahSelector,
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          content: Container(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.8,
-            child: Consumer(
-              builder: (context, ref, _) {
-                final suwarState = ref.watch(quranReadingNotifierProvider);
-                return suwarState.when(
-                  loading: () => Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
-                  data: (quranState) {
-                    final suwar = quranState.suwar;
-                    final currentSurahIndex =
-                        suwar.indexWhere((element) => element.name == quranState.currentSurahName);
+            content: Container(
+              width: double.maxFinite,
+              height: size.height * 0.8,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final suwarState = ref.watch(quranReadingNotifierProvider);
+                  return suwarState.when(
+                    loading: () => Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(child: Text('Error: $err')),
+                    data: (quranState) {
+                      final suwar = quranState.suwar;
+                      final currentSurahIndex =
+                          suwar.indexWhere((element) => element.name == quranState.currentSurahName);
 
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      controller.scrollToIndex(currentSurahIndex, preferPosition: AutoScrollPosition.begin);
-                    });
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        controller.scrollToIndex(currentSurahIndex, preferPosition: AutoScrollPosition.begin);
+                      });
 
-                    return GridView.builder(
-                      controller: controller,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        childAspectRatio: 2.5 / 1,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: suwar.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final surah = suwar[index];
-                        final page = surah.startPage % 2 == 0 ? surah.startPage - 1 : surah.startPage;
-                        return AutoScrollTag(
-                          key: ValueKey(index),
-                          controller: controller,
-                          index: index,
-                          child: InkWell(
-                            autofocus: index == currentSurahIndex,
-                            onTap: () {
-                              ref.read(quranReadingNotifierProvider.notifier).updatePage(page);
-                              Navigator.of(context).pop();
-                            },
-                            child: Container(
-                              height: 40.h,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6.0),
-                                border: Border.all(
-                                  color: Theme.of(context).dividerColor,
-                                  width: 1,
+                      // Determine if we're in portrait or landscape mode
+                      // Check both device orientation and software rotation (isPortrait)
+                      final deviceOrientation = MediaQuery.of(context).orientation;
+                      final isActuallyPortrait = (deviceOrientation == Orientation.portrait && !isPortrait) ||
+                          (deviceOrientation == Orientation.landscape && isPortrait);
+
+                      return GridView.builder(
+                        controller: controller,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          childAspectRatio: 2.5 / 1,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: suwar.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final surah = suwar[index];
+
+                          // Calculate the correct page based on orientation
+                          final int page;
+                          if (isActuallyPortrait) {
+                            // Portrait: Show one page at a time, use exact start page
+                            page = surah.startPage - 1;
+                          } else {
+                            // Landscape: Show two pages at a time, adjust for even pages
+                            page = surah.startPage % 2 == 0 ? surah.startPage - 1 : surah.startPage;
+                          }
+
+                          return AutoScrollTag(
+                            key: ValueKey(index),
+                            controller: controller,
+                            index: index,
+                            child: InkWell(
+                              autofocus: index == currentSurahIndex,
+                              onTap: () {
+                                ref.read(quranReadingNotifierProvider.notifier).updatePage(
+                                      page,
+                                      isPortairt: isActuallyPortrait,
+                                    );
+                                Navigator.of(context).pop();
+                              },
+                              child: Container(
+                                height: 40.h,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6.0),
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
+                                    width: 1,
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                "${surah.id}- ${surah.name}",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.normal,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (surah.arabicName != surah.name)
+                                      Text(
+                                        surah.arabicName,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 8.sp,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    if (surah.arabicName != surah.name) SizedBox(height: 1),
+                                    Text(
+                                      "${surah.id}- ${surah.name}",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 8.sp,
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ],
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         );

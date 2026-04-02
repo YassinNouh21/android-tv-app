@@ -39,7 +39,7 @@ class ThemeNotifier with ChangeNotifier {
         ),
         textTheme: Typography.material2014().white.apply(
           fontFamily: StringManager.fontFamilyHelvetica,
-          fontFamilyFallback: [StringManager.fontFamilyKufi],
+          fontFamilyFallback: [GoogleFonts.notoSans().fontFamily!, StringManager.fontFamilyKufi],
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: ButtonStyle(

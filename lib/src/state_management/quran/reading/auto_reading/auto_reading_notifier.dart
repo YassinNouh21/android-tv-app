@@ -60,23 +60,15 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
     );
 
     try {
-      // Use Future.wait to ensure all async operations complete
-      await Future.wait([
-        Future.microtask(() async {
-          // Robust wait for scroll controller
-          for (int i = 0; i < 50; i++) {
-            // 5 seconds total wait time
-            if (scrollController.hasClients && scrollController.position.hasContentDimensions) {
-              _initializeScrollController(currentPage, pageHeight);
-              break;
-            }
-            await Future.delayed(Duration(milliseconds: 100));
-          }
-        }),
+      // Wait for the view to be fully rendered.
+      // The widget's _jumpToInitialPage handles the initial scroll position,
+      // so we only need to wait before starting the animation.
+      await Future.delayed(Duration(milliseconds: 500));
 
-        // Additional delay to ensure view is fully rendered
-        Future.delayed(Duration(milliseconds: 500))
-      ]);
+      if (!scrollController.hasClients) {
+        state = state.copyWith(isLoading: false, isPlaying: false);
+        return;
+      }
 
       // Update state to start auto-scrolling
       state = state.copyWith(
@@ -96,12 +88,6 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
     }
   }
 
-  void _initializeScrollController(int currentPage, double pageHeight) {
-    final pageOffset = currentPage * pageHeight;
-    // Set initial offset to correct position, account for rotation if necessary
-    scrollController.jumpTo(pageOffset);
-  }
-
   void _startScrolling() {
     // Cancel any existing timer to prevent multiple timers
     _autoScrollTimer?.cancel();
@@ -111,20 +97,15 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
       return;
     }
 
-    // Additional safety checks
-    if (scrollController == null) {
-      return;
-    }
+    int noClientTicks = 0;
 
     _autoScrollTimer = Timer.periodic(Duration(milliseconds: 50), (timer) {
-      // Comprehensive client check
       if (scrollController.hasClients && scrollController.position.hasContentDimensions) {
+        noClientTicks = 0;
         try {
           final maxScroll = scrollController.position.maxScrollExtent;
           final currentScroll = scrollController.offset;
           final delta = state.autoScrollSpeed;
-
-          // Detailed logging for debugging
 
           if (currentScroll >= maxScroll) {
             stopAutoScroll();
@@ -132,10 +113,8 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
             return;
           }
 
-          // Safe scroll operation
           scrollController.jumpTo(min(currentScroll + delta, maxScroll));
 
-          // Page calculation
           final pageHeight = scrollController.position.viewportDimension;
           final newPage = _calculateCurrentPage(scrollController, pageHeight);
 
@@ -143,10 +122,18 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
             state = state.copyWith(currentPage: newPage);
           }
         } catch (e) {
+          debugPrint('[AutoScroll] Error during scroll: $e');
           timer.cancel();
           state = state.copyWith(isPlaying: false);
         }
-      } else {}
+      } else {
+        noClientTicks++;
+        if (noClientTicks > 100) {
+          debugPrint('[AutoScroll] Lost scroll clients, stopping');
+          timer.cancel();
+          state = state.copyWith(isPlaying: false);
+        }
+      }
     });
   }
 
@@ -190,7 +177,7 @@ class AutoScrollNotifier extends AutoDisposeNotifier<AutoScrollState> {
           );
     } catch (e) {
       // Handle error silently or show a user-friendly message
-      print('Error updating page: $e');
+      debugPrint('[AutoScroll] Error updating page: $e');
     }
   }
 

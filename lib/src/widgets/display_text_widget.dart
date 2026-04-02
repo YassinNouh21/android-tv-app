@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
+import 'package:mawaqit/src/helpers/StringUtils.dart';
 import 'package:mawaqit/src/services/theme_manager.dart';
 import 'package:mawaqit/src/state_management/random_hadith/random_hadith_notifier.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -159,27 +160,32 @@ class DisplayTextWidget extends ConsumerWidget {
   }) {
     return isHadith
         ? Expanded(
-            child: Container(
-              width: double.infinity,
-              child: Padding(
-                key: ValueKey(text),
-                padding: EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: isHadith ? 16.0 : 0.0,
+            child: Center(
+              child: Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  maxWidth: 90.vw,
                 ),
-                child: AutoSizeText(
-                  text,
-                  style: isHadith
-                      ? _getHadithTextStyle(context, hadithLanguage)
-                      : TextStyle(
-                          fontSize: 32.sp,
-                          color: Colors.white,
-                          shadows: kIqamaCountDownTextShadow,
-                        ),
-                  textAlign: TextAlign.center,
-                  textDirection: textDirection,
-                  maxLines: isHadith ? null : 1,
-                ).animate().fadeIn(delay: delay).addRepaintBoundary(),
+                child: Padding(
+                  key: ValueKey(text),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 3.vw,
+                    vertical: 2.vh,
+                  ),
+                  child: AutoSizeText(
+                    text,
+                    style: isHadith
+                        ? _getHadithTextStyle(context, hadithLanguage)
+                        : TextStyle(
+                            fontSize: 32.sp,
+                            color: Colors.white,
+                            shadows: kIqamaCountDownTextShadow,
+                          ),
+                    textAlign: TextAlign.center,
+                    textDirection: textDirection,
+                    maxLines: isHadith ? null : 1,
+                  ).animate().fadeIn(delay: delay).addRepaintBoundary(),
+                ),
               ),
             ),
           )
@@ -225,6 +231,13 @@ class DisplayTextWidget extends ConsumerWidget {
       return baseStyle.copyWith(
         fontFamily: null,
         fontFamilyFallback: null,
+      );
+    }
+
+    // For non-Arabic languages, add Kufi as fallback for Arabic words
+    if (hadithLanguage.languageCode != 'ar') {
+      return baseStyle.copyWith(
+        fontFamilyFallback: [StringManager.fontFamilyKufi],
       );
     }
 

@@ -54,9 +54,9 @@ class RTSPStreamHelper {
     _player!.stream.buffering.listen((buffering) {
       if (buffering && _bufferingStartTime == null) {
         _bufferingStartTime = DateTime.now().millisecondsSinceEpoch;
-        dev.log('⏳ [RTSP_HELPER] Stream started buffering');
+        dev.log('[RTSP_HELPER] Stream started buffering');
       } else if (!buffering && _bufferingStartTime != null) {
-        dev.log('✅ [RTSP_HELPER] Stream stopped buffering');
+        dev.log('[RTSP_HELPER] Stream stopped buffering');
         _bufferingStartTime = null;
       }
     });
@@ -88,7 +88,7 @@ class RTSPStreamHelper {
   /// Check if the stream is currently active and healthy
   Future<bool> checkStreamActive() async {
     if (_player == null) {
-      dev.log('❌ [RTSP_HELPER] No player instance');
+      dev.log('[RTSP_HELPER] No player instance');
       return false;
     }
 
@@ -109,36 +109,36 @@ class RTSPStreamHelper {
 
         if (_bufferingStartTime == null) {
           _bufferingStartTime = currentTime;
-          dev.log('⏳ [RTSP_HELPER] Stream started buffering');
+          dev.log('[RTSP_HELPER] Stream started buffering');
           return true; // Allow some buffering time
         } else {
           final bufferingDuration = currentTime - _bufferingStartTime!;
           if (bufferingDuration > _maxBufferingTimeMs) {
-            dev.log('❌ [RTSP_HELPER] Stream buffering too long (${bufferingDuration}ms), considering inactive');
+            dev.log('[RTSP_HELPER] Stream buffering too long (${bufferingDuration}ms), considering inactive');
             _bufferingStartTime = null;
             return false;
           } else {
-            dev.log('⏳ [RTSP_HELPER] Stream buffering for ${bufferingDuration}ms, still within limits');
+            dev.log('[RTSP_HELPER] Stream buffering for ${bufferingDuration}ms, still within limits');
             return true;
           }
         }
       } else {
         // Not buffering, reset the buffering timer
         if (_bufferingStartTime != null) {
-          dev.log('✅ [RTSP_HELPER] Stream stopped buffering');
+          dev.log('[RTSP_HELPER] Stream stopped buffering');
           _bufferingStartTime = null;
         }
       }
 
       // For live streams, we should be actively playing
       if (!_isPlaying) {
-        dev.log('❌ [RTSP_HELPER] Stream not playing');
+        dev.log('[RTSP_HELPER] Stream not playing');
         return false;
       }
 
       // Additional check: For RTSP live streams, position should be reasonable
       // Live streams typically have very large position values or duration might be unknown
-      dev.log('✅ [RTSP_HELPER] Stream is healthy - Playing: $_isPlaying, Position: $position, Buffering: $buffering');
+      dev.log('[RTSP_HELPER] Stream is healthy - Playing: $_isPlaying, Position: $position, Buffering: $buffering');
       return true;
     } catch (e) {
       dev.log('🚨 [RTSP_HELPER] Error during stream health check: $e');
@@ -148,7 +148,7 @@ class RTSPStreamHelper {
 
   /// Pause the stream
   Future<void> pause() async {
-    dev.log('⏸️ [RTSP_HELPER] Pausing stream');
+    dev.log('[RTSP_HELPER] Pausing stream');
     await _player?.pause();
   }
 
@@ -209,7 +209,7 @@ class RTSPStreamHelper {
       dev.log('🔍 [RTSP_HELPER] Checking server availability for: $url');
 
       if (!isValidRtspUrl(url)) {
-        dev.log('❌ [RTSP_HELPER] Invalid RTSP URL format');
+        dev.log('[RTSP_HELPER] Invalid RTSP URL format');
         return false;
       }
 
@@ -229,11 +229,11 @@ class RTSPStreamHelper {
           timeout: const Duration(seconds: 5),
         );
 
-        dev.log('✅ [RTSP_HELPER] Server is reachable at $host:$port');
+        dev.log('[RTSP_HELPER] Server is reachable at $host:$port');
         await socket.close();
         return true;
       } catch (e) {
-        dev.log('❌ [RTSP_HELPER] Server unreachable at $host:$port - $e');
+        dev.log('[RTSP_HELPER] Server unreachable at $host:$port - $e');
         return false;
       } finally {
         socket?.destroy();

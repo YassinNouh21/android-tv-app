@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mawaqit/src/domain/model/quran/surah_model.dart';
 import 'package:mawaqit/src/pages/quran/widget/surah_card.dart';
+import 'package:mawaqit/src/pages/quran/widget/reciter_error_widget.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 
 import 'package:shimmer/shimmer.dart';
@@ -24,6 +25,7 @@ import '../../../services/theme_manager.dart';
 import '../../../state_management/quran/recite/download_audio_quran/download_audio_quran_notifier.dart';
 import '../../../state_management/quran/recite/download_audio_quran/download_audio_quran_state.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
 
 class SurahSelectionScreen extends ConsumerStatefulWidget {
   final MoshafModel selectedMoshaf;
@@ -45,10 +47,12 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
   final ScrollController _scrollController = ScrollController();
   Timer? _debounceTimer;
   bool _isNavigating = false;
+  final FocusNode _errorFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    setJx11Enabled(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(quranPlayerNotifierProvider.notifier).getDownloadedSuwarByReciterAndRiwayah(
             reciterId: widget.reciterId,
@@ -59,7 +63,9 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
 
   @override
   void dispose() {
+    setJx11Enabled(false);
     _scrollController.dispose();
+    _errorFocusNode.dispose();
     super.dispose();
   }
 
@@ -109,6 +115,12 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
     return "${widget.reciterId}:${widget.selectedMoshaf.id.toString()}";
   }
 
+  void _handleRetry() {
+    ref.read(quranNotifierProvider.notifier).getSuwarByReciter(
+          selectedMoshaf: widget.selectedMoshaf,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final downloadNotifierParameter = DownloadStateProviderParameter(
@@ -117,6 +129,24 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
     );
 
     final quranState = ref.watch(quranNotifierProvider);
+    // JX-11 ring: directional grid navigation + activate
+    ref.listen(jx11EventProvider, (_, next) {
+      final event = next.valueOrNull;
+      if (event == null) return;
+      if (event.isActivate) {
+        jx11ActivateFocused();
+      } else {
+        final direction = switch (event) {
+          Jx11Event.rollerUp || Jx11Event.volumeDown => TraversalDirection.up,
+          Jx11Event.rollerDown || Jx11Event.volumeUp => TraversalDirection.down,
+          Jx11Event.swipeLeft => TraversalDirection.left,
+          Jx11Event.swipeRight => TraversalDirection.right,
+          _ => null,
+        };
+        if (direction != null) jx11DirectionalFocus(direction);
+      }
+    });
+
     ref.listen<DownloadAudioQuranState>(downloadStateProvider(downloadNotifierParameter), (previous, next) {
       if (next.downloadStatus == DownloadStatus.completed) {
         showToast(S.of(context).downloadAllSuwarSuccessfully);
@@ -301,10 +331,11 @@ class _SurahSelectionScreenState extends ConsumerState<SurahSelectionScreen> {
                   },
                   error: (error, stack) {
                     log('Error: $error\n$stack');
-                    return Center(
-                      child: Text(
-                        'Error: $error',
-                      ),
+                    return ReciterErrorWidget(
+                      error: error,
+                      focusNode: _errorFocusNode,
+                      errorType: QuranErrorType.surah,
+                      onRetry: _handleRetry,
                     );
                   },
                   loading: () => _buildShimmerGrid(),

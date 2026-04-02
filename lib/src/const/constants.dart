@@ -7,12 +7,17 @@ const kDeviceInfo = 'device_info';
 
 const kBaseUrl = 'https://mawaqit.net/api';
 const kStagingUrl = 'https://staging.mawaqit.net/api';
+const kPreProdUrl = 'https://preprod.mawaqit.net/api';
 const kStaticFilesUrl = 'https://cdn.mawaqit.net';
 const kStagingStaticFilesUrl = 'https://cdn.mawaqit.net';
+const kPreProdStaticFilesUrl = 'https://cdn.mawaqit.net';
 
 const kApiToken = String.fromEnvironment('mawaqit.api.key');
 const kSentryDns = String.fromEnvironment('mawaqit.sentry.dns');
 const kGooglePlayId = 'com.mawaqit.androidtv';
+
+const kAppFlavor = String.fromEnvironment('APP_FLAVOR', defaultValue: 'googleplay');
+const kIsSideloadFlavor = kAppFlavor == 'sideload';
 
 class CacheKey {
   static const String kMosqueBackgroundScreen = 'mosque_background_screen';
@@ -38,6 +43,15 @@ abstract class RandomHadithConstant {
   static const String kBoxName = "random_hadith_list";
   static const String kHadithLanguage = "hadith_language";
   static const String kLastHadithXMLFetchLanguage = "last_hadith_xml_language";
+  static const String kUseMosqueDefaultLanguage = "auto";
+  static const String kDefaultLanguageFallback = "Default";
+}
+
+/// Constants for bilingual language separator patterns (e.g., 'fr-ar', 'en_ar')
+abstract class LanguageConstants {
+  static const String separatorDash = '-';
+  static const String separatorUnderscore = '_';
+  static const String separatorPattern = r'[-_]';
 }
 
 class TurnOnOffTvConstant {
@@ -73,17 +87,29 @@ abstract class QuranConstant {
   static const String kSelectedMoshafType = 'selected_moshaf_type';
   static const String kQuranBaseUrl = 'https://mp3quran.net/api/v3/';
   static const String kSurahBox = 'surah_box_v2';
-  static const String kReciterBox = 'reciter_box_v2';
+  static const String kReciterBox = 'reciter_box_v3';
   static const String kQuranModePref = 'quran_mode';
   static const String kSavedCurrentPage = 'saved_current_page';
+  static const String kHafsSavedCurrentPage = 'hafs_saved_current_page';
+  static const String kWarshSavedCurrentPage = 'warsh_saved_current_page';
   static const String kFavoriteReciterBox = 'favorite_reciter_box';
   static const String quranMoshafConfigJsonUrl = 'https://cdn.mawaqit.net/quran/tv_config.json';
   static const String kIsFirstTime = 'is_first_time_quran';
   static const String kQuranReciterImagesBaseUrl = 'https://cdn.mawaqit.net/quran/reciters-pictures/';
   static const String kQuranCacheBoxName = 'timestamp_box';
   static const String kQuranReciterRetentionTime = 'quran_reciter_retention_time';
+
+  // Playback session persistence keys
+  static const String kLastPlayedReciterId = 'quran_last_reciter_id';
+  static const String kLastPlayedMoshafId = 'quran_last_moshaf_id';
+  static const String kLastPlayedSurahId = 'quran_last_surah_id';
+  static const String kLastPlayedPositionMs = 'quran_last_position_ms';
+  static const String kLastPlayedSurahJson = 'quran_last_surah_json';
+
   static const int kCacheWidth = 300;
   static const int kCacheHeight = 300;
+  static const String kArabicLanguage = 'ar';
+  static const String kEnglishLanguage = 'eng';
 }
 
 abstract class AzkarConstant {
@@ -112,6 +138,7 @@ class BackgroundScheduleAudioServiceConstant {
   static const String kRandomEnabled = 'isRandomEnabled';
   static const String kRandomUrls = 'random_urls';
   static const String kSelectedSurah = 'selected_surah';
+  static const String kSelectedSurahName = 'selected_surah_name';
   static const String kSelectedSurahUrl = 'selected_surah_url';
   static const String kSelectedReciter = 'selected_reciter';
   static const String kSelectedMoshaf = 'selected_moshaf';
@@ -132,8 +159,10 @@ abstract class MawaqitBackendSettingsConstant {
 }
 
 abstract class ManualUpdateConstant {
-  static const String githubApiBaseUrl = 'https://api.github.com/repos/mawaqit/android-tv-app/releases';
-  static const String githubAcceptHeader = 'application/vnd.github.v3+json';
+  static const String s3BucketListUrl = 'https://cdn.mawaqit.net.s3.amazonaws.com/?list-type=2&prefix=android/tv/apk/';
+  static const String s3DownloadBaseUrl = 'https://cdn.mawaqit.net';
+  static const String apkPrefix = 'MAWAQIT-For-TV-v';
+  static const String sideloadSuffix = '-sideload';
 }
 
 abstract class ScheduleListeningConstant {
@@ -152,6 +181,19 @@ abstract class PrayerAudioConstant {
   static const String kHttpsPrefix = 'https:';
 }
 
+abstract class DeviceDetectionConstant {
+  static const chromeCastDeviceKeywords = {
+    'chromecast',
+    'haier',
+    'condor',
+    'xiaomi',
+    'hyundai',
+    'iris',
+    'stream',
+    'lifemax'
+  };
+}
+
 abstract class LiveStreamConstants {
   /// Regular expression to match YouTube URLs
   static final RegExp youtubeUrlRegex = RegExp(
@@ -164,6 +206,12 @@ abstract class LiveStreamConstants {
 
   /// Key for the URL preference in SharedPreferences
   static const String prefKeyUrl = 'livestream_url';
+
+  /// Key for the backoffice URL preference in SharedPreferences
+  static const String prefKeyBackofficeUrl = 'livestream_backoffice_url';
+
+  /// Key for the use backoffice stream toggle in SharedPreferences
+  static const String prefKeyUseBackofficeStream = 'livestream_use_backoffice_stream';
 
   /// Key for the replace workflow preference in SharedPreferences
   static const String prefKeyReplaceWorkflow = 'livestream_replace_workflow';
@@ -194,4 +242,21 @@ abstract class LiveStreamConstants {
 
   /// Timeout for auto-detection of live camera in minutes
   static const int autoDetectionTimeoutMinutes = 3;
+}
+
+abstract class AlarmManagerConstants {
+  /// Maximum time difference in minutes for stale alarm detection
+  /// If an alarm is scheduled to run more than this many minutes in the past,
+  /// it will be considered stale and skipped
+  static const int staleAlarmThresholdMinutes = 5;
+}
+
+abstract class BackgroundServiceConstants {
+  /// Maximum time to wait for service to stop (in milliseconds)
+  /// Used when polling for service shutdown completion
+  static const int serviceStopTimeoutMs = 3000;
+
+  /// Interval between service status checks (in milliseconds)
+  /// Used when polling to verify service has stopped
+  static const int serviceStopPollIntervalMs = 100;
 }

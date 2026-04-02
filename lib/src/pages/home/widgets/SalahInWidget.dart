@@ -39,25 +39,15 @@ class SalahInWidget extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: 30.vwr),
           padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
           child: FittedBox(
-            child: !mosqueManager.isShurukTime
-                ? Text(
-                    countDownText,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.8.vwr,
-                      color: Colors.white,
-                      shadows: kHomeTextShadow,
-                    ),
-                  )
-                : Text(
-                    mosqueManager.getShurukInString(context),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.8.vwr,
-                      color: Colors.white,
-                      shadows: kHomeTextShadow,
-                    ),
-                  ),
+            child: Text(
+              mosqueManager.getActiveCountdownText(context, countDownText),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 2.8.vwr,
+                color: Colors.white,
+                shadows: kHomeTextShadow,
+              ),
+            ),
           ),
         ),
         Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr),

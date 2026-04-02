@@ -10,10 +10,10 @@ import 'package:page_transition/page_transition.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../i18n/l10n.dart';
-import '../../../../main.dart';
 import '../../../helpers/Api.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
 import 'chromecast_mosque_input_id.dart';
+import 'package:mawaqit/src/state_management/device_info/device_info_notifier.dart';
 
 class InputTypeSelector extends ConsumerStatefulWidget {
   const InputTypeSelector({
@@ -32,7 +32,6 @@ class InputTypeSelector extends ConsumerStatefulWidget {
 }
 
 class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
-  String? _deviceModel;
   bool _hasSelectedYes = false;
   bool _hasSelectedNo = false;
 
@@ -47,42 +46,37 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     }
   }
 
-  void _handleYesSelection() async {
+  bool get _isPhone {
+    final deviceInfo = ref.watch(deviceInfoProvider);
+    final isTV = deviceInfo.valueOrNull?.isBoxOrAndroidTV ?? false;
+    if (isTV) return false;
+    return MediaQuery.of(context).size.shortestSide < 480;
+  }
+
+  void _handleYesSelection() {
     setState(() {
       _hasSelectedYes = true;
       _hasSelectedNo = false;
     });
 
-    final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.contains('chromecast');
-
     widget.nextButtonFocusNode.fold(
       () {
-        if (isChromeCast) {
-          Navigator.push(
-            context,
-            PageTransition(
-              type: PageTransitionType.fade,
-              alignment: Alignment.center,
-              child: ChromeCastMosqueInputId(
-                onDone: widget.onDone,
-                isOnboarding: widget.isOnboarding,
-              ),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            PageTransition(
-              type: PageTransitionType.fade,
-              alignment: Alignment.center,
-              child: MosqueInputId(
-                onDone: widget.onDone,
-                isOnboarding: widget.isOnboarding,
-              ),
-            ),
-          );
-        }
+        Navigator.push(
+          context,
+          PageTransition(
+            type: PageTransitionType.fade,
+            alignment: Alignment.center,
+            child: _isPhone
+                ? MosqueInputId(
+                    onDone: widget.onDone,
+                    isOnboarding: widget.isOnboarding,
+                  )
+                : ChromeCastMosqueInputId(
+                    onDone: widget.onDone,
+                    isOnboarding: widget.isOnboarding,
+                  ),
+          ),
+        );
       },
       (focus) {
         Future.delayed(Duration(milliseconds: 300), () {
@@ -95,42 +89,30 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     ref.read(mosqueInputTypeSelectorProvider.notifier).state = SelectionType.mosqueId;
   }
 
-  void _handleNoSelection() async {
+  void _handleNoSelection() {
     setState(() {
       _hasSelectedYes = false;
       _hasSelectedNo = true;
     });
 
-    final deviceModel = await _fetchDeviceModel() ?? '';
-    final isChromeCast = deviceModel.contains('chromecast');
-
     widget.nextButtonFocusNode.fold(
       () {
-        if (isChromeCast) {
-          Navigator.push(
-            context,
-            PageTransition(
-              type: PageTransitionType.fade,
-              alignment: Alignment.center,
-              child: ChromeCastMosqueInputSearch(
-                onDone: widget.onDone,
-                isOnboarding: widget.isOnboarding,
-              ),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            PageTransition(
-              type: PageTransitionType.fade,
-              alignment: Alignment.center,
-              child: MosqueInputSearch(
-                onDone: widget.onDone,
-                isOnboarding: widget.isOnboarding,
-              ),
-            ),
-          );
-        }
+        Navigator.push(
+          context,
+          PageTransition(
+            type: PageTransitionType.fade,
+            alignment: Alignment.center,
+            child: _isPhone
+                ? MosqueInputSearch(
+                    onDone: widget.onDone,
+                    isOnboarding: widget.isOnboarding,
+                  )
+                : ChromeCastMosqueInputSearch(
+                    onDone: widget.onDone,
+                    isOnboarding: widget.isOnboarding,
+                  ),
+          ),
+        );
       },
       (focus) {
         Future.delayed(Duration(milliseconds: 300), () {
@@ -283,19 +265,6 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
         ),
       ],
     );
-  }
-
-  Future<String?> _fetchDeviceModel() async {
-    try {
-      final userData = await Api.prepareUserData();
-      if (userData != null) {
-        return userData.$2['model'];
-      }
-      return null;
-    } catch (e, stackTrace) {
-      logger.e('Error fetching user data: $e', stackTrace: stackTrace);
-      return null;
-    }
   }
 }
 

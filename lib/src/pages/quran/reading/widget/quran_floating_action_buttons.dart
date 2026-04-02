@@ -1,10 +1,9 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mawaqit/src/pages/quran/page/reciter_selection_screen.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
 import 'package:mawaqit/src/state_management/quran/reading/auto_reading/auto_reading_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/reading/quran_reading_notifer.dart';
@@ -80,6 +79,19 @@ class _QuranModeButton extends ConsumerWidget {
     required this.switchQuranModeNode,
   });
 
+  Future<void> _handleSwitchToListeningMode(BuildContext context, WidgetRef ref) async {
+    final userPrefs = provider.Provider.of<UserPreferencesManager>(context, listen: false);
+    ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.listening);
+    if (context.mounted) {
+      if (userPrefs.appMode == AppMode.quran) {
+        // In Quran mode, push so we can pop back to reading
+        Navigator.pushNamed(context, Routes.quranReciter);
+      } else {
+        Navigator.pushReplacementNamed(context, Routes.quranReciter);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Calculate relative size
@@ -100,10 +112,7 @@ class _QuranModeButton extends ConsumerWidget {
           color: Colors.white,
           size: iconSize,
         ),
-        onPressed: () {
-          ref.read(quranNotifierProvider.notifier).selectModel(QuranMode.listening);
-          Navigator.pushReplacementNamed(context, Routes.quranReciter);
-        },
+        onPressed: () => _handleSwitchToListeningMode(context, ref),
         heroTag: null,
       ),
     );
@@ -215,6 +224,7 @@ class _FontSizeControls extends ConsumerWidget {
 }
 
 // Add new Exit button widget
+
 class _ExitButton extends ConsumerStatefulWidget {
   final bool isPortrait;
   final QuranReadingState quranReadingState;
@@ -231,6 +241,7 @@ class _ExitButton extends ConsumerStatefulWidget {
 
 class __ExitButtonState extends ConsumerState<_ExitButton> {
   late FocusNode exitFocusNode;
+
   @override
   void initState() {
     exitFocusNode = FocusNode(debugLabel: 'exit_focus_node');
@@ -248,9 +259,14 @@ class __ExitButtonState extends ConsumerState<_ExitButton> {
       isPortrait: widget.isPortrait,
       icon: Icons.close,
       onPressed: () {
-        ref
-            .read(autoScrollNotifierProvider.notifier)
-            .stopAutoScroll(isPortairt: widget.isPortrait, quranReadingState: widget.quranReadingState);
+        final deviceOrientation = MediaQuery.of(context).orientation;
+        final shouldShowVertical = (deviceOrientation == Orientation.portrait && !widget.isPortrait) ||
+            (deviceOrientation == Orientation.landscape && widget.isPortrait);
+
+        ref.read(autoScrollNotifierProvider.notifier).stopAutoScroll(
+              isPortairt: shouldShowVertical,
+              quranReadingState: widget.quranReadingState,
+            );
       },
       tooltip: 'Exit Auto-Scroll',
     );

@@ -151,8 +151,8 @@ final reciteRemoteDataSourceProvider = Provider<ReciteRemoteDataSource>((ref) {
   final dio = DioModule(
     baseUrl: QuranConstant.kQuranBaseUrl,
     headers: DioModule().defaultHeader,
-    connectTimeout: Duration(seconds: 30),
-    receiveTimeout: Duration(seconds: 30),
+    connectTimeout: Duration(seconds: 45),
+    receiveTimeout: Duration(seconds: 45),
   );
   return ReciteRemoteDataSource(dio.dio);
 });

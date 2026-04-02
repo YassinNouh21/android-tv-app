@@ -29,7 +29,7 @@ class WeatherWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         WeatherIconWidget(icon: mosqueManager.weather!.icon, useDay: mosqueManager.salahIndex < 3),
-        SizedBox(width: 1.6.vw),
+        SizedBox(width: 1.6.vwr),
         Text(
           "$temperature",
           style: Theme.of(context).textTheme.titleLarge?.copyWith(

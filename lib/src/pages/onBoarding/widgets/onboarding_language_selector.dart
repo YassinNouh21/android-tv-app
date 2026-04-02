@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:mawaqit/i18n/AppLanguage.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/LocaleHelper.dart';
@@ -10,6 +11,8 @@ import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart'; // Prefix the provider import
 import 'package:scroll_to_index/scroll_to_index.dart';
+
+final _logger = Logger();
 
 class OnBoardingLanguageSelector extends ConsumerStatefulWidget {
   final bool isOnboarding;
@@ -147,11 +150,19 @@ class _OnBoardingLanguageSelectorState extends ConsumerState<OnBoardingLanguageS
       );
 
       // Find the selected language index
-      int selectedIndex = _sortedLocales.indexWhere((locale) =>
-          LocaleHelper.transformLocaleToString(appLanguage.appLocal) == LocaleHelper.transformLocaleToString(locale));
+      _logger.d('Looking for language: ${appLanguage.appLocal.languageCode}');
+      _logger.d('Available locales: ${_sortedLocales.map((l) => l.languageCode).toList()}');
+
+      int selectedIndex = _sortedLocales.indexWhere(
+        (locale) => appLanguage.appLocal.languageCode == locale.languageCode,
+      );
+
+      _logger.d('Selected index found: $selectedIndex');
 
       if (selectedIndex != -1) {
         _focusedIndex = selectedIndex;
+      } else {
+        _logger.d('Language not found in sorted locales, defaulting to first item');
       }
     }
 
@@ -348,11 +359,28 @@ class _LanguageTileState extends ConsumerState<LanguageTile> {
     return SizedBox(
       width: s,
       height: s,
-      child: CircleAvatar(
-        foregroundImage: AssetImage(
+      child: ClipOval(
+        child: Image.asset(
           'assets/img/flag/$languageCode.png',
+          width: s,
+          height: s,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: s,
+              height: s,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey.withOpacity(0.3),
+              ),
+              child: Icon(
+                Icons.language,
+                size: s,
+                color: Colors.grey,
+              ),
+            );
+          },
         ),
-        backgroundColor: Colors.white,
       ),
     );
   }

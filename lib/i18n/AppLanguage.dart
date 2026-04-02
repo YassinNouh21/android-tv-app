@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:global_configuration/global_configuration.dart';
+import 'package:logger/logger.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/const/config.dart';
 import 'package:mawaqit/src/const/constants.dart';
@@ -9,6 +12,8 @@ import 'package:mawaqit/src/helpers/LocaleHelper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../src/services/mosque_manager.dart';
+
+final _logger = Logger();
 
 /// [AppLanguage] is a class that handles the app language
 /// It is a singleton class that can be accessed from anywhere in the app
@@ -29,7 +34,15 @@ class AppLanguage extends ChangeNotifier {
 
   /// return the language name of the combined language
   /// Example: 'en-ar' will be 'English & Arabic'
-  String combinedLanguageName(String languageCode) {
+  String combinedLanguageName(String languageCode, {BuildContext? context}) {
+    // Handle special case for "auto" - return localized string
+    if (languageCode == RandomHadithConstant.kUseMosqueDefaultLanguage) {
+      if (context != null) {
+        return hadithLocalizedLanguage[languageCode]?.call(context) ?? languageCode;
+      }
+      return RandomHadithConstant.kDefaultLanguageFallback;
+    }
+
     // Handle special cases for Portuguese variants and other single locale codes with underscores
     if (Config.isoLang.containsKey(languageCode)) {
       return Config.isoLang[languageCode]?['nativeName'] ?? languageCode;
@@ -60,9 +73,43 @@ class AppLanguage extends ChangeNotifier {
   Future<void> fetchLocale() async {
     var prefs = await SharedPreferences.getInstance();
     if (prefs.getString('language_code') == null) {
-      _appLocale = Locale(GlobalConfiguration().getValue('defaultLanguage'), '');
+      // Try to detect device language from the platform
+      String? deviceLanguage;
+
+      // First try to get locale from Platform.localeName (more reliable on Android)
+      try {
+        final platformLocale = Platform.localeName;
+        _logger.d('Platform.localeName: $platformLocale');
+        if (platformLocale.isNotEmpty) {
+          // Platform.localeName returns format like "en_US" or "en"
+          deviceLanguage = platformLocale.split('_').first.split('-').first;
+          _logger.d('Detected device language from Platform: $deviceLanguage');
+        }
+      } catch (e) {
+        _logger.e('Error getting Platform.localeName: $e');
+      }
+
+      // Fallback to WidgetsBinding if Platform.localeName didn't work
+      if (deviceLanguage == null || deviceLanguage.isEmpty) {
+        final locale = WidgetsBinding.instance.platformDispatcher.locale;
+        deviceLanguage = locale.languageCode;
+        _logger.d('Detected device language from WidgetsBinding: $deviceLanguage');
+      }
+
+      // Check if the detected language is supported
+      final isSupported = S.supportedLocales.any((locale) => locale.languageCode == deviceLanguage);
+      _logger.d('Is device language supported: $isSupported');
+
+      if (isSupported) {
+        _appLocale = Locale(deviceLanguage, '');
+        _logger.d('Using device language: $deviceLanguage');
+      } else {
+        _appLocale = Locale(GlobalConfiguration().getValue('defaultLanguage'), '');
+        _logger.d('Using default language: ${GlobalConfiguration().getValue('defaultLanguage')}');
+      }
+
       notifyListeners();
-      return null;
+      return;
     }
     _appLocale = LocaleHelper.splitLocaleCode(prefs.getString('language_code')!);
     notifyListeners();
@@ -97,6 +144,7 @@ class AppLanguage extends ChangeNotifier {
   }
 
   Map<String, String Function(BuildContext)> hadithLocalizedLanguage = {
+    'auto': (context) => S.of(context).mosqueDefault, // Special "Auto" option
     'en': (context) => S.of(context).en,
     'fr': (context) => S.of(context).fr,
     'ar': (context) => S.of(context).ar,
@@ -105,6 +153,7 @@ class AppLanguage extends ChangeNotifier {
     'es': (context) => S.of(context).es,
     'pt': (context) => S.of(context).pt,
     'nl': (context) => S.of(context).nl,
+    'ta': (context) => S.of(context).ta,
     'fr_ar': (context) => S.of(context).fr_ar,
     'en_ar': (context) => S.of(context).en_ar,
     'de_ar': (context) => S.of(context).de_ar,
@@ -118,30 +167,44 @@ class AppLanguage extends ChangeNotifier {
   /// set the language of the hadith in shared preference
   Future<void> setHadithLanguage(String language) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    _hadithLanguage = language;
     await prefs.setString(RandomHadithConstant.kHadithLanguage, language);
     notifyListeners();
   }
 
   /// get the language of the hadith from shared preference
-  /// if there is no language saved, return the api default language
+  /// Logic:
+  /// 1. First fetch: use backoffice language and set to "auto"
+  /// 2. User selects "auto": always use backoffice language
+  /// 3. User selects specific language: use that language
   Future<String> getHadithLanguage(MosqueManager mosqueManager) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? hadithLanguage = prefs.getString(RandomHadithConstant.kHadithLanguage);
-    if (hadithLanguage != null && hadithLanguage.isNotEmpty) {
-      _hadithLanguage = hadithLanguage;
-      notifyListeners();
-      return hadithLanguage;
+    final userPreferenceLang = prefs.getString(RandomHadithConstant.kHadithLanguage);
+    final mosqueConfigLang = mosqueManager.mosqueConfig?.hadithLang ?? 'ar';
+
+    String resolvedLanguage;
+    if (userPreferenceLang == null || userPreferenceLang.isEmpty) {
+      resolvedLanguage = mosqueConfigLang;
+      await prefs.setString(RandomHadithConstant.kHadithLanguage, RandomHadithConstant.kUseMosqueDefaultLanguage);
+    } else if (userPreferenceLang == RandomHadithConstant.kUseMosqueDefaultLanguage) {
+      resolvedLanguage = mosqueConfigLang;
     } else {
-      final fallbackLang = mosqueManager.mosqueConfig?.hadithLang ?? "ar";
-      _hadithLanguage = fallbackLang;
-      // Save the fallback language to shared preferences so it persists
-      await prefs.setString(RandomHadithConstant.kHadithLanguage, fallbackLang);
-      notifyListeners();
-      return fallbackLang;
+      resolvedLanguage = userPreferenceLang;
     }
+
+    if (_hadithLanguage != resolvedLanguage) {
+      _hadithLanguage = resolvedLanguage;
+      notifyListeners();
+    }
+
+    return resolvedLanguage;
   }
 
-  /// getters for the hadith language
+  /// getters for the hadith language (resolved actual language)
   String get hadithLanguage => _hadithLanguage;
+
+  /// Get the user's hadith language preference (may be "auto" or specific language)
+  Future<String> getHadithLanguagePreference() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(RandomHadithConstant.kHadithLanguage) ?? RandomHadithConstant.kUseMosqueDefaultLanguage;
+  }
 }

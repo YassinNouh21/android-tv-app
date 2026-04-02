@@ -10,7 +10,7 @@ import 'package:mawaqit/src/domain/error/quran_exceptions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class QuranLocalDataSource {
-  final Box _surahBox;
+  final LazyBox _surahBox;
   final SharedPreferences _prefs;
 
   QuranLocalDataSource(this._surahBox, this._prefs);
@@ -29,7 +29,7 @@ class QuranLocalDataSource {
   /// [getSuwarByLanguage] get the list of surwars by language code
   Future<List<SurahModel>> getSuwarByLanguage(String languageCode) async {
     try {
-      final suwar = _surahBox.get(languageCode);
+      final suwar = await _surahBox.get(languageCode);
       if (suwar != null) {
         return List<SurahModel>.from(suwar);
       } else {
@@ -93,7 +93,7 @@ class QuranLocalDataSource {
 }
 
 final quranLocalDataSourceProvider = FutureProvider<QuranLocalDataSource>((ref) async {
-  final surahBox = await Hive.openBox(QuranConstant.kSurahBox);
+  final surahBox = await Hive.openLazyBox(QuranConstant.kSurahBox);
   final prefs = await SharedPreferences.getInstance();
   return QuranLocalDataSource(surahBox, prefs);
 });

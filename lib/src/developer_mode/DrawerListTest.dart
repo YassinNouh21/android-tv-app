@@ -4,6 +4,7 @@ import 'package:mawaqit/src/pages/HomeScreen.dart';
 import 'package:mawaqit/src/pages/developer/DeveloperScreen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/DuaaBetweenAdhanAndIqama.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/DuaaEftarScreen.dart';
+import 'package:mawaqit/src/pages/home/sub_screens/fajr_wake_up_screen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/takberat_aleid_screen.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:provider/provider.dart';
@@ -172,8 +173,20 @@ class DrawerListDeveloper extends StatelessWidget {
         DrawerListTitle(
           icon: Icons.live_tv,
           text: S.of(context).jumuaaLive,
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (context) => MosqueBackgroundScreen(child: JummuaLive()),
+              ),
+            );
+          },
+        ),
+        DrawerListTitle(
+          icon: Icons.wb_sunny_outlined,
+          text: S.of(context).fajrWakeUp,
           onTap: () => AppRouter.popAndPush(
-            MosqueBackgroundScreen(child: JummuaLive()),
+            MosqueBackgroundScreen(child: FajrWakeUpSubScreen()),
           ),
         ),
 
@@ -181,6 +194,11 @@ class DrawerListDeveloper extends StatelessWidget {
           value: userPreferencesManager.forceStaging,
           onChanged: (value) => userPreferencesManager.forceStaging = value,
           title: Text(S.of(context).forceStaging),
+        ),
+        SwitchListTile(
+          value: userPreferencesManager.forcePreProduction,
+          onChanged: (value) => userPreferencesManager.forcePreProduction = value,
+          title: Text(S.of(context).forcePreProduction),
         ),
         Divider(
           color: Colors.grey,

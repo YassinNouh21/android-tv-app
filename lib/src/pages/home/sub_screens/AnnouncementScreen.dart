@@ -12,6 +12,7 @@ import 'package:mawaqit/src/pages/home/sub_screens/normal_home.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/state_management/announcement/announcement_image_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -132,33 +133,27 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
   Widget _buildPrayerTimesWidget(
       BuildContext context, MosqueManager mosqueProvider, bool announcementMode, bool? showPrayerTimesOnMessageScreen) {
     final isImageAnnouncement = currentAnnouncement?.image != null;
+    // In announcement-only mode default to hidden; in normal mode default to visible (backward compat).
+    final showPrayers = (showPrayerTimesOnMessageScreen ?? !announcementMode) && !isImageAnnouncement;
 
-    return announcementMode
-        ? ((showPrayerTimesOnMessageScreen ?? false) && !isImageAnnouncement
-            ? IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 1.5.vh),
-                  child: mosqueProvider.times!.isTurki
-                      ? ResponsiveMiniSalahBarTurkishWidget()
-                      : ResponsiveMiniSalahBarWidget(),
-                ),
-              )
-            : const SizedBox.shrink())
-        : !isImageAnnouncement
-            ? IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 1.5.vh),
-                  child: mosqueProvider.times!.isTurki
-                      ? ResponsiveMiniSalahBarTurkishWidget()
-                      : ResponsiveMiniSalahBarWidget(),
-                ),
-              )
-            : const SizedBox.shrink();
+    return showPrayers
+        ? IgnorePointer(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 1.5.vh),
+              child: mosqueProvider.times!.isTurki
+                  ? ResponsiveMiniSalahBarTurkishWidget()
+                  : ResponsiveMiniSalahBarWidget(),
+            ),
+          )
+        : const SizedBox.shrink();
   }
 
   /// return the widget of the announcement based on its type
   Widget announcementWidgets(Announcement activeAnnouncement, {VoidCallback? nextAnnouncement}) {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final mosqueProvider = context.read<MosqueManager>();
+    final isIqamaMoreImportant = mosqueProvider.mosqueConfig!.iqamaMoreImportant == true;
+
     if (activeAnnouncement.content != null) {
       return isPortrait
           ? _TextAnnouncement.portrait(
@@ -168,6 +163,7 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
           : _TextAnnouncement.landscape(
               title: activeAnnouncement.title,
               content: activeAnnouncement.content!,
+              isIqamaMoreImportant: isIqamaMoreImportant,
             );
     } else if (activeAnnouncement.image != null) {
       return _ImageAnnouncement(
@@ -192,6 +188,7 @@ class _TextAnnouncement extends StatelessWidget {
     required this.title,
     required this.content,
     required this.isPortrait,
+    required this.isIqamaMoreImportant,
   }) : super(key: key);
 
   factory _TextAnnouncement.portrait({
@@ -204,6 +201,7 @@ class _TextAnnouncement extends StatelessWidget {
       title: title,
       content: content,
       isPortrait: true,
+      isIqamaMoreImportant: false,
     );
   }
 
@@ -211,18 +209,21 @@ class _TextAnnouncement extends StatelessWidget {
     Key? key,
     required String title,
     required String content,
+    required bool isIqamaMoreImportant,
   }) {
     return _TextAnnouncement._internal(
       key: key,
       title: title,
       content: content,
       isPortrait: false,
+      isIqamaMoreImportant: isIqamaMoreImportant,
     );
   }
 
   final String title;
   final String content;
   final bool isPortrait;
+  final bool isIqamaMoreImportant;
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +244,7 @@ class _TextAnnouncement extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       shadows: kAnnouncementTextShadow,
-                      fontSize: 6.vwr,
+                      fontSize: isIqamaMoreImportant ? 4.vwr : 6.vwr,
                       fontWeight: FontWeight.bold,
                       color: Colors.amber,
                       letterSpacing: 1,
@@ -254,7 +255,7 @@ class _TextAnnouncement extends StatelessWidget {
               // content
               SizedBox(height: 5.vh),
               Flexible(
-                flex: 24,
+                flex: isIqamaMoreImportant ? 12 : 24,
                 child: AutoSizeText(
                   content,
                   stepGranularity: 1,
@@ -326,7 +327,7 @@ class _TextAnnouncement extends StatelessWidget {
       ];
 }
 
-class _ImageAnnouncement extends StatelessWidget {
+class _ImageAnnouncement extends ConsumerStatefulWidget {
   const _ImageAnnouncement({
     Key? key,
     required this.image,
@@ -339,17 +340,36 @@ class _ImageAnnouncement extends StatelessWidget {
   final VoidCallback? onError;
 
   @override
+  ConsumerState<_ImageAnnouncement> createState() => _ImageAnnouncementState();
+}
+
+class _ImageAnnouncementState extends ConsumerState<_ImageAnnouncement> {
+  @override
   Widget build(BuildContext context) {
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    return isPortrait
+    final isScreenPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final imageDimensionsAsync = ref.watch(announcementImageProvider(widget.image));
+    final imageProvider = MawaqitNetworkImageProvider(widget.image, onError: widget.onError);
+
+    final imageFit = imageDimensionsAsync.when(
+      data: (dimensions) => dimensions.getOptimalBoxFit(isScreenPortrait),
+      loading: () => isScreenPortrait ? BoxFit.cover : BoxFit.fill,
+      error: (_, __) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onError?.call();
+        });
+        return isScreenPortrait ? BoxFit.cover : BoxFit.fill;
+      },
+    );
+
+    return isScreenPortrait
         ? Image(
-            image: MawaqitNetworkImageProvider(image, onError: onError),
-            fit: BoxFit.fitWidth,
+            image: imageProvider,
+            fit: imageFit,
             width: double.infinity,
           ).animate().slideX().addRepaintBoundary()
         : Image(
-            image: MawaqitNetworkImageProvider(image, onError: onError),
-            fit: BoxFit.fill,
+            image: imageProvider,
+            fit: imageFit,
             width: double.infinity,
             height: double.infinity,
           ).animate().slideX().addRepaintBoundary();

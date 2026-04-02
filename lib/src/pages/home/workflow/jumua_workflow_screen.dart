@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mawaqit/src/helpers/time_utils.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/AfterSalahAzkarScreen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/JummuaLive.dart';
-import 'package:mawaqit/src/pages/home/sub_screens/normal_home.dart';
+import 'package:mawaqit/src/pages/home/workflow/normal_workflow.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:provider/provider.dart';
@@ -28,8 +28,9 @@ class JumuaaWorkflowScreen extends StatelessWidget {
       debug: true,
       workFlowItems: [
         /// 5m before the jumuaa start time
+        /// Use NormalWorkflowScreen with interruptions disabled to prevent announcements
         WorkFlowItem(
-          builder: (context, next) => NormalHomeSubScreen(),
+          builder: (context, next) => NormalWorkflowScreen(disableInterruptions: true),
           duration: jumuaaTime.difference(now),
           skip: now.isAfter(jumuaaTime),
         ),
@@ -43,8 +44,9 @@ class JumuaaWorkflowScreen extends StatelessWidget {
         ),
 
         // salah time after jumuaa
+        // Use NormalWorkflowScreen with interruptions disabled
         WorkFlowItem(
-          builder: (context, next) => NormalHomeSubScreen(),
+          builder: (context, next) => NormalWorkflowScreen(disableInterruptions: true),
           duration: salahTime.minutes,
           skip: now.isAfter(jumuaaEndTime.add(salahTime.minutes)),
         ),
