@@ -139,8 +139,12 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
 
         final key = keyElements.first.innerText;
 
-        // Only include APK files with version pattern (MAWAQIT-For-TV-v*.apk)
-        if (key.contains(ManualUpdateConstant.apkPrefix) && key.endsWith('.apk')) {
+        // Sideload flavor picks *-sideload.apk, googleplay picks clean APKs (no sideload suffix)
+        final isSideloadApk = key.contains(ManualUpdateConstant.sideloadSuffix);
+        final isTargetApk = key.contains(ManualUpdateConstant.apkPrefix) &&
+            key.endsWith('.apk') &&
+            (kIsSideloadFlavor ? isSideloadApk : !isSideloadApk);
+        if (isTargetApk) {
           // Check if LastModified element exists before accessing
           final lastModifiedElements = content.findElements('LastModified');
           if (lastModifiedElements.isEmpty) continue;
