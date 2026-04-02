@@ -43,8 +43,7 @@ class _CountdownOrAudioWidgetState extends ConsumerState<CountdownOrAudioWidget>
     final audioAsync = ref.watch(audioControlProvider);
     final scheduleAsync = ref.watch(scheduleProvider);
 
-    final hasInternet =
-        connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
+    final hasInternet = connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
 
     if (hasInternet &&
         audioAsync.hasValue &&

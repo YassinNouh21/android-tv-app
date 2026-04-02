@@ -26,7 +26,6 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
   /// Creates an AudioControlNotifier with an optional background service
   AudioControlNotifier({FlutterBackgroundService? service}) : _service = service ?? FlutterBackgroundService();
 
-
   @override
   Future<AudioControlState> build() async {
     // Register cleanup when the provider is disposed

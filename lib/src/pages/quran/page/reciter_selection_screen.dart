@@ -309,8 +309,7 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
           allRecitersListFocusNode.requestFocus();
         }
         return KeyEventResult.handled;
-      } else if (event.logicalKey == LogicalKeyboardKey.select ||
-          event.logicalKey == LogicalKeyboardKey.enter) {
+      } else if (event.logicalKey == LogicalKeyboardKey.select || event.logicalKey == LogicalKeyboardKey.enter) {
         if (_savedSession != null && !_isResuming) {
           try {
             final surahJson = _savedSession!['surahJson'] as String;

@@ -40,14 +40,14 @@ class SalahInWidget extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
           child: FittedBox(
             child: Text(
-                    mosqueManager.getActiveCountdownText(context, countDownText),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.8.vwr,
-                      color: Colors.white,
-                      shadows: kHomeTextShadow,
-                    ),
-                  ),
+              mosqueManager.getActiveCountdownText(context, countDownText),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 2.8.vwr,
+                color: Colors.white,
+                shadows: kHomeTextShadow,
+              ),
+            ),
           ),
         ),
         Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr),

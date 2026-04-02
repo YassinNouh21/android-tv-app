@@ -21,17 +21,14 @@ bool isInScheduleWindow(TimeOfDay startTime, TimeOfDay endTime) {
   final cur = mosqueNow.hour * 60 + mosqueNow.minute;
   final start = startTime.hour * 60 + startTime.minute;
   final end = endTime.hour * 60 + endTime.minute;
-  return (start <= end)
-      ? (cur >= start && cur < end)
-      : (cur >= start || cur < end);
+  return (start <= end) ? (cur >= start && cur < end) : (cur >= start || cur < end);
 }
 
 /// Returns true if scheduled Quran listening should be active right now.
 /// Shared between the indicator widget and key handler.
 bool isScheduleAudioActive(WidgetRef ref) {
   final connectivity = ref.read(connectivityProvider);
-  final hasInternet =
-      connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
+  final hasInternet = connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
   if (!hasInternet) return false;
 
   final audio = ref.read(audioControlProvider);
@@ -98,8 +95,7 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
       return const SizedBox.shrink();
     }
 
-    final hasInternet =
-        connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
+    final hasInternet = connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
     final schedule = scheduleAsync.value!;
     final audioState = audioAsync.value!;
 
@@ -195,8 +191,7 @@ class _SingleBar extends StatefulWidget {
   State<_SingleBar> createState() => _SingleBarState();
 }
 
-class _SingleBarState extends State<_SingleBar>
-    with SingleTickerProviderStateMixin {
+class _SingleBarState extends State<_SingleBar> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -249,8 +244,7 @@ class _ScrollingText extends StatefulWidget {
   State<_ScrollingText> createState() => _ScrollingTextState();
 }
 
-class _ScrollingTextState extends State<_ScrollingText>
-    with SingleTickerProviderStateMixin {
+class _ScrollingTextState extends State<_ScrollingText> with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
   late final AnimationController _animController;
   bool _needsScroll = false;

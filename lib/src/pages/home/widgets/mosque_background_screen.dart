@@ -10,7 +10,6 @@ import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_cont
 import 'package:mawaqit/src/widgets/MawaqitDrawer.dart';
 import 'package:provider/provider.dart';
 
-
 class MosqueBackgroundScreen extends riverpod.ConsumerStatefulWidget {
   final Widget child;
 
@@ -47,8 +46,8 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
-        final isEnterOrSelect = event.logicalKey == LogicalKeyboardKey.select ||
-            event.logicalKey == LogicalKeyboardKey.enter;
+        final isEnterOrSelect =
+            event.logicalKey == LogicalKeyboardKey.select || event.logicalKey == LogicalKeyboardKey.enter;
 
         if (event is KeyDownEvent) {
           // Arrow keys open the drawer
@@ -75,8 +74,7 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
           final holdDuration = DateTime.now().difference(_enterKeyDownTime!);
           _enterKeyDownTime = null;
 
-          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false) &&
-              isScheduleAudioActive(ref)) {
+          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false) && isScheduleAudioActive(ref)) {
             if (holdDuration >= _longPressDuration) {
               // Long press → stop
               ref.read(audioControlProvider.notifier).stopPlayback();
