@@ -48,12 +48,12 @@ class ScreenLockNotifier extends AsyncNotifier<ScreenLockState> {
 
   void selectNextMinuteBefore(int selectMinuteBefore) {
     final newMinute = (selectMinuteBefore + 1) % 60;
-    state = AsyncValue.data(state.value!.copyWith(selectedMinuteBefore: newMinute < 10 ? 10 : newMinute));
+    state = AsyncValue.data(state.value!.copyWith(selectedMinuteBefore: newMinute));
   }
 
   void selectPreviousMinuteBefore(int selectMinuteBefore) {
     final newMinute = (selectMinuteBefore - 1 + 60) % 60;
-    state = AsyncValue.data(state.value!.copyWith(selectedMinuteBefore: newMinute < 10 ? 59 : newMinute));
+    state = AsyncValue.data(state.value!.copyWith(selectedMinuteBefore: newMinute));
   }
 
   void selectNextMinuteAfter(int selectMinuteAfter) {
