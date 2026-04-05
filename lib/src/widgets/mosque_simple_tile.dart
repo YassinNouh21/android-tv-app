@@ -56,6 +56,7 @@ class _MosqueSimpleTileState extends ConsumerState<MosqueSimpleTile> {
         clipBehavior: Clip.antiAlias,
         margin: EdgeInsets.symmetric(vertical: 2.h),
         child: InkWell(
+          focusNode: widget.focusNode,
           autofocus: widget.autoFocus ?? false,
           focusColor:
               widget.selectedNode.fold(() => null, (focus) => focus.hasFocus ? Theme.of(context).focusColor : null),

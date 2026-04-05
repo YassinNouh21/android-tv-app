@@ -109,6 +109,20 @@ class _ChromeCastMosqueInputSearchState extends ConsumerState<ChromeCastMosqueIn
 
   void _searchMosque(String mosque, int page) async {
     if (loading) return;
+
+    if (page == 1 && results.isNotEmpty) {
+      setState(() => showKeyboard = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _resultFocusNodes.isNotEmpty) {
+          setState(() {
+            _currentFocusIndex = 0;
+          });
+          _resultFocusNodes[0].requestFocus();
+        }
+      });
+      return;
+    }
+
     loadMore = () => _searchMosque(mosque, page + 1);
 
     if (mosque.isEmpty) {

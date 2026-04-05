@@ -72,6 +72,17 @@ class _ChromeCastMosqueInputIdState extends ConsumerState<ChromeCastMosqueInputI
 
   void _setMosqueId(String mosqueId) async {
     if (loading) return;
+
+    if (searchOutput != null) {
+      setState(() => _showKeyboard = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _mosqueTileFocusNode.requestFocus();
+        }
+      });
+      return;
+    }
+
     if (mosqueId.isEmpty) {
       return setState(() => error = S.of(context).missingMosqueId);
     }
