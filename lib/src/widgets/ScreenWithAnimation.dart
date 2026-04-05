@@ -11,6 +11,7 @@ class ScreenWithAnimationWidget extends StatelessWidget {
     required this.animation,
     required this.child,
     this.hasBackButton = false,
+    this.customLeftWidget,
   }) : super(key: key);
 
   /// only the animation name without the extension
@@ -19,6 +20,9 @@ class ScreenWithAnimationWidget extends StatelessWidget {
   /// the widget to show on the right side
   final Widget child;
   final bool hasBackButton;
+
+  /// optional custom widget to replace the lottie animation on the left side
+  final Widget? customLeftWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -44,13 +48,24 @@ class ScreenWithAnimationWidget extends StatelessWidget {
               elevation: 0,
             ),
       body: SafeArea(
-        child: Flex(
-          direction: userPrefs.calculatedOrientation == Orientation.portrait ? Axis.vertical : Axis.horizontal,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 4,
-              child: Align(
+        child: _buildBody(context, userPrefs),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, UserPreferencesManager userPrefs) {
+    final isPortrait = userPrefs.calculatedOrientation == Orientation.portrait;
+    final hasCustomLeft = customLeftWidget != null;
+
+    return Flex(
+      direction: isPortrait ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          flex: isPortrait && hasCustomLeft ? 5 : 4,
+          child: customLeftWidget ??
+              Align(
+                alignment: Alignment.center,
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Lottie.asset(
@@ -58,18 +73,16 @@ class ScreenWithAnimationWidget extends StatelessWidget {
                     fit: BoxFit.contain,
                   ),
                 ),
-                alignment: Alignment.center,
               ),
-            ),
-            Expanded(
-                flex: 6,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: child,
-                )),
-          ],
         ),
-      ),
+        Expanded(
+          flex: isPortrait && hasCustomLeft ? 5 : 6,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: child,
+          ),
+        ),
+      ],
     );
   }
 }

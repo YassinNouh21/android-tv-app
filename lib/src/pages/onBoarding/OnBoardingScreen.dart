@@ -12,6 +12,7 @@ import 'package:mawaqit/src/pages/home/OfflineHomeScreen.dart';
 import 'package:mawaqit/src/pages/mosque_search/MosqueSearch.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/widgets.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/on_boarding_permission_adhan_screen.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/orientation_preview_widget.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/widgets.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/on_boarding/on_boarding.dart';
@@ -25,6 +26,7 @@ import '../../helpers/LocaleHelper.dart';
 class OnBoardingItem {
   final String animation;
   final Widget? widget;
+  final Widget? customLeftWidget;
   final bool enableNextButton;
   final bool enablePreviousButton;
   final bool Function()? skip;
@@ -39,6 +41,7 @@ class OnBoardingItem {
     // required this.nextButtonFocusNode,
     // required this.previousButtonFocusNode,
     this.widget,
+    this.customLeftWidget,
     this.enableNextButton = false,
     this.enablePreviousButton = false,
     this.skip,
@@ -142,6 +145,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
       ),
       OnboardingScreenType.orientation: OnBoardingItem(
         animation: 'welcome',
+        customLeftWidget: const OrientationPreviewWidget(),
         widget: OnBoardingOrientationWidget.onboarding(
           previousButtonFocusNode: previousButtonFocusNode,
           nextButtonFocusNode: nextButtonFocusNode,
@@ -355,6 +359,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
 
                     return ScreenWithAnimationWidget(
                       animation: allScreens[screenType]?.animation ?? '',
+                      customLeftWidget: allScreens[screenType]?.customLeftWidget,
                       child: allScreens[screenType]!.widget ?? Container(),
                     );
                   },

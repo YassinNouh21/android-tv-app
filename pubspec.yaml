@@ -237,6 +237,7 @@ flutter:
     - assets/voices/
     - assets/voices/adhan/
     - assets/img/quran/
+    - assets/img/onboarding/
     - assets/icon/
 
   fonts:

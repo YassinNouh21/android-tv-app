@@ -79,34 +79,31 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final userPrefs = context.watch<UserPreferencesManager>();
     final tr = S.of(context);
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final isPortrait = userPrefs.calculatedOrientation == Orientation.portrait;
 
     // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 16.sp : 20.sp;
-    final double subtitleFontSize = isPortrait ? 10.sp : 12.sp;
-    final double buttonFontSize = isPortrait ? 10.sp : 12.sp;
-    final double descriptionFontSize = isPortrait ? 8.sp : 10.sp;
+    final double headerFontSize = isPortrait ? 14.sp : 20.sp;
+    final double subtitleFontSize = isPortrait ? 9.sp : 12.sp;
+    final double buttonFontSize = isPortrait ? 9.sp : 12.sp;
+    final double descriptionFontSize = isPortrait ? 7.sp : 10.sp;
 
     return Material(
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: isPortrait ? 4.w : 8.w,
-            vertical: isPortrait ? 2.h : 3.h,
+            vertical: isPortrait ? 0 : 3.h,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header section - flexible
-              Flexible(
-                flex: 2,
-                child: _buildHeader(theme, tr, headerFontSize, subtitleFontSize),
-              ),
+              // Header section
+              _buildHeader(theme, tr, headerFontSize, subtitleFontSize, isPortrait),
+              SizedBox(height: isPortrait ? 0 : 2.h),
 
-              // Orientation options - takes most space
+              // Orientation options
               Flexible(
-                flex: 6,
                 child: _buildOrientationOptions(
                   theme: theme,
                   tr: tr,
@@ -129,34 +126,33 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     MawaqitTvLocalizations tr,
     double headerFontSize,
     double subtitleFontSize,
+    bool isPortrait,
   ) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           tr.orientation,
           style: theme.textTheme.headlineSmall?.copyWith(
             fontSize: headerFontSize,
-            height: 1.2, // Tighter line height for better Arabic text display
+            height: 1.2,
             fontWeight: FontWeight.w600,
           ),
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
         ),
-        SizedBox(height: 1.5.h), // Reduced spacing
-        Expanded(
-          flex: 2,
-          child: AutoSizeText(
-            tr.selectYourMawaqitTvAppOrientation,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8),
-              fontSize: subtitleFontSize,
-              height: 1.3, // Better line height for Arabic text
-            ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.visible, // Changed to visible to prevent cutting off text
-            maxLines: 4, // Increased max lines for Arabic text
+        SizedBox(height: isPortrait ? 0.5.h : 1.5.h),
+        AutoSizeText(
+          tr.selectYourMawaqitTvAppOrientation,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8),
+            fontSize: subtitleFontSize,
+            height: 1.3,
           ),
+          textAlign: TextAlign.center,
+          minFontSize: 6,
+          maxLines: 2,
         ),
       ],
     );
@@ -173,7 +169,6 @@ class OnBoardingOrientationWidget extends StatelessWidget {
   }) {
     return Column(
       children: [
-        // Landscape option - takes equal space
         Expanded(
           child: _buildOrientationOption(
             theme: theme,
@@ -186,11 +181,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
             isPortrait: isPortrait,
           ),
         ),
-
-        // Spacer between options
-        SizedBox(height: isPortrait ? 2.h : 3.h),
-
-        // Portrait option - takes equal space
+        SizedBox(height: isPortrait ? 1.h : 2.h),
         Expanded(
           child: _buildOrientationOption(
             theme: theme,
@@ -213,16 +204,14 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onToggle,
     required String label,
-    required String description,
+    required String? description,
     required double buttonFontSize,
     required double descriptionFontSize,
     required bool isPortrait,
   }) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Toggle button - centered
         ToggleButtonWidget(
           isSelected: isSelected,
           onPressed: _wrapWithOnNext(onToggle),
@@ -234,31 +223,26 @@ class OnBoardingOrientationWidget extends StatelessWidget {
           ),
           isPortrait: isPortrait,
         ),
-
-        // Spacer
-        SizedBox(height: isPortrait ? 1.h : 1.5.h),
-
-        // Description text - flexible
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(
-              horizontal: isPortrait ? 1.w : 2.w,
-            ),
-            child: AutoSizeText(
-              description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
-                fontSize: descriptionFontSize,
-                height: 1.3,
+        if (description != null) ...[
+          SizedBox(height: isPortrait ? 0.5.h : 1.h),
+          Flexible(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2.w),
+              child: AutoSizeText(
+                description,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+                  fontSize: descriptionFontSize,
+                  height: 1.2,
+                ),
+                minFontSize: 6,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-              maxLines: 3,
-              softWrap: true,
-              textAlign: TextAlign.center,
-              // overflow: TextOverflow.visible,
             ),
           ),
-        ),
+        ],
       ],
     );
   }
