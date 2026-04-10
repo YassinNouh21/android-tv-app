@@ -45,14 +45,14 @@ class StringManager {
     final currentLang = Localizations.localeOf(context).languageCode;
     final isEnglishOrPortuguese = currentLang == 'en' || currentLang == 'pt';
 
-    // Check if the prayer is Shuruq by comparing the prayer name
-    final isShurukPrayer = salahName == S.of(context).shuruk;
+    // Check if the prayer is Shuruq or Duha by comparing the prayer name
+    final isShurukOrDuhaPrayer = salahName == S.of(context).shuruk || salahName == S.of(context).duha;
 
     // Determine which string to use
-    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq
+    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq/Duha (no athan for these)
     // For other languages: use in1 for everything
     String inString;
-    if (isEnglishOrPortuguese && !isShurukPrayer) {
+    if (isEnglishOrPortuguese && !isShurukOrDuhaPrayer) {
       inString = S.of(context).azanIn;
     } else {
       inString = S.of(context).in1;
