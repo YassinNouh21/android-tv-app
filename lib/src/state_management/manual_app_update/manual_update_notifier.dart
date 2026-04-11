@@ -139,11 +139,11 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
 
         final key = keyElements.first.innerText;
 
-        // Sideload flavor picks *-sideload.apk, googleplay picks clean APKs (no sideload suffix)
+        // Pick clean APKs (no sideload suffix)
         final isSideloadApk = key.contains(ManualUpdateConstant.sideloadSuffix);
         final isTargetApk = key.contains(ManualUpdateConstant.apkPrefix) &&
             key.endsWith('.apk') &&
-            (kIsSideloadFlavor ? isSideloadApk : !isSideloadApk);
+            !isSideloadApk;
         if (isTargetApk) {
           // Check if LastModified element exists before accessing
           final lastModifiedElements = content.findElements('LastModified');
@@ -301,9 +301,8 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
         throw Exception('APK file not found');
       }
 
-      // Sideload flavor: use FileProvider + REQUEST_INSTALL_PACKAGES
-      // Googleplay flavor: use root (su pm install)
-      final method = kIsSideloadFlavor ? 'installApk' : 'installApkRoot';
+      // Use root (su pm install)
+      final method = 'installApkRoot';
 
       final result = await platform.invokeMethod(method, {
         'filePath': filePath,
@@ -313,7 +312,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
         throw Exception('Installation failed');
       }
     } on PlatformException catch (e) {
-      if (!kIsSideloadFlavor && (e.code == 'NOT_ROOTED' || e.code == 'INSTALL_FAILED')) {
+      if (e.code == 'NOT_ROOTED' || e.code == 'INSTALL_FAILED') {
         // Root install not available — fall back to opening the Play Store
         await ref.read(appUpdateProvider.notifier).openStore();
         return;

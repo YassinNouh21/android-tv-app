@@ -111,14 +111,5 @@
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
         android:value="Background service for app functionality and task management" />
     </service>
-    <provider
-      android:name="androidx.core.content.FileProvider"
-      android:authorities="${applicationId}.update_provider"
-      android:exported="false"
-      android:grantUriPermissions="true">
-      <meta-data
-        android:name="android.support.FILE_PROVIDER_PATHS"
-        android:resource="@xml/provider_paths" />
-    </provider>
   </application>
 </manifest>

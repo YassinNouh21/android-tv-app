@@ -450,14 +450,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                                             title: checkInternet,
                                             content: S.of(context).checkInternetUpdate,
                                           );
-                                        } else if (kIsSideloadFlavor) {
-                                          // Sideload flavor: always use S3 + package manager install
-                                          var softwareFuture = await PackageInfo.fromPlatform();
-                                          ref
-                                              .read(manualUpdateNotifierProvider.notifier)
-                                              .checkForUpdates(softwareFuture.version);
                                         } else {
-                                          // Googleplay flavor: rooted → S3 + su install, otherwise → Play Store
+                                          // Rooted → S3 + su install, otherwise → Play Store
                                           final isDeviceRooted = ref.read(onBoardingProvider).maybeWhen(
                                                 orElse: () => false,
                                                 data: (value) => value.isRootedDevice,
