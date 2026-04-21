@@ -117,6 +117,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
     final userPreferences = context.watch<UserPreferencesManager>();
     final themeManager = context.watch<ThemeNotifier>();
     final String checkInternet = S.of(context).noInternet;
+    final String checkInternetLegacyMode = S.of(context).checkInternetLegacyMode;
     final String hadithLanguage = S.of(context).connectToChangeHadith;
     final TimeShiftManager timeShiftManager = TimeShiftManager();
     final featureManager = Provider.of<FeatureManager>(context);
@@ -143,15 +144,16 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(S.of(context).settings, style: theme.textTheme.headlineMedium),
+            Center(child: Text(S.of(context).settings, style: theme.textTheme.headlineMedium)),
             const SizedBox(height: 20),
             Flexible(
               fit: FlexFit.loose,
               child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Section 1: Global (open by default)
                     _CollapsibleSection(
@@ -340,6 +342,37 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                               ),
                             ),
                           ),
+                        ),
+                        _SettingSwitchItem(
+                          title: S.of(context).webView,
+                          subtitle: S.of(context).ifYouAreFacingAnIssueWithTheAppActivateThis,
+                          icon: Icon(Icons.online_prediction, size: 35),
+                          value: userPreferences.webViewMode,
+                          onChanged: (value) async {
+                            await ref.read(connectivityProvider.notifier).checkInternetConnection();
+                            ref.watch(connectivityProvider).maybeWhen(
+                              orElse: () {
+                                showCheckInternetDialog(
+                                  context: context,
+                                  onRetry: () => AppRouter.pop(),
+                                  title: checkInternet,
+                                  content: checkInternetLegacyMode,
+                                );
+                              },
+                              data: (isConnectedToInternet) {
+                                if (isConnectedToInternet == ConnectivityStatus.disconnected) {
+                                  showCheckInternetDialog(
+                                    context: context,
+                                    onRetry: () => AppRouter.pop(),
+                                    title: checkInternet,
+                                    content: checkInternetLegacyMode,
+                                  );
+                                } else {
+                                  userPreferences.webViewMode = value;
+                                }
+                              },
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -533,7 +566,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
                   shape: const RoundedRectangleBorder(),
                 ),
               ),
-              child: Column(children: widget.children),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: widget.children),
             ),
         ],
       ),
@@ -559,7 +592,7 @@ class _SettingItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 5),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         autofocus: true,
@@ -595,7 +628,7 @@ class _SettingSwitchItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 5),
       clipBehavior: Clip.antiAlias,
       child: SwitchListTile(
         autofocus: true,
@@ -633,31 +666,46 @@ class _SettingDropdownItem<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 5),
       clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        autofocus: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-        leading: icon ?? SizedBox(),
-        title: Text(title),
-        subtitle: subtitle != null
-            ? Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10))
-            : null,
-        trailing: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 180),
-          child: DropdownButton<T>(
-            isExpanded: true,
-            value: value,
-            underline: SizedBox(),
-            borderRadius: BorderRadius.circular(20),
-            onChanged: onChanged,
-            items: items.map((item) {
-              return DropdownMenuItem<T>(
-                value: item,
-                child: Text(itemLabelBuilder(item)),
-              );
-            }).toList(),
-          ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            icon ?? SizedBox(),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.bodyLarge),
+                  if (subtitle != null)
+                    Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: DropdownButton<T>(
+                isExpanded: true,
+                value: value,
+                underline: SizedBox(),
+                borderRadius: BorderRadius.circular(20),
+                onChanged: onChanged,
+                items: items.map((item) {
+                  return DropdownMenuItem<T>(
+                    value: item,
+                    child: Text(
+                      itemLabelBuilder(item),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         ),
       ),
     );
