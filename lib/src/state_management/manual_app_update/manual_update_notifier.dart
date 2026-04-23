@@ -141,9 +141,7 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
 
         // Pick clean APKs (no sideload suffix)
         final isSideloadApk = key.contains(ManualUpdateConstant.sideloadSuffix);
-        final isTargetApk = key.contains(ManualUpdateConstant.apkPrefix) &&
-            key.endsWith('.apk') &&
-            !isSideloadApk;
+        final isTargetApk = key.contains(ManualUpdateConstant.apkPrefix) && key.endsWith('.apk') && !isSideloadApk;
         if (isTargetApk) {
           // Check if LastModified element exists before accessing
           final lastModifiedElements = content.findElements('LastModified');
