@@ -82,9 +82,11 @@ extension MawaqitDateUtils on DateTime {
     final isFrench = local.toLowerCase() == 'fr' || local.toUpperCase().startsWith('FR_');
     final isKurdish = local.toLowerCase() == 'ku' || local.toUpperCase().startsWith('KU_');
 
-    var formatter = (isArabic || isFrench || isKurdish)
-        ? MawaqitDateFormat('EEEE, dd MMMM, yyyy', local)
-        : MawaqitDateFormat('EEEE, MMMM dd, yyyy', local);
+    var formatter = isKurdish
+        ? MawaqitDateFormat('EEEE، dd MMMM، yyyy', local)
+        : (isArabic || isFrench)
+            ? MawaqitDateFormat('EEEE, dd MMMM, yyyy', local)
+            : MawaqitDateFormat('EEEE, MMMM dd, yyyy', local);
 
     // Apply region-specific month names pour les locales arabes
     final region = _localeToRegion[local.toUpperCase()];

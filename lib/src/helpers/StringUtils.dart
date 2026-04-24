@@ -44,26 +44,31 @@ class StringManager {
     // Get current language code
     final currentLang = Localizations.localeOf(context).languageCode;
     final isEnglishOrPortuguese = currentLang == 'en' || currentLang == 'pt';
+    final isKurdish = currentLang == 'ku';
 
-    // Check if the prayer is Shuruq by comparing the prayer name
-    final isShurukPrayer = salahName == S.of(context).shuruk;
+    // Check if the prayer is Shuruq or Duha by comparing the prayer name
+    final isShurukOrDuhaPrayer = salahName == S.of(context).shuruk || salahName == S.of(context).duha;
+
+    final timeStr = salahTime.inMinutes > 0
+        ? "${salahTime.inHours.toString().padLeft(2, '0')}:${(salahTime.inMinutes % 60).toString().padLeft(2, '0')}"
+        : "${(salahTime.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}";
+
+    // Kurdish uses possessive construct: "بانگی [prayerName] لەدوای [time]"
+    if (isKurdish && !isShurukOrDuhaPrayer) {
+      return "${S.of(context).alAdhan}ی $salahName ${S.of(context).in1} $timeStr";
+    }
 
     // Determine which string to use
-    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq
+    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq/Duha (no athan for these)
     // For other languages: use in1 for everything
     String inString;
-    if (isEnglishOrPortuguese && !isShurukPrayer) {
+    if (isEnglishOrPortuguese && !isShurukOrDuhaPrayer) {
       inString = S.of(context).azanIn;
     } else {
       inString = S.of(context).in1;
     }
 
-    return [
-      "$salahName $inString ",
-      if (salahTime.inMinutes > 0)
-        "${salahTime.inHours.toString().padLeft(2, '0')}:${(salahTime.inMinutes % 60).toString().padLeft(2, '0')}",
-      if (salahTime.inMinutes == 0) "${(salahTime.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}",
-    ].join();
+    return "$salahName $inString $timeStr";
   }
 
 //////////// get font family

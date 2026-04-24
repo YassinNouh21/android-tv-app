@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
@@ -141,7 +142,19 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
         SizedBox(width: 1.5.vwr),
         // Pause/Play button
         GestureDetector(
-          onTap: () => ref.read(audioControlProvider.notifier).togglePlayback(),
+          onTap: () {
+            if (isPlaying) {
+              Fluttertoast.showToast(
+                msg: S.of(context).holdOkToStop,
+                toastLength: Toast.LENGTH_SHORT,
+                gravity: ToastGravity.BOTTOM,
+                backgroundColor: Colors.black54,
+                textColor: Colors.white,
+              );
+            }
+            ref.read(audioControlProvider.notifier).togglePlayback();
+          },
+          onLongPress: () => ref.read(audioControlProvider.notifier).stopPlayback(),
           child: Icon(
             isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
             color: Colors.white,

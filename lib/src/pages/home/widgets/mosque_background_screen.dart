@@ -2,11 +2,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/HexColor.dart';
 import 'package:mawaqit/src/pages/home/widgets/schedule_audio_indicator.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_notifier.dart';
+import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_state.dart';
 import 'package:mawaqit/src/widgets/MawaqitDrawer.dart';
 import 'package:provider/provider.dart';
 
@@ -80,6 +83,16 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
               ref.read(audioControlProvider.notifier).stopPlayback();
             } else {
               // Short press → toggle pause/play
+              final isPlaying = ref.read(audioControlProvider).value?.status == AudioStatus.playing;
+              if (isPlaying) {
+                Fluttertoast.showToast(
+                  msg: S.current.holdOkToStop,
+                  toastLength: Toast.LENGTH_SHORT,
+                  gravity: ToastGravity.BOTTOM,
+                  backgroundColor: Colors.black54,
+                  textColor: Colors.white,
+                );
+              }
               ref.read(audioControlProvider.notifier).togglePlayback();
             }
           }
