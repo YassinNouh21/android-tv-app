@@ -105,21 +105,23 @@ class HorizontalSalahItem extends StatelessWidget {
             ),
 
           // Iqama Time
-          if (iqama != null && showIqama)
+          if (showIqama)
             Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: IqamaTimeWidget(
-                  time: iqama!,
-                  show24hFormat: is24period,
-                  style: TextStyle(
-                    fontSize: isIqamaMoreImportant ? bigFont : smallFont,
-                    fontWeight: FontWeight.w700,
-                    shadows: kHomeTextShadow,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+              child: iqama != null && iqama!.isNotEmpty
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: IqamaTimeWidget(
+                        time: iqama!,
+                        show24hFormat: is24period,
+                        style: TextStyle(
+                          fontSize: isIqamaMoreImportant ? bigFont : smallFont,
+                          fontWeight: FontWeight.w700,
+                          shadows: kHomeTextShadow,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  : SizedBox.shrink(),
             ),
         ],
       ),
