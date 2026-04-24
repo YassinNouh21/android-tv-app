@@ -10,8 +10,12 @@ import 'package:provider/provider.dart';
 
 /// show the back screen during the jumuaa
 class JumuaaWorkflowScreen extends StatelessWidget {
-  const JumuaaWorkflowScreen({Key? key, this.onDone}) : super(key: key);
+  const JumuaaWorkflowScreen({Key? key, this.onDone, this.jumuaaTime}) : super(key: key);
   final VoidCallback? onDone;
+
+  /// The specific Jumua session time to use for this workflow.
+  /// If null, falls back to the first configured Jumua time.
+  final DateTime? jumuaaTime;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +25,8 @@ class JumuaaWorkflowScreen extends StatelessWidget {
     final jumuaaTimeout = mosqueManager.mosqueConfig?.jumuaTimeout ?? 30;
     final salahTime = int.tryParse(mosqueManager.mosqueConfig!.duaAfterPrayerShowTimes[1]) ?? 0;
 
-    final jumuaaTime = mosqueManager.activeJumuaaDate();
-    final jumuaaEndTime = jumuaaTime.add(Duration(minutes: jumuaaTimeout));
+    final activeJumuaaTime = jumuaaTime ?? mosqueManager.activeJumuaaDate();
+    final jumuaaEndTime = activeJumuaaTime.add(Duration(minutes: jumuaaTimeout));
 
     return ContinuesWorkFlowWidget(
       debug: true,
@@ -31,8 +35,8 @@ class JumuaaWorkflowScreen extends StatelessWidget {
         /// Use NormalWorkflowScreen with interruptions disabled to prevent announcements
         WorkFlowItem(
           builder: (context, next) => NormalWorkflowScreen(disableInterruptions: true),
-          duration: jumuaaTime.difference(now),
-          skip: now.isAfter(jumuaaTime),
+          duration: activeJumuaaTime.difference(now),
+          skip: now.isAfter(activeJumuaaTime),
         ),
 
         WorkFlowItem(
@@ -40,7 +44,7 @@ class JumuaaWorkflowScreen extends StatelessWidget {
           skip: now.isAfter(jumuaaEndTime),
 
           /// handle if user open screen during the jumuaa
-          duration: now.isBefore(jumuaaTime) ? Duration(minutes: jumuaaTimeout) : jumuaaEndTime.difference(now),
+          duration: now.isBefore(activeJumuaaTime) ? Duration(minutes: jumuaaTimeout) : jumuaaEndTime.difference(now),
         ),
 
         // salah time after jumuaa

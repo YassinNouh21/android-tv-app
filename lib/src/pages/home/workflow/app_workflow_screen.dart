@@ -86,22 +86,20 @@ class AppWorkflowScreen extends StatelessWidget {
           },
         ),
 
-        // Jumuaa Workflow
-        RepeatingWorkflowItem(
-          debugName: 'JumuaaWorkflowScreen',
-          builder: (context, next) => JumuaaWorkflowScreen(onDone: next),
-          repeatingDuration: 7.days,
-          dateTime: mosqueManager.activeJumuaaDate(),
-          showInitial: () {
-            final activeJumuaaDate = mosqueManager.activeJumuaaDate();
-
-            if (now.isBefore(activeJumuaaDate)) return false;
-
-            /// If user opens the app during the Jumuaa time then show the Jumuaa workflow
-            /// give 30 minutes for the Jumuaa
-            return now
-                .isBefore(activeJumuaaDate.add(Duration(minutes: mosqueManager.mosqueConfig!.jumuaTimeout ?? 30)));
-          },
+        // Jumuaa Workflow — one item per Jumua session (mosques may have up to 3)
+        ...mosqueManager.allJumuaaDates().mapIndexed(
+          (index, jumuaaDate) => RepeatingWorkflowItem(
+            debugName: 'JumuaaWorkflowScreen ${index + 1}',
+            builder: (context, next) => JumuaaWorkflowScreen(onDone: next, jumuaaTime: jumuaaDate),
+            repeatingDuration: 7.days,
+            dateTime: jumuaaDate,
+            showInitial: () {
+              if (now.isBefore(jumuaaDate)) return false;
+              return now.isBefore(
+                jumuaaDate.add(Duration(minutes: mosqueManager.mosqueConfig!.jumuaTimeout ?? 30)),
+              );
+            },
+          ),
         ),
       ],
     );

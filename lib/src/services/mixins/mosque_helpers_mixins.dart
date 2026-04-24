@@ -499,18 +499,25 @@ mixin MosqueHelpersMixin on ChangeNotifier {
     return jumuaTimes[0].toTimeOfDay()!.toDate(nextFriday);
   }
 
-  /// Checks if we are currently in Jumua workflow time
+  /// Returns DateTimes for all Jumua times on the next Friday
+  List<DateTime> allJumuaaDates([DateTime? now]) {
+    final nextFriday = nextFridayDate(now);
+    return getOrderedJumuaTimes()
+        .map((t) => t.toTimeOfDay()!.toDate(nextFriday))
+        .toList();
+  }
+
+  /// Checks if we are currently in Jumua workflow time (any of the Jumua sessions)
   bool jumuaaWorkflowTime() {
     final now = mosqueDate();
-    final jumuaaStartTime = activeJumuaaDate();
-    final jumuaaEndTime = jumuaaStartTime.add(
-      Duration(minutes: mosqueConfig?.jumuaTimeout ?? 30) + kAzkarDuration,
-    );
-
     if (now.weekday != DateTime.friday) return false;
     if (!typeIsMosque) return false;
 
-    return now.isAfter(jumuaaStartTime) && now.isBefore(jumuaaEndTime);
+    final timeout = Duration(minutes: mosqueConfig?.jumuaTimeout ?? 30) + kAzkarDuration;
+    return allJumuaaDates().any((jumuaaStartTime) {
+      final jumuaaEndTime = jumuaaStartTime.add(timeout);
+      return now.isAfter(jumuaaStartTime) && now.isBefore(jumuaaEndTime);
+    });
   }
 
   /// if the iqama is less than 2min
