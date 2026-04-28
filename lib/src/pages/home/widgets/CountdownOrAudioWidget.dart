@@ -51,9 +51,9 @@ class _CountdownOrAudioWidgetState extends ConsumerState<CountdownOrAudioWidget>
         scheduleAsync.value!.isScheduleEnabled &&
         !audioAsync.value!.isStopped &&
         isInScheduleWindow(scheduleAsync.value!.startTime, scheduleAsync.value!.endTime)) {
-      return const ScheduleAudioIndicator();
+      return ScheduleAudioIndicator();
     }
 
-    return const SalahInWidget();
+    return SalahInWidget();
   }
 }
