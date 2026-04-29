@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   upload-to-s3:
@@ -58,12 +59,15 @@ jobs:
           echo "Downloaded files:"
           ls -la ./artifacts/
 
+      - name: Configure AWS credentials
+        if: steps.check_apk.outputs.skip == 'false'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::619905987656:role/mawaqit-android-tv-github-actions
+          aws-region: eu-west-3
+
       - name: Upload to S3
         if: steps.check_apk.outputs.skip == 'false'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         run: |
           shopt -s nullglob
           APK_FILES=(./artifacts/*.apk)
