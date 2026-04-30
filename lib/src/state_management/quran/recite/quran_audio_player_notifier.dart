@@ -84,6 +84,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       position: Duration.zero,
       reciterName: '',
       surahName: '',
+      arabicSurahName: '',
     );
   }
 
@@ -170,6 +171,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       state = AsyncData(
         state.value!.copyWith(
           surahName: localSuwar[index].name,
+          arabicSurahName: localSuwar[index].arabicName,
           playerState: audioPlayer.playing ? AudioPlayerState.playing : AudioPlayerState.paused,
           position: position,
         ),
@@ -345,6 +347,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
       state = AsyncData(
         state.value!.copyWith(
           surahName: surah.name,
+          arabicSurahName: surah.arabicName,
           reciterName: moshaf.name,
         ),
       );

@@ -10,6 +10,7 @@ class QuranAudioPlayerState extends Equatable {
   final double volume;
   final Duration position;
   final String surahName;
+  final String arabicSurahName;
   final AudioPlayerState playerState;
   final String reciterName;
   final bool isShuffled;
@@ -20,6 +21,7 @@ class QuranAudioPlayerState extends Equatable {
     required this.audioPlayer,
     required this.position,
     required this.surahName,
+    required this.arabicSurahName,
     required this.playerState,
     required this.reciterName,
     this.isShuffled = false,
@@ -32,6 +34,7 @@ class QuranAudioPlayerState extends Equatable {
     AudioPlayer? audioPlayer,
     Duration? position,
     String? surahName,
+    String? arabicSurahName,
     AudioPlayerState? playerState,
     String? reciterName,
     bool? isVolumeOpened,
@@ -46,6 +49,7 @@ class QuranAudioPlayerState extends Equatable {
       isVolumeOpened: isVolumeOpened ?? this.isVolumeOpened,
       isShuffled: isShuffled ?? this.isShuffled,
       surahName: surahName ?? this.surahName,
+      arabicSurahName: arabicSurahName ?? this.arabicSurahName,
       playerState: playerState ?? this.playerState,
       volume: volume ?? this.volume,
       isRepeating: isRepeating ?? this.isRepeating,
@@ -55,7 +59,8 @@ class QuranAudioPlayerState extends Equatable {
   @override
   String toString() {
     return 'QuranAudioPlayerState(audioPlayer: $audioPlayer, position: $position, surahName: $surahName, '
-        'playerState: $playerState, reciterName: $reciterName, isShuffled: $isShuffled, isRepeating: $isRepeating'
+        'arabicSurahName: $arabicSurahName, playerState: $playerState, reciterName: $reciterName, '
+        'isShuffled: $isShuffled, isRepeating: $isRepeating'
         ', volume: $volume, isVolume: #isVolumeOpened: $isVolumeOpened'
         ')';
   }
@@ -65,6 +70,7 @@ class QuranAudioPlayerState extends Equatable {
         audioPlayer,
         position,
         surahName,
+        arabicSurahName,
         reciterName,
         playerState,
         isShuffled,

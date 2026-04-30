@@ -112,6 +112,7 @@ class _QuranPlayerScreenState extends ConsumerState<QuranPlayerScreen> {
                     backButtonFocusNode: backButtonFocusNode,
                     isPlaying: quranPlayerState.playerState == AudioPlayerState.playing,
                     surahName: quranPlayerState.surahName,
+                    arabicSurahName: quranPlayerState.arabicSurahName,
                     surahType: quranPlayerState.reciterName,
                     seekBarDataStream: _seekBarDataStream,
                     onFocusBackButton: () => backButtonFocusNode.requestFocus(),
@@ -162,6 +163,7 @@ class _QuranPlayer extends ConsumerStatefulWidget {
   const _QuranPlayer({
     super.key,
     required this.surahName,
+    required this.arabicSurahName,
     required this.surahType,
     required Stream<SeekBarData> seekBarDataStream,
     required this.isPlaying,
@@ -174,6 +176,7 @@ class _QuranPlayer extends ConsumerStatefulWidget {
 
   final VoidCallback onFocusBackButton;
   final String surahName;
+  final String arabicSurahName;
   final String surahType;
   final bool isPlaying;
   final MoshafModel selectedMoshaf;
@@ -259,24 +262,50 @@ class _QuranPlayerState extends ConsumerState<_QuranPlayer> {
             // SizedBox(height: 1.h),
             SizedBox(
               width: 80.w,
-              child: Text(
-                widget.surahName,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.arabicSurahName.isNotEmpty &&
+                      widget.arabicSurahName != widget.surahName)
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.arabicSurahName,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  if (widget.surahName.isNotEmpty)
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.surahName,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: widget.arabicSurahName.isNotEmpty &&
+                                  widget.arabicSurahName != widget.surahName
+                              ? 13.sp
+                              : 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            SizedBox(height: 2.h),
+            SizedBox(height: 0.5.h),
             SizedBox(
               width: 80.w,
               child: Text(
                 widget.surahType,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14.sp,
+                  fontSize: 11.sp,
                   color: Colors.grey[400],
                 ),
               ),
