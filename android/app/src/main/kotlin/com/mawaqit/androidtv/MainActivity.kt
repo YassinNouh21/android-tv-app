@@ -258,16 +258,73 @@ class MainActivity : FlutterActivity() {
   }
 
 
+  /** Wraps a string in single quotes and escapes any single quotes inside it.
+   *  Safe against shell special characters: $, `, \, ", spaces, etc. */
+  private fun shellEscape(value: String): String = "'" + value.replace("'", "'\\''") + "'"
+
+  /** Derives cmd-wifi security type from the raw capabilities string reported by the scan. */
+  private fun getSecurityType(capabilities: String?, password: String?): String {
+    if (password.isNullOrEmpty()) return "open"
+    if (capabilities == null) return "wpa2"
+    return when {
+      capabilities.contains("WPA3") || capabilities.contains("SAE") -> "wpa3"
+      capabilities.contains("WPA2") || capabilities.contains("WPA") -> "wpa2"
+      capabilities.contains("WEP") -> "wep"
+      else -> "open"
+    }
+  }
+
   private fun connectToWifi(call: MethodCall, result: MethodChannel.Result) {
     AsyncTask.execute {
       try {
-        val ssid = call.argument<String>("ssid")
+        val ssid = call.argument<String>("ssid") ?: ""
         val password = call.argument<String>("password")
-        val security = if (password.isNullOrEmpty()) "open" else "wpa2"
+        val capabilities = call.argument<String>("security")
+        val security = getSecurityType(capabilities, password)
 
-        Log.i("SU_COMMAND", "Wifi Command output: cmd wifi connect-network $ssid $security $password")
+        val command = if (password.isNullOrEmpty()) {
+          "cmd wifi connect-network ${shellEscape(ssid)} open"
+        } else {
+          "cmd wifi connect-network ${shellEscape(ssid)} $security ${shellEscape(password)}"
+        }
 
-        executeCommand(listOf("cmd wifi connect-network $ssid $security $password"), result)
+        Log.i("SU_COMMAND", "Wifi Command: $command")
+
+        val suProcess = Runtime.getRuntime().exec("su")
+        val os = DataOutputStream(suProcess.outputStream)
+        os.writeBytes("$command\n")
+        os.flush()
+        os.close()
+
+        val output = BufferedReader(InputStreamReader(suProcess.inputStream)).readText()
+        val error = BufferedReader(InputStreamReader(suProcess.errorStream)).readText()
+        val exitCode = suProcess.waitFor()
+
+        Log.i("SU_COMMAND", "Command output: $output")
+        Log.e("SU_COMMAND", "Command error: $error")
+        Log.d("SU_COMMAND", "Exit code: $exitCode")
+
+        if (exitCode != 0 || output.contains("Connection failed") || output.contains("Invalid args")) {
+          Log.e("SU_COMMAND", "Command failed with exit code $exitCode.")
+          result.success(false)
+          return@execute
+        }
+
+        // Wait for the actual connection to be established (up to 10 seconds)
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        var connectionAttempts = 0
+        while (wifiManager.connectionInfo.networkId == -1 && connectionAttempts < 20) {
+          Thread.sleep(500)
+          connectionAttempts++
+        }
+
+        val connected = wifiManager.connectionInfo.networkId != -1
+        if (connected) {
+          Log.i("SU_COMMAND", "Connected to network successfully.")
+        } else {
+          Log.e("SU_COMMAND", "Connection timed out after 10 seconds.")
+        }
+        result.success(connected)
 
       } catch (e: Exception) {
         handleCommandException(e, result)
@@ -303,9 +360,9 @@ class MainActivity : FlutterActivity() {
         wifiManager.enableNetwork(networkId, true)
         wifiManager.reconnect()
 
-        // Wait for the connection to be established
+        // Wait for the connection to be established (up to 10 seconds)
         var connectionAttempts = 0
-        while (wifiManager.getConnectionInfo().networkId == -1 && connectionAttempts < 3) {
+        while (wifiManager.getConnectionInfo().networkId == -1 && connectionAttempts < 20) {
           Thread.sleep(500)
           connectionAttempts++
         }

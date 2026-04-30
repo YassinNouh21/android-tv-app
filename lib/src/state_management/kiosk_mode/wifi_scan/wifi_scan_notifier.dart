@@ -56,6 +56,7 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
       } else {
         isSuccess = await platform.invokeMethod('connectToWifi', {
           "ssid": ssid,
+          "security": security,
           "password": password,
         });
       }

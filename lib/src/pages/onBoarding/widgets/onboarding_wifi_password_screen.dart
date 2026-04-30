@@ -119,6 +119,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
       return KeyEventResult.ignored;
     }
 
+    // While the soft keyboard is visible and the password field has focus, let
+    // the IME handle all key events — don't let D-pad navigation close it.
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (keyboardVisible && _passwordFocusNode.hasFocus) {
+      return KeyEventResult.ignored;
+    }
+
     // Handle D-pad navigation
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       if (_passwordFocusNode.hasFocus) {
@@ -180,8 +187,6 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final size = MediaQuery.of(context).size;
-    final viewInsets = MediaQuery.of(context).viewInsets;
-    final keyboardHeight = viewInsets.bottom;
 
     // Listen for Wi-Fi connection status changes
     ref.listen(wifiScanNotifierProvider, (previous, next) {
@@ -200,33 +205,29 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
       }
     });
 
-    return GestureDetector(
-      onTap: _cancel,
-      child: Container(
-        color: Colors.black.withOpacity(0.5),
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.5),
+      resizeToAvoidBottomInset: true,
+      body: GestureDetector(
+        onTap: _cancel,
         child: Focus(
           focusNode: _parentFocusNode,
           onKey: _handleKeyEvent,
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 200),
-            padding: EdgeInsets.only(
-              bottom: keyboardHeight > 0 ? 20 : 0,
-            ),
-            child: Align(
-              alignment: keyboardHeight > 0 ? Alignment.topCenter : Alignment.center,
-              child: SingleChildScrollView(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: size.width * 0.95, // Made wider - from 0.9 to 0.95
-                    constraints: BoxConstraints(
-                      maxWidth: 700, // Increased from 600 to 700
-                      minHeight: 300,
-                    ),
-                    margin: EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: keyboardHeight > 0 ? 150 : 20,
-                    ),
+          child: Align(
+            alignment: Alignment.center,
+            child: SingleChildScrollView(
+              child: GestureDetector(
+                onTap: () {},
+                child: Container(
+                  width: size.width * 0.95,
+                  constraints: BoxConstraints(
+                    maxWidth: 700,
+                    minHeight: 300,
+                  ),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
                     child: Card(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       elevation: 10,
@@ -282,7 +283,6 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                     child: TextFormField(
                                       controller: _passwordController,
                                       focusNode: _passwordFocusNode,
-                                      autofocus: true,
                                       obscureText: _obscureText,
                                       keyboardType: TextInputType.visiblePassword,
                                       textInputAction: TextInputAction.done,
@@ -302,11 +302,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                             : Colors.transparent,
                                         filled: true,
                                       ),
-                                      onEditingComplete: () {
-                                        FocusScope.of(context).requestFocus(_toggleVisibilityFocusNode);
-                                      },
-                                      onFieldSubmitted: (_) =>
-                                          FocusScope.of(context).requestFocus(_toggleVisibilityFocusNode),
+                                      onFieldSubmitted: (_) => _connectToWifi(),
                                     ),
                                   ),
 
@@ -378,7 +374,6 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 }
