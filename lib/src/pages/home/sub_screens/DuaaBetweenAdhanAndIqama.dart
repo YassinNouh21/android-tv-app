@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mawaqit_tv_l10n/mawaqit_tv_l10n.dart';
@@ -84,41 +85,54 @@ class _DuaaDisplay extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.84),
-          child: Text(
-            title,
-            style: TextStyle(
-              shadows: kIqamaCountDownTextShadow,
-              color: Colors.white,
-              fontSize: 24.sp,
+        Flexible(
+          flex: 2,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.84),
+            child: AutoSizeText(
+              title,
+              style: TextStyle(
+                shadows: kIqamaCountDownTextShadow,
+                color: Colors.white,
+                fontSize: 24.sp,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              minFontSize: 10,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
         SizedBox(height: 1.2.h),
-        Text(
-          arabicText,
-          style: TextStyle(
-            shadows: kIqamaCountDownTextShadow,
-            color: Colors.white,
-            fontSize: 22.sp,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 1.h),
-        Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.90),
-          child: Text(
-            translatedText,
+        Flexible(
+          flex: 3,
+          child: AutoSizeText(
+            arabicText,
             style: TextStyle(
               shadows: kIqamaCountDownTextShadow,
               color: Colors.white,
               fontSize: 22.sp,
-              height: 1.2,
-              fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
+            minFontSize: 10,
+          ),
+        ),
+        SizedBox(height: 1.h),
+        Flexible(
+          flex: 3,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.90),
+            child: AutoSizeText(
+              translatedText,
+              style: TextStyle(
+                shadows: kIqamaCountDownTextShadow,
+                color: Colors.white,
+                fontSize: 22.sp,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              minFontSize: 10,
+            ),
           ),
         ),
       ],
