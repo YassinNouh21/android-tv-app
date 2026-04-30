@@ -271,7 +271,9 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                 Text(
                   tr.iqamaIn,
                   style: TextStyle(
-                    fontSize: isPortrait ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr) : 6.5.vwr,
+                    fontSize: isPortrait
+                        ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr)
+                        : (showClock ? 6.5.vwr : 7.vwr),
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     shadows: kIqamaCountDownTextShadow,
@@ -281,7 +283,7 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                 SizedBox(height: isPortrait ? 1.vh : 2.5.vh),
                 Flexible(
                   child: Center(
-                    child: _buildCountdownText(fontSize: isPortrait ? 35.vw : 13.vw),
+                    child: _buildCountdownText(fontSize: isPortrait ? 35.vw : (showClock ? 13.vw : 25.vw)),
                   ),
                 ),
               ],
