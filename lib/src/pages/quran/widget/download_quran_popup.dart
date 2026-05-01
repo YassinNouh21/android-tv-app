@@ -114,6 +114,23 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
     };
   }
 
+  ButtonStyle _focusedPrimaryStyle(BuildContext ctx) => OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white54),
+        foregroundColor: Colors.white,
+      ).copyWith(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.focused) ? Theme.of(ctx).primaryColor : Colors.transparent,
+        ),
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+      );
+
+  ButtonStyle _cancelButtonStyle() => OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white54),
+        foregroundColor: Colors.white,
+      ).copyWith(
+        overlayColor: WidgetStateProperty.all(Colors.white.withOpacity(0.15)),
+      );
+
   Widget _buildUpdateAvailableDialog(BuildContext context, UpdateAvailable state) {
     final moshafName = switch (state.moshafType) {
       MoshafType.warsh => S.of(context).warsh,
@@ -124,17 +141,18 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       title: Text(S.of(context).updateAvailable),
       content: Text(S.of(context).quranUpdateDialogContent(moshafName, state.version)),
       actions: [
-        TextButton(
+        OutlinedButton(
+          style: _cancelButtonStyle(),
           onPressed: () {
             Navigator.pop(context);
             widget.onCancel?.call();
           },
           child: Text(S.of(context).cancel),
         ),
-        TextButton(
+        OutlinedButton(
           autofocus: true,
+          style: _focusedPrimaryStyle(context),
           onPressed: () async {
-            // Check internet connection before downloading
             final hasInternet = await _checkInternetConnection();
             if (!hasInternet) {
               showCheckInternetDialog(
@@ -173,8 +191,9 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
           ],
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             autofocus: true,
+            style: _focusedPrimaryStyle(context),
             onPressed: () async {
               final notifier = ref.read(downloadQuranNotifierProvider.notifier);
               final moshafType = ref.watch(moshafTypeNotifierProvider);
@@ -230,7 +249,9 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
 
   Widget _buildNoUpdateDialog(BuildContext context, NoUpdate state) {
     return AlertDialog(title: Text(S.of(context).updatedQuran), actions: [
-      TextButton(
+      OutlinedButton(
+        autofocus: true,
+        style: _focusedPrimaryStyle(context),
         onPressed: () => Navigator.pop(context),
         child: Text(S.of(context).ok),
       ),
@@ -260,7 +281,8 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
+          style: _cancelButtonStyle(),
           onPressed: () {
             final moshafType = ref.watch(moshafTypeNotifierProvider);
             moshafType.when(
@@ -278,10 +300,10 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
           },
           child: Text(S.of(context).cancel),
         ),
-        TextButton(
+        OutlinedButton(
           autofocus: true,
+          style: _focusedPrimaryStyle(context),
           onPressed: () async {
-            // Check internet connection before downloading
             final hasInternet = await _checkInternetConnection();
             if (!hasInternet) {
               showCheckInternetDialog(
@@ -343,7 +365,9 @@ class _DownloadQuranDialogState extends ConsumerState<DownloadQuranDialog> {
       title: Text(S.of(context).error),
       content: Text(error.toString()),
       actions: [
-        TextButton(
+        OutlinedButton(
+          autofocus: true,
+          style: _focusedPrimaryStyle(context),
           onPressed: () {
             Navigator.pop(context);
             widget.onCancel?.call();
