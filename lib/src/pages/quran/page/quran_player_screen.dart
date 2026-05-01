@@ -265,8 +265,7 @@ class _QuranPlayerState extends ConsumerState<_QuranPlayer> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (widget.arabicSurahName.isNotEmpty &&
-                      widget.arabicSurahName != widget.surahName)
+                  if (widget.arabicSurahName.isNotEmpty && widget.arabicSurahName != widget.surahName)
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
@@ -286,8 +285,7 @@ class _QuranPlayerState extends ConsumerState<_QuranPlayer> {
                         widget.surahName,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: widget.arabicSurahName.isNotEmpty &&
-                                  widget.arabicSurahName != widget.surahName
+                          fontSize: widget.arabicSurahName.isNotEmpty && widget.arabicSurahName != widget.surahName
                               ? 13.sp
                               : 16.sp,
                           fontWeight: FontWeight.bold,

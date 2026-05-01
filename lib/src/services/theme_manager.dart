@@ -85,6 +85,28 @@ class ThemeNotifier with ChangeNotifier {
         focusColor: Color(0xff9243E0),
       );
 
+  static List<String> get _kurdishFallback => [GoogleFonts.notoSans().fontFamily!, StringManager.fontFamilyKufi];
+
+  ThemeData lightThemeFor(Locale locale) {
+    if (locale.languageCode != 'ku') return lightTheme;
+    return lightTheme.copyWith(
+      textTheme: lightTheme.textTheme.apply(
+        fontFamily: StringManager.fontFamilyRabar,
+        fontFamilyFallback: _kurdishFallback,
+      ),
+    );
+  }
+
+  ThemeData darkThemeFor(Locale locale) {
+    if (locale.languageCode != 'ku') return darkTheme;
+    return darkTheme.copyWith(
+      textTheme: darkTheme.textTheme.apply(
+        fontFamily: StringManager.fontFamilyRabar,
+        fontFamilyFallback: _kurdishFallback,
+      ),
+    );
+  }
+
   bool? isLightTheme;
 
   ///when isLightTheme == null will use the default system theme

@@ -234,8 +234,8 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
                       title: kAppName,
                       themeMode: theme.mode,
                       localeResolutionCallback: MawaqitTvExtendedLocalizations.localeResolutionCallback,
-                      theme: theme.lightTheme,
-                      darkTheme: theme.darkTheme,
+                      theme: theme.lightThemeFor(model.appLocal),
+                      darkTheme: theme.darkThemeFor(model.appLocal),
                       locale: model.appLocal,
                       navigatorKey: AppRouter.navigationKey,
                       navigatorObservers: [
