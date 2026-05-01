@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
       - 'release-*'
 jobs:
   lint:
@@ -19,6 +20,13 @@ jobs:
 
       - run: flutter --version
 
+      - name: Install dependencies
+        run: flutter pub get
+
       # Check for any formatting issues in the code.
       - name: Verify formatting
         run: dart format --set-exit-if-changed . --line-length 120
+
+      # Static analysis — fails the job on any analyzer error.
+      - name: Analyze project source
+        run: flutter analyze --no-pub
