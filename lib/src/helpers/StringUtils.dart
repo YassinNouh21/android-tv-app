@@ -58,15 +58,10 @@ class StringManager {
       return "${S.of(context).alAdhan}ی $salahName ${S.of(context).in1} $timeStr";
     }
 
-    final timeStr = salahTime.inMinutes > 0
-        ? "${salahTime.inHours.toString().padLeft(2, '0')}:${(salahTime.inMinutes % 60).toString().padLeft(2, '0')}"
-        : "${(salahTime.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}";
-
-    // Swedish grammar requires the prefix before the prayer name: "Tid kvar till Dhuhr Salah 01:19"
+    // Swedish grammar requires the prefix before the prayer name: "Tid kvar till Dhuhr Salah 01:19".
     // Shuruq and Duha are not obligatory prayers, so they don't get the "Salah" suffix.
     if (currentLang == 'sv') {
-      final isDuhaPrayer = salahName == S.of(context).duha;
-      final suffix = (isShurukPrayer || isDuhaPrayer) ? '' : ' Salah';
+      final suffix = isShurukOrDuhaPrayer ? '' : ' Salah';
       return "Tid kvar till $salahName$suffix $timeStr";
     }
 
