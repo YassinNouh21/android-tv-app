@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:provider/provider.dart';
 
 import '../../../helpers/StringUtils.dart';
@@ -14,6 +15,7 @@ class SalahInWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mosqueManager = context.read<MosqueManager>();
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     final nextSalahTime = mosqueManager.nextSalahAfter();
 
     var nextSalahIndex = mosqueManager.nextSalahIndex();
@@ -29,29 +31,32 @@ class SalahInWidget extends StatelessWidget {
       nextSalahName,
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      mainAxisSize: MainAxisSize.min,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr),
-        Container(
-          constraints: BoxConstraints(maxWidth: 30.vwr),
-          padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
-          child: FittedBox(
-            child: Text(
-              mosqueManager.getActiveCountdownText(context, countDownText),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 2.8.vwr,
-                color: Colors.white,
-                shadows: kHomeTextShadow,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        mainAxisSize: MainAxisSize.min,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
+          Container(
+            constraints: BoxConstraints(maxWidth: 30.vwr * fontScale),
+            padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
+            child: FittedBox(
+              child: Text(
+                mosqueManager.getActiveCountdownText(context, countDownText),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 2.8.vwr * fontScale,
+                  color: Colors.white,
+                  shadows: kHomeTextShadow,
+                ),
               ),
             ),
           ),
-        ),
-        Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr),
-      ],
+          Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
+        ],
+      ),
     );
   }
 }

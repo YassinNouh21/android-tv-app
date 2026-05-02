@@ -7,6 +7,7 @@ import 'package:mawaqit/src/widgets/time_widget.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../services/mosque_manager.dart';
+import '../../../../services/user_preferences_manager.dart';
 
 class SalahItemWidget extends StatelessOrientationWidget {
   SalahItemWidget({
@@ -41,13 +42,13 @@ class SalahItemWidget extends StatelessOrientationWidget {
 
   @override
   Widget buildLandscape(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double titleFont = 3.vwr;
     double bigFont = 4.5.vwr;
     double smallFont = 3.6.vwr;
 
     final mosqueProvider = context.watch<MosqueManager>();
     final mosqueConfig = mosqueProvider.mosqueConfig;
-    final isArabic = context.read<AppLanguage>().isArabic();
     final is12period = mosqueConfig?.timeDisplayFormat == "12";
 
     return Container(
@@ -61,50 +62,53 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 : Colors.black.withOpacity(.5),
       ),
       padding: EdgeInsets.symmetric(vertical: 1.6.vr, horizontal: 1.vwr),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fixed height container for title to maintain consistent sizing
-          if (title != null && title!.trim().isNotEmpty)
-            Container(
-              height: titleFont * 1.5, // Fixed height based on font size
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  maxLines: 1,
-                  title ?? "",
-                  style: TextStyle(
-                    fontSize: titleFont,
-                    shadows: kHomeTextShadow,
-                    color: Colors.white,
-                    height: 1.5,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Fixed height container for title to maintain consistent sizing across cards
+            if (title != null && title!.trim().isNotEmpty)
+              Container(
+                height: titleFont * fontScale * 1.5,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    maxLines: 1,
+                    title ?? "",
+                    style: TextStyle(
+                      fontSize: titleFont * fontScale,
+                      shadows: kHomeTextShadow,
+                      color: Colors.white,
+                      height: 1.5,
+                    ),
                   ),
                 ),
               ),
+            SizedBox(height: 1.vr),
+            // Flexible content area for times — only times scale-down on overflow, not title
+            Flexible(
+              child: FittedBox(
+                alignment: Alignment.center,
+                fit: BoxFit.scaleDown,
+                child: _buildTimeContent(context, bigFont * fontScale, smallFont * fontScale, is12period),
+              ),
             ),
-          SizedBox(height: 1.vr),
-          // Flexible content area for times
-          Flexible(
-            child: FittedBox(
-              alignment: Alignment.center,
-              fit: BoxFit.scaleDown,
-              child: _buildTimeContent(context, bigFont, smallFont, is12period),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget buildPortrait(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double titleFont = 3.5.vwr;
     double bigFont = 4.vwr;
     double smallFont = 3.vwr;
 
     final mosqueProvider = context.watch<MosqueManager>();
     final mosqueConfig = mosqueProvider.mosqueConfig;
-    final isArabic = context.read<AppLanguage>().isArabic();
     final is12period = mosqueConfig?.timeDisplayFormat == "12";
 
     return Container(
@@ -117,36 +121,39 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 : Colors.black.withOpacity(.5),
       ),
       padding: EdgeInsets.symmetric(vertical: 1.vr, horizontal: 1.vwr),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fixed height container for title to maintain consistent sizing
-          if (title != null && title!.trim().isNotEmpty)
-            Container(
-              height: titleFont * 1.2, // Fixed height based on font size
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  maxLines: 1,
-                  title ?? "",
-                  style: TextStyle(
-                    fontSize: titleFont,
-                    shadows: kHomeTextShadow,
-                    color: Colors.white,
-                    height: 1.2,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Fixed height container for title to maintain consistent sizing across cards
+            if (title != null && title!.trim().isNotEmpty)
+              Container(
+                height: titleFont * fontScale * 1.2,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    maxLines: 1,
+                    title ?? "",
+                    style: TextStyle(
+                      fontSize: titleFont * fontScale,
+                      shadows: kHomeTextShadow,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
                   ),
                 ),
               ),
+            SizedBox(height: 0.5.vh),
+            // Flexible content area for times — only times scale-down on overflow, not title
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _buildTimeContent(context, bigFont * fontScale, smallFont * fontScale, is12period),
+              ),
             ),
-          SizedBox(height: 0.5.vh),
-          // Flexible content area for times
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: _buildTimeContent(context, bigFont, smallFont, is12period),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

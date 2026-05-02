@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fpdart/fpdart.dart' as fp;
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 class OnBoardingMawaqitAboutWidget extends StatefulWidget {
@@ -48,6 +50,7 @@ class _OnBoardingMawaqitAboutWidgetState extends State<OnBoardingMawaqitAboutWid
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     final isTablet = MediaQuery.of(context).size.width > 600;
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
@@ -60,43 +63,46 @@ class _OnBoardingMawaqitAboutWidgetState extends State<OnBoardingMawaqitAboutWid
         }
         return KeyEventResult.ignored;
       },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Title section - flexible
-          Text(
-            S.of(context).mawaqitWelcome,
-            style: TextStyle(
-              fontSize: isTablet ? 16.sp : 20.sp,
-              fontWeight: FontWeight.w700,
-              color: themeData.brightness == Brightness.dark ? Colors.white70 : themeData.primaryColor,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Title section - flexible
+            Text(
+              S.of(context).mawaqitWelcome,
+              style: TextStyle(
+                fontSize: (isTablet ? 16.sp : 20.sp) * fontScale,
+                fontWeight: FontWeight.w700,
+                color: themeData.brightness == Brightness.dark ? Colors.white70 : themeData.primaryColor,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-          ),
 
-          // Spacer
-          SizedBox(height: isPortrait ? 1.h : 2.h),
+            // Spacer
+            SizedBox(height: isPortrait ? 1.h : 2.h),
 
-          // Description section - expandable
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 1.w),
-              child: AutoSizeText(
-                S.of(context).mawaqitDesc,
-                textAlign: TextAlign.justify,
-                minFontSize: 10,
-                style: TextStyle(
-                  fontSize: isTablet ? 12.sp : 14.sp,
-                  height: 1.4,
-                  color: themeData.brightness == Brightness.dark ? Colors.white60 : themeData.primaryColor,
+            // Description section - expandable
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 1.w),
+                child: AutoSizeText(
+                  S.of(context).mawaqitDesc,
+                  textAlign: TextAlign.justify,
+                  minFontSize: 10 * fontScale,
+                  style: TextStyle(
+                    fontSize: (isTablet ? 12.sp : 14.sp) * fontScale,
+                    height: 1.4,
+                    color: themeData.brightness == Brightness.dark ? Colors.white60 : themeData.primaryColor,
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(height: isPortrait ? 1.h : 2.h),
-        ],
+            SizedBox(height: isPortrait ? 1.h : 2.h),
+          ],
+        ),
       ),
     );
   }

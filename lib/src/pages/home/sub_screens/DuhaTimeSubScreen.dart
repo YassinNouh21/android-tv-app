@@ -14,6 +14,7 @@ import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_turkish_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:provider/provider.dart';
 
@@ -65,6 +66,7 @@ class _DuhaTimeSubScreenState extends State<DuhaTimeSubScreen> {
     }
     final tr = S.of(context);
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
 
     return MosqueBackgroundScreen(
       child: Column(
@@ -75,35 +77,38 @@ class _DuhaTimeSubScreenState extends State<DuhaTimeSubScreen> {
               padding: EdgeInsets.symmetric(horizontal: 10.vw),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  textBaseline: TextBaseline.alphabetic,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  children: [
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: -1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5.vw),
-                      child: Text(
-                        tr.duhaTime,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15.vw,
-                          color: Colors.white,
-                          shadows: kHomeTextShadow,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    children: [
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw * fontScale)
+                          .animate()
+                          .slideX(begin: -1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 5.vw),
+                        child: Text(
+                          tr.duhaTime,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.vw * fontScale,
+                            color: Colors.white,
+                            shadows: kHomeTextShadow,
+                          ),
                         ),
-                      ),
-                    ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: 1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                  ],
-                ).flashAnimation(),
+                      ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw * fontScale)
+                          .animate()
+                          .slideX(begin: 1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                    ],
+                  ).flashAnimation(),
+                ),
               ),
             ),
           ),

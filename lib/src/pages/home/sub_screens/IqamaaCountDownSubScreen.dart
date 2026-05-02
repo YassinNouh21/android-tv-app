@@ -116,21 +116,25 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
   }
 
   Widget _buildCountdownText({required double fontSize}) {
+    final fontScale = context.read<UserPreferencesManager>().appFontSizeScale;
     return StreamBuilder(
       stream: _countdownStream,
       builder: (context, snapshot) {
         return FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(
-            _formatRemainingTime(),
-            style: TextStyle(
-              fontSize: fontSize,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              shadows: kIqamaCountDownTextShadow,
-              height: 1,
-            ),
-          ).animate().fadeIn(delay: .7.seconds, duration: 2.seconds).addRepaintBoundary(),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+            child: Text(
+              _formatRemainingTime(),
+              style: TextStyle(
+                fontSize: fontSize * fontScale,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                shadows: kIqamaCountDownTextShadow,
+                height: 1,
+              ),
+            ).animate().fadeIn(delay: .7.seconds, duration: 2.seconds).addRepaintBoundary(),
+          ),
         );
       },
     );

@@ -330,6 +330,28 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                           value: userPreferences.iqamaShowClock,
                           onChanged: (value) => userPreferences.iqamaShowClock = value,
                         ),
+                        _SettingDropdownItem<AppFontSize>(
+                          title: S.of(context).prayerTimeFontSize,
+                          subtitle: S.of(context).prayerTimeFontSizeDesc,
+                          icon: const Icon(Icons.text_fields, size: 35),
+                          value: userPreferences.appFontSize,
+                          items: AppFontSize.values,
+                          onChanged: (value) {
+                            if (value != null) userPreferences.appFontSize = value;
+                          },
+                          itemLabelBuilder: (size) {
+                            switch (size) {
+                              case AppFontSize.small:
+                                return '${S.of(context).fontSizeSmall} (-10%)';
+                              case AppFontSize.medium:
+                                return '${S.of(context).fontSizeNormal} (default)';
+                              case AppFontSize.large:
+                                return '${S.of(context).fontSizeLarge} (+10%)';
+                              case AppFontSize.extraLarge:
+                                return '${S.of(context).fontSizeXLarge} (+20%)';
+                            }
+                          },
+                        ),
                         _SettingItem(
                           title: S.of(context).orientation,
                           subtitle: S.of(context).selectYourMawaqitTvAppOrientation,

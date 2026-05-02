@@ -245,6 +245,15 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
                       supportedLocales: MawaqitTvExtendedLocalizations.supportedLocales,
                       debugShowCheckedModeBanner: false,
                       onGenerateRoute: RouteGenerator.generateRoute,
+                      builder: (context, child) {
+                        final prefs = Provider.of<UserPreferencesManager>(context);
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: TextScaler.linear(prefs.appFontSizeScale),
+                          ),
+                          child: child!,
+                        );
+                      },
                       home: Splash(),
                     ),
                   ),
@@ -252,8 +261,8 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
               },
             ),
           );
-        });
-      }),
+        },);
+      },),
     );
   }
 }

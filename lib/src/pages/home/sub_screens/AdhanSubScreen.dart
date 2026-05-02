@@ -14,6 +14,7 @@ import 'package:mawaqit/src/pages/home/widgets/mosque_background_screen.dart';
 import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_state.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
@@ -198,6 +199,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     final mosqueProvider = context.watch<MosqueManager>();
     final mosque = mosqueProvider.mosque!;
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
 
     // Debug current audio state
     final audioStateValue = ref.watch(prayerAudioProvider);
@@ -215,35 +217,38 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
               padding: EdgeInsets.symmetric(horizontal: 10.vw),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  textBaseline: TextBaseline.alphabetic,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  children: [
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: -1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5.vw),
-                      child: Text(
-                        S.of(context).alAdhan,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15.vw,
-                          color: Colors.white,
-                          shadows: kHomeTextShadow,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    children: [
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw * fontScale)
+                          .animate()
+                          .slideX(begin: -1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 5.vw),
+                        child: Text(
+                          S.of(context).alAdhan,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.vw * fontScale,
+                            color: Colors.white,
+                            shadows: kHomeTextShadow,
+                          ),
                         ),
-                      ),
-                    ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: 1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                  ],
-                ).flashAnimation(),
+                      ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw * fontScale)
+                          .animate()
+                          .slideX(begin: 1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                    ],
+                  ).flashAnimation(),
+                ),
               ),
             ),
           ),

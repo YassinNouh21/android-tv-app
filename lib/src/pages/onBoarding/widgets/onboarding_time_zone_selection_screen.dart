@@ -7,6 +7,8 @@ import 'package:timezone/standalone.dart' as tz;
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/data/countries.dart';
 import 'package:sizer/sizer.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:provider/provider.dart';
 import 'package:scroll_to_index/scroll_to_index.dart'; // Import the package
 
 const platform = MethodChannel('nativeMethodsChannel');
@@ -188,6 +190,7 @@ class _TimezoneSelectionScreenState extends State<TimezoneSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
 
     return Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
@@ -251,13 +254,16 @@ class _TimezoneSelectionScreenState extends State<TimezoneSelectionScreen> {
                       contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.3.h),
                       title: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(
-                          '${_convertToGMTOffset(timeZoneOffset)} $timezone',
-                          style: TextStyle(
-                            fontSize: 10.sp,
-                            color: selectedTimezoneIndex == index ? Colors.white : null,
+                        child: MediaQuery(
+                          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                          child: Text(
+                            '${_convertToGMTOffset(timeZoneOffset)} $timezone',
+                            style: TextStyle(
+                              fontSize: 10.sp * fontScale,
+                              color: selectedTimezoneIndex == index ? Colors.white : null,
+                            ),
+                            textAlign: TextAlign.start,
                           ),
-                          textAlign: TextAlign.start,
                         ),
                       ),
                       onTap: () {

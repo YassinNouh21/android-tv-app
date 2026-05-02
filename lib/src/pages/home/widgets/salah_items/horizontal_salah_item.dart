@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:mawaqit/src/widgets/iqama_time_widget.dart';
 import 'package:mawaqit/src/widgets/time_widget.dart';
@@ -38,6 +39,7 @@ class HorizontalSalahItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double titleFont = 3.5.vwr;
     double bigFont = 4.5.vwr;
     double smallFont = 3.5.vwr;
@@ -58,72 +60,75 @@ class HorizontalSalahItem extends StatelessWidget {
                 : Colors.black.withOpacity(.5),
       ),
       padding: EdgeInsets.symmetric(vertical: 1.vh, horizontal: 1.vw),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Title
-          if (title != null && title!.trim().isNotEmpty)
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Title
+            if (title != null && title!.trim().isNotEmpty)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    maxLines: 1,
+                    title ?? "",
+                    style: TextStyle(
+                      height: 1,
+                      fontSize: titleFont * fontScale,
+                      shadows: kHomeTextShadow,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            // Prayer Time
             Expanded(
-              child: Center(
-                child: Text(
-                  maxLines: 1,
-                  title ?? "",
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: TimeWidget.fromString(
+                  show24hFormat: is24period,
+                  time: time,
                   style: TextStyle(
-                    height: 1,
-                    fontSize: titleFont,
+                    fontSize: (isIqamaMoreImportant ? smallFont : bigFont) * fontScale,
+                    fontWeight: FontWeight.w700,
                     shadows: kHomeTextShadow,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
-          // Prayer Time
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: TimeWidget.fromString(
-                show24hFormat: is24period,
-                time: time,
-                style: TextStyle(
-                  fontSize: isIqamaMoreImportant ? smallFont : bigFont,
-                  fontWeight: FontWeight.w700,
-                  shadows: kHomeTextShadow,
-                  color: Colors.white,
-                ),
+
+            // Divider (vertical)
+            if (iqama != null && showIqama && withDivider)
+              Container(
+                width: 1,
+                height: bigFont * fontScale,
+                margin: EdgeInsets.symmetric(horizontal: 1.vwr),
+                color: Colors.white,
               ),
-            ),
-          ),
 
-          // Divider (vertical)
-          if (iqama != null && showIqama && withDivider)
-            Container(
-              width: 1,
-              height: bigFont,
-              margin: EdgeInsets.symmetric(horizontal: 1.vwr),
-              color: Colors.white,
-            ),
-
-          // Iqama Time
-          if (showIqama)
-            Expanded(
-              child: iqama != null && iqama!.isNotEmpty
-                  ? FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: IqamaTimeWidget(
-                        time: iqama!,
-                        show24hFormat: is24period,
-                        style: TextStyle(
-                          fontSize: isIqamaMoreImportant ? bigFont : smallFont,
-                          fontWeight: FontWeight.w700,
-                          shadows: kHomeTextShadow,
-                          color: Colors.white,
+            // Iqama Time
+            if (showIqama)
+              Expanded(
+                child: iqama != null && iqama!.isNotEmpty
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: IqamaTimeWidget(
+                          time: iqama!,
+                          show24hFormat: is24period,
+                          style: TextStyle(
+                            fontSize: (isIqamaMoreImportant ? bigFont : smallFont) * fontScale,
+                            fontWeight: FontWeight.w700,
+                            shadows: kHomeTextShadow,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    )
-                  : SizedBox.shrink(),
-            ),
-        ],
+                      )
+                    : SizedBox.shrink(),
+              ),
+          ],
+        ),
       ),
     );
   }

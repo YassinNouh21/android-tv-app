@@ -227,95 +227,99 @@ class _TextAnnouncement extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return switch (isPortrait) {
-      false => Padding(
-          key: ValueKey("$content $title"),
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Column(
-            children: [
-              // title
-              SizedBox(height: 10.vh),
-              Flexible(
-                flex: 6,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2.w),
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: switch (isPortrait) {
+        false => Padding(
+            key: ValueKey("$content $title"),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              children: [
+                // title
+                SizedBox(height: 10.vh),
+                Flexible(
+                  flex: 6,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w),
+                    child: AutoSizeText(
+                      title ?? '',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        shadows: kAnnouncementTextShadow,
+                        fontSize: (isIqamaMoreImportant ? 4.vwr : 6.vwr) * fontScale,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                        letterSpacing: 1,
+                      ),
+                    ).animate().slide().addRepaintBoundary(),
+                  ),
+                ),
+                // content
+                SizedBox(height: 5.vh),
+                Flexible(
+                  flex: isIqamaMoreImportant ? 12 : 24,
                   child: AutoSizeText(
-                    title ?? '',
+                    content,
+                    stepGranularity: 1,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       shadows: kAnnouncementTextShadow,
-                      fontSize: isIqamaMoreImportant ? 4.vwr : 6.vwr,
+                      fontSize: 6.vwr * fontScale,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+                  ).animate().fade(delay: 500.milliseconds).addRepaintBoundary(),
+                ),
+                SizedBox(height: 20.vh),
+              ],
+            ),
+          ),
+        true => Padding(
+            key: ValueKey("$content $title"),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              children: [
+                Spacer(flex: 1),
+                Flexible(
+                  flex: 2,
+                  fit: FlexFit.tight,
+                  child: AutoSizeText(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      shadows: kAnnouncementTextShadow,
+                      fontSize: 18.sp * fontScale,
                       fontWeight: FontWeight.bold,
                       color: Colors.amber,
                       letterSpacing: 1,
                     ),
                   ).animate().slide().addRepaintBoundary(),
                 ),
-              ),
-              // content
-              SizedBox(height: 5.vh),
-              Flexible(
-                flex: isIqamaMoreImportant ? 12 : 24,
-                child: AutoSizeText(
-                  content,
-                  stepGranularity: 1,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    shadows: kAnnouncementTextShadow,
-                    fontSize: 6.vwr,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1,
-                  ),
-                ).animate().fade(delay: 500.milliseconds).addRepaintBoundary(),
-              ),
-              SizedBox(height: 20.vh),
-            ],
+                Flexible(
+                  flex: 10,
+                  child: AutoSizeText(
+                    content,
+                    stepGranularity: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      shadows: kAnnouncementTextShadow,
+                      fontSize: 30.sp * fontScale,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+                    maxLines: 10,
+                    minFontSize: 10 * fontScale,
+                  ).animate().fade(delay: 500.milliseconds).addRepaintBoundary(),
+                ),
+                Spacer(flex: 1),
+              ],
+            ),
           ),
-        ),
-      true => Padding(
-          key: ValueKey("$content $title"),
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Column(
-            children: [
-              Spacer(flex: 1),
-              Flexible(
-                flex: 2,
-                fit: FlexFit.tight,
-                child: AutoSizeText(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    shadows: kAnnouncementTextShadow,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber,
-                    letterSpacing: 1,
-                  ),
-                ).animate().slide().addRepaintBoundary(),
-              ),
-              Flexible(
-                flex: 10,
-                child: AutoSizeText(
-                  content,
-                  stepGranularity: 1,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    shadows: kAnnouncementTextShadow,
-                    fontSize: 30.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1,
-                  ),
-                  maxLines: 10,
-                  minFontSize: 10,
-                ).animate().fade(delay: 500.milliseconds).addRepaintBoundary(),
-              ),
-              Spacer(flex: 1),
-            ],
-          ),
-        ),
-    };
+      },
+    );
   }
 
   get kAnnouncementTextShadow => [

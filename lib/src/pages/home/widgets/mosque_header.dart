@@ -7,6 +7,7 @@ import 'package:mawaqit/src/pages/home/widgets/WeatherWidget.dart';
 import 'package:mawaqit/src/pages/home/widgets/offline_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/orientation_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
@@ -22,6 +23,7 @@ class MosqueHeader extends StatelessOrientationWidget {
   @override
   Widget buildLandscape(BuildContext context) {
     final mosqueConfig = context.watch<MosqueManager>().mosqueConfig;
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return Padding(
       padding: EdgeInsets.only(top: 1.8.vh, right: .8.vw),
       child: Row(
@@ -33,7 +35,10 @@ class MosqueHeader extends StatelessOrientationWidget {
             flex: 6,
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: buildMosqueName(mosqueConfig),
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                child: buildMosqueName(mosqueConfig, fontScale),
+              ),
             ),
           ),
           Expanded(
@@ -112,7 +117,7 @@ class MosqueHeader extends StatelessOrientationWidget {
     );
   }
 
-  Container buildMosqueName(MosqueConfig? mosqueConfig) {
+  Container buildMosqueName(MosqueConfig? mosqueConfig, [double fontScale = 1.0]) {
     return Container(
       alignment: Alignment.bottomCenter,
       child: Row(
@@ -130,19 +135,16 @@ class MosqueHeader extends StatelessOrientationWidget {
                 )
               : SizedBox(),
           SizedBox(width: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              mosque.name,
-              maxLines: 1,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 4.vwr,
-                height: 1.2,
-                overflow: TextOverflow.visible,
-                shadows: kIqamaCountDownTextShadow,
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            mosque.name,
+            maxLines: 1,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 4.vwr * fontScale,
+              height: 1.2,
+              overflow: TextOverflow.visible,
+              shadows: kIqamaCountDownTextShadow,
+              fontWeight: FontWeight.bold,
             ),
           ),
           SizedBox(width: 10),

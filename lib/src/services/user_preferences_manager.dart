@@ -26,6 +26,9 @@ const quranLastPortraitKey = 'quran_last_portrait';
 const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
 const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
 const _iqamaShowClockKey = 'UserPreferencesManager.iqama.show.clock';
+const _appFontSizeKey = 'UserPreferencesManager.app.font.size';
+
+enum AppFontSize { small, medium, large, extraLarge }
 
 /// this manager responsible for managing user preferences
 class UserPreferencesManager extends ChangeNotifier {
@@ -35,6 +38,7 @@ class UserPreferencesManager extends ChangeNotifier {
 
   Future<UserPreferencesManager> init() async {
     _sharedPref = await SharedPreferences.getInstance();
+    _initialized = true;
 
     // Migrate old announcementsOnly boolean to new appMode enum
     _migrateAnnouncementsOnly();
@@ -47,6 +51,8 @@ class UserPreferencesManager extends ChangeNotifier {
     }
     // Production is default when both are false
     forceOrientation();
+
+    notifyListeners();
 
     return this;
   }
@@ -66,6 +72,7 @@ class UserPreferencesManager extends ChangeNotifier {
   }
 
   late SharedPreferences _sharedPref;
+  bool _initialized = false;
 
   bool get announcementsOnly => appMode == AppMode.announcement;
 
@@ -245,5 +252,43 @@ class UserPreferencesManager extends ChangeNotifier {
   set iqamaShowClock(bool value) {
     _sharedPref.setBool(_iqamaShowClockKey, value);
     notifyListeners();
+  }
+
+  AppFontSize get appFontSize {
+    if (!_initialized) return AppFontSize.medium;
+    final value = _sharedPref.getString(_appFontSizeKey);
+    if (value == null) return AppFontSize.medium;
+    return AppFontSize.values.firstWhere((e) => e.name == value, orElse: () => AppFontSize.medium);
+  }
+
+  set appFontSize(AppFontSize value) {
+    _sharedPref.setString(_appFontSizeKey, value.name);
+    notifyListeners();
+  }
+
+  /// Multiplier applied to text/icon sizes throughout the app.
+  ///
+  /// This is consumed in two places:
+  ///   1. Globally in `main.dart` via `MediaQuery(textScaler: TextScaler.linear(...))`,
+  ///      which scales any `Text` that is not wrapped in a `FittedBox`.
+  ///   2. Manually multiplied into hardcoded `fontSize` (and icon `size`) values inside
+  ///      widgets that sit under a `FittedBox(fit: BoxFit.scaleDown)`. Those widgets must
+  ///      also wrap their subtree in `MediaQuery(textScaler: TextScaler.noScaling)` to
+  ///      opt out of (1) — otherwise FittedBox would just scale the bigger text right back
+  ///      down and the setting would have no visible effect.
+  ///
+  /// Returns 1.0 until [init] resolves so the very first frame doesn't hit
+  /// LateInitializationError on `_sharedPref`.
+  double get appFontSizeScale {
+    switch (appFontSize) {
+      case AppFontSize.small:
+        return 0.9;
+      case AppFontSize.medium:
+        return 1.0;
+      case AppFontSize.large:
+        return 1.1;
+      case AppFontSize.extraLarge:
+        return 1.2;
+    }
   }
 }
