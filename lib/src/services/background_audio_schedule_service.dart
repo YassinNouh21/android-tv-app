@@ -57,10 +57,14 @@ class BackgroundAudioScheduleService {
       }
 
       await _startPlayback(createPlaylist);
-      try { _service.invoke('kAudioStateChanged', {'isPlaying': true}); } catch (_) {}
+      try {
+        _service.invoke('kAudioStateChanged', {'isPlaying': true});
+      } catch (_) {}
     } catch (e) {
       print('Error playing audio: $e');
-      try { _service.invoke('kAudioStateChanged', {'isPlaying': false}); } catch (_) {}
+      try {
+        _service.invoke('kAudioStateChanged', {'isPlaying': false});
+      } catch (_) {}
     }
   }
 

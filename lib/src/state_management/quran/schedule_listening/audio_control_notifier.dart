@@ -256,5 +256,4 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       _handleError('Failed to stop playback: $e');
     }
   }
-
 }

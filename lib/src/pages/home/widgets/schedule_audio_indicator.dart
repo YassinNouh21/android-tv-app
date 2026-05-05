@@ -76,7 +76,8 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
     _prefs?.setString(BackgroundScheduleAudioServiceConstant.kSelectedSurahName, surahName);
   }
 
-  String _resolveSurahName(BuildContext context, dynamic schedule, AsyncValue<dynamic> quranAsync, int? currentPlayingSurahId) {
+  String _resolveSurahName(
+      BuildContext context, dynamic schedule, AsyncValue<dynamic> quranAsync, int? currentPlayingSurahId) {
     final surahIdToLookup = schedule.isRandomEnabled ? currentPlayingSurahId : schedule.selectedSurahId;
     if (surahIdToLookup != null && quranAsync.hasValue) {
       final suwar = quranAsync.value!.suwar;
