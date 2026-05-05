@@ -131,10 +131,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isScheduleEnabled = prefs.getBool(BackgroundScheduleAudioServiceConstant.kScheduleEnabled) ?? false;
+      final currentPlayingSurahId = prefs.getInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId);
 
       return AudioControlState(
         status: AudioStatus.paused,
         shouldShowControls: isScheduleEnabled,
+        currentPlayingSurahId: currentPlayingSurahId,
       );
     } catch (e) {
       _handleError('Failed to get initial state: $e');
@@ -160,6 +162,13 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
 
       if (!isScheduleEnabled || isPendingSchedule) {
         _updatePlaybackState(false);
+      }
+
+      // Read the currently playing surah ID written by the background service
+      await prefs.reload();
+      final currentPlayingSurahId = prefs.getInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId);
+      if (currentPlayingSurahId != null && state.hasValue) {
+        state = AsyncData(state.value!.copyWith(currentPlayingSurahId: currentPlayingSurahId));
       }
     } catch (e) {
       _handleError('Failed to check playback state: $e');
@@ -248,26 +257,4 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     }
   }
 
-  /// Updates the playback state with loading indicator
-  Future<void> _updatePlaybackStateWithLoading(AudioStatus status) async {
-    try {
-      state = AsyncData(
-        state.value!.copyWith(
-          status: status,
-          isLoading: true,
-        ),
-      );
-
-      // Simulate a small delay for UI feedback
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      state = AsyncData(
-        state.value!.copyWith(
-          isLoading: false,
-        ),
-      );
-    } catch (e) {
-      _handleError('Failed to update playback state: $e');
-    }
-  }
 }

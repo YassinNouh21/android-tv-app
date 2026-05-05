@@ -10,6 +10,7 @@ class AudioControlState extends Equatable {
   final bool shouldShowControls;
   final bool isConfigured;
   final bool isStopped;
+  final int? currentPlayingSurahId;
 
   const AudioControlState({
     this.status = AudioStatus.paused,
@@ -18,6 +19,7 @@ class AudioControlState extends Equatable {
     this.shouldShowControls = false,
     this.isConfigured = false,
     this.isStopped = false,
+    this.currentPlayingSurahId,
   });
 
   AudioControlState copyWith({
@@ -28,6 +30,8 @@ class AudioControlState extends Equatable {
     bool? shouldShowControls,
     bool? isConfigured,
     bool? isStopped,
+    int? currentPlayingSurahId,
+    bool clearCurrentSurah = false,
   }) {
     return AudioControlState(
       status: status ?? this.status,
@@ -36,9 +40,10 @@ class AudioControlState extends Equatable {
       shouldShowControls: shouldShowControls ?? this.shouldShowControls,
       isConfigured: isConfigured ?? this.isConfigured,
       isStopped: isStopped ?? this.isStopped,
+      currentPlayingSurahId: clearCurrentSurah ? null : (currentPlayingSurahId ?? this.currentPlayingSurahId),
     );
   }
 
   @override
-  List<Object?> get props => [status, isLoading, error, shouldShowControls, isConfigured, isStopped];
+  List<Object?> get props => [status, isLoading, error, shouldShowControls, isConfigured, isStopped, currentPlayingSurahId];
 }
