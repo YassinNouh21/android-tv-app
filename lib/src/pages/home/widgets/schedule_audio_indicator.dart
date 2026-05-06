@@ -120,7 +120,7 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (isPlaying)
-          _AnimatedBars()
+          AnimatedBars()
         else
           Icon(
             Icons.music_off_rounded,
@@ -129,7 +129,7 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
           ),
         SizedBox(width: 1.vwr),
         Flexible(
-          child: _ScrollingText(
+          child: ScrollingText(
             text: qariName.isNotEmpty ? '$surahName - $qariName' : surahName,
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -179,7 +179,7 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
 }
 
 /// Animated equalizer bars that pulse when audio is playing.
-class _AnimatedBars extends StatelessWidget {
+class AnimatedBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -247,17 +247,17 @@ class _SingleBarState extends State<_SingleBar> with SingleTickerProviderStateMi
 }
 
 /// Text that scrolls left then right when it overflows, stays static otherwise.
-class _ScrollingText extends StatefulWidget {
+class ScrollingText extends StatefulWidget {
   final String text;
   final TextStyle style;
 
-  const _ScrollingText({required this.text, required this.style});
+  const ScrollingText({super.key, required this.text, required this.style});
 
   @override
-  State<_ScrollingText> createState() => _ScrollingTextState();
+  State<ScrollingText> createState() => _ScrollingTextState();
 }
 
-class _ScrollingTextState extends State<_ScrollingText> with SingleTickerProviderStateMixin {
+class _ScrollingTextState extends State<ScrollingText> with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
   late final AnimationController _animController;
   bool _needsScroll = false;
@@ -271,7 +271,7 @@ class _ScrollingTextState extends State<_ScrollingText> with SingleTickerProvide
   }
 
   @override
-  void didUpdateWidget(_ScrollingText old) {
+  void didUpdateWidget(ScrollingText old) {
     super.didUpdateWidget(old);
     if (old.text != widget.text) {
       _animController.stop();
