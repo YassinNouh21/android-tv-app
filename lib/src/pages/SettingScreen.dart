@@ -86,6 +86,11 @@ class SettingScreen extends ConsumerStatefulWidget {
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool isBoxOrAndroidTV = false;
   int androidSdkVersion = 0;
+  _SettingsSection? _expandedSection = _SettingsSection.global;
+
+  void _toggleSection(_SettingsSection section) {
+    setState(() => _expandedSection = _expandedSection == section ? null : section);
+  }
 
   @override
   void initState() {
@@ -159,7 +164,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     _CollapsibleSection(
                       title: S.of(context).settingsSectionGlobal,
                       icon: Icons.public,
-                      initiallyExpanded: true,
+                      isExpanded: _expandedSection == _SettingsSection.global,
+                      onToggle: () => _toggleSection(_SettingsSection.global),
                       children: [
                         _SettingItem(
                           title: S.of(context).hijriDateAdjustment,
@@ -291,6 +297,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     _CollapsibleSection(
                       title: S.of(context).appDisplayMode,
                       icon: Icons.display_settings,
+                      isExpanded: _expandedSection == _SettingsSection.displayMode,
+                      onToggle: () => _toggleSection(_SettingsSection.displayMode),
                       children: [
                         _SettingDropdownItem<_LaunchMode>(
                           title: S.of(context).applicationModes,
@@ -381,6 +389,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     _CollapsibleSection(
                       title: S.of(context).deviceSettings,
                       icon: Icons.devices,
+                      isExpanded: _expandedSection == _SettingsSection.device,
+                      onToggle: () => _toggleSection(_SettingsSection.device),
                       children: [
                         if (isDeviceRooted)
                           _SettingItem(
@@ -429,6 +439,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     _CollapsibleSection(
                       title: S.of(context).update,
                       icon: Icons.system_update_alt,
+                      isExpanded: _expandedSection == _SettingsSection.update,
+                      onToggle: () => _toggleSection(_SettingsSection.update),
                       children: [
                         Consumer(
                           builder: (context, ref, child) {
@@ -515,31 +527,22 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
   }
 }
 
-class _CollapsibleSection extends StatefulWidget {
+enum _SettingsSection { global, displayMode, device, update }
+
+class _CollapsibleSection extends StatelessWidget {
   const _CollapsibleSection({
     required this.title,
     required this.icon,
     required this.children,
-    this.initiallyExpanded = false,
+    required this.isExpanded,
+    required this.onToggle,
   });
 
   final String title;
   final IconData icon;
   final List<Widget> children;
-  final bool initiallyExpanded;
-
-  @override
-  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
-}
-
-class _CollapsibleSectionState extends State<_CollapsibleSection> {
-  late bool _expanded;
-
-  @override
-  void initState() {
-    super.initState();
-    _expanded = widget.initiallyExpanded;
-  }
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -551,12 +554,12 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
         children: [
           ListTile(
             autofocus: true,
-            leading: Icon(widget.icon, size: 35),
-            title: Text(widget.title),
-            trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-            onTap: () => setState(() => _expanded = !_expanded),
+            leading: Icon(icon, size: 35),
+            title: Text(title),
+            trailing: Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+            onTap: onToggle,
           ),
-          if (_expanded)
+          if (isExpanded)
             Theme(
               data: Theme.of(context).copyWith(
                 cardTheme: CardTheme(
@@ -566,7 +569,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
                   shape: const RoundedRectangleBorder(),
                 ),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: widget.children),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
             ),
         ],
       ),
