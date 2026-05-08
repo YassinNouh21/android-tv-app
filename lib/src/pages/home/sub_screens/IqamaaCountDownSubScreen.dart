@@ -170,57 +170,33 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
     super.dispose();
   }
 
-  /// Check if the screen is standard resolution (1920x1080 or less)
-  bool _isStandardResolution(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    return size.width <= 1920 && size.height <= 1080;
-  }
-
   @override
   Widget build(BuildContext context) {
     final mosqueManager = context.read<MosqueManager>();
     final showClock = context.watch<UserPreferencesManager>().iqamaShowClock;
+    final tr = S.of(context);
 
     if (mosqueManager.mosqueConfig?.iqamaFullScreenCountdown == false) return const NormalHomeSubScreen();
 
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Portrait always uses new layout; landscape uses new for standard res, old for high res
-    if (isPortrait || _isStandardResolution(context)) {
-      return _buildNewLayout(context, mosqueManager, showClock);
-    } else {
-      return _buildOldLayout(context, mosqueManager, showClock);
-    }
-  }
-
-  /// Old layout for high resolution screens (larger than 1920x1080)
-  Widget _buildOldLayout(BuildContext context, MosqueManager mosqueManager, bool showClock) {
-    final tr = S.of(context);
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-
     return SafeArea(
       child: Column(
         children: [
-          _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.vh)),
-
-          // Clock Widget - compact version
-          if (showClock)
-            Container(
-              height: 20.vh,
-              alignment: Alignment.center,
-              child: const IqamaaTimeWidget(hideSeconds: true),
-            ),
-
-          // Main countdown section - takes up available space
+          _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh)),
+          SizedBox(height: isPortrait ? 0.5.vh : 1.5.vh),
+          if (showClock) _buildClockWidget(isPortrait),
+          SizedBox(height: isPortrait ? 1.vh : 4.vh),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Flexible(
+                FittedBox(
+                  fit: BoxFit.scaleDown,
                   child: Text(
                     tr.iqamaIn,
                     style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width < 400 ? 6.vwr : 7.vwr,
+                      fontSize: isPortrait ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr) : 7.vwr,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       shadows: kIqamaCountDownTextShadow,
@@ -228,62 +204,10 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
                     ),
                   ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
                 ),
-                SizedBox(height: 1.vh),
-                Flexible(
-                  flex: 2,
-                  child: _buildCountdownText(fontSize: 35.vw),
-                ),
-              ],
-            ),
-          ),
-          _buildSalahBar(),
-          if (mosqueManager.flashEnabled && mosqueManager.mosque?.flash != null) ...[
-            if (isPortrait) SizedBox(height: 1.vh),
-            isPortrait ? PortraitFooterWidget(mosque: mosqueManager.mosque!) : const Footer(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// New layout for standard resolution screens (1920x1080 or less)
-  Widget _buildNewLayout(BuildContext context, MosqueManager mosqueManager, bool showClock) {
-    final tr = S.of(context);
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-
-    return SafeArea(
-      child: Column(
-        children: [
-          _buildHeaderRow(padding: EdgeInsets.symmetric(horizontal: 1.vw, vertical: 1.5.vh)),
-
-          SizedBox(height: isPortrait ? 0.5.vh : 1.5.vh),
-
-          // Clock Widget - Using custom widget for landscape mode
-          if (showClock) _buildClockWidget(isPortrait),
-
-          SizedBox(height: isPortrait ? 1.vh : 4.vh),
-
-          // Main countdown section - takes up available space
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  tr.iqamaIn,
-                  style: TextStyle(
-                    fontSize: isPortrait
-                        ? (MediaQuery.of(context).size.width < 400 ? 6.vwr : 5.vwr)
-                        : (showClock ? 6.5.vwr : 7.vwr),
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: kIqamaCountDownTextShadow,
-                    height: 1,
-                  ),
-                ).animate().slide(delay: .5.seconds).fade().addRepaintBoundary(),
                 SizedBox(height: isPortrait ? 1.vh : 2.5.vh),
                 Flexible(
                   child: Center(
-                    child: _buildCountdownText(fontSize: isPortrait ? 35.vw : (showClock ? 13.vw : 25.vw)),
+                    child: _buildCountdownText(fontSize: isPortrait ? 35.vw : 25.vw),
                   ),
                 ),
               ],
