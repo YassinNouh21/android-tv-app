@@ -131,10 +131,8 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
     // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 14.sp : 14.sp;
-    final double subtitleFontSize = isPortrait ? 10.sp : 12.sp;
-    final double buttonFontSize = isPortrait ? 10.sp : 12.sp;
-    final double descriptionFontSize = isPortrait ? 8.sp : 10.sp;
+    final double headerFontSize = isPortrait ? 11.sp : 14.sp;
+    final double buttonFontSize = isPortrait ? 8.sp : 12.sp;
 
     // Adjust width factor based on orientation
     final double widthFactor = isPortrait ? 0.9 : 0.75;
@@ -148,14 +146,13 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header section
-            _buildHeader(theme, headerFontSize, subtitleFontSize),
-            SizedBox(height: 2.h),
+            _buildHeader(theme, headerFontSize),
+            SizedBox(height: isPortrait ? 0.h : 2.h),
 
             // Options section
             _buildOptions(
               theme: theme,
               buttonFontSize: buttonFontSize,
-              descriptionFontSize: descriptionFontSize,
               isPortrait: isPortrait,
             ),
           ],
@@ -167,7 +164,6 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
   Widget _buildHeader(
     ThemeData theme,
     double headerFontSize,
-    double subtitleFontSize,
   ) {
     return Column(
       children: [
@@ -189,37 +185,26 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
   Widget _buildOptions({
     required ThemeData theme,
     required double buttonFontSize,
-    required double descriptionFontSize,
     required bool isPortrait,
   }) {
     return Column(
       children: [
-        // Yes option
         _buildOption(
           theme: theme,
           isSelected: _hasSelectedYes,
           onToggle: _handleYesSelection,
           label: S.of(context).yes,
-          description: '',
           buttonFontSize: buttonFontSize,
-          descriptionFontSize: descriptionFontSize,
           isPortrait: isPortrait,
-          autoFocus: true,
         ),
-
-        SizedBox(height: isPortrait ? 1.5.h : 2.h),
-
-        // No option
+        SizedBox(height: isPortrait ? 2 : 2.h),
         _buildOption(
           theme: theme,
           isSelected: _hasSelectedNo,
           onToggle: _handleNoSelection,
           label: S.of(context).no,
-          description: '',
           buttonFontSize: buttonFontSize,
-          descriptionFontSize: descriptionFontSize,
           isPortrait: isPortrait,
-          autoFocus: false,
         ),
       ],
     );
@@ -230,40 +215,19 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     required bool isSelected,
     required VoidCallback onToggle,
     required String label,
-    required String description,
     required double buttonFontSize,
-    required double descriptionFontSize,
     required bool isPortrait,
-    required bool autoFocus,
   }) {
-    return Column(
-      children: [
-        ToggleButtonWidget(
-          isSelected: isSelected,
-          onPressed: onToggle,
-          label: label,
-          textStyle: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            fontSize: buttonFontSize,
-            height: 1.2,
-          ),
-          isPortrait: isPortrait,
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: isPortrait ? 1.w : 2.w),
-          child: Text(
-            description,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
-              fontSize: descriptionFontSize,
-              height: 1.3,
-            ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.visible,
-            maxLines: 4,
-          ),
-        ),
-      ],
+    return ToggleButtonWidget(
+      isSelected: isSelected,
+      onPressed: onToggle,
+      label: label,
+      textStyle: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        fontSize: buttonFontSize,
+        height: 1.2,
+      ),
+      isPortrait: isPortrait,
     );
   }
 }

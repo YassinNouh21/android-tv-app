@@ -22,6 +22,7 @@ import 'package:provider/provider.dart';
 import '../../../i18n/AppLanguage.dart';
 import '../../../i18n/l10n.dart';
 import '../../helpers/LocaleHelper.dart';
+import '../mosque_search/widgets/mosque_id_tutorial_widget.dart';
 
 class OnBoardingItem {
   final String animation;
@@ -30,6 +31,7 @@ class OnBoardingItem {
   final bool enableNextButton;
   final bool enablePreviousButton;
   final bool Function()? skip;
+  final Widget? leftWidget;
 
   // final FocusNode nextButtonFocusNode;
   // final FocusNode previousButtonFocusNode;
@@ -45,6 +47,7 @@ class OnBoardingItem {
     this.enableNextButton = false,
     this.enablePreviousButton = false,
     this.skip,
+    this.leftWidget,
   });
 }
 
@@ -168,6 +171,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
         ),
         enableNextButton: true,
         enablePreviousButton: true,
+        leftWidget: const MosqueIdTutorialWidget(),
       ),
       OnboardingScreenType.mosqueId: OnBoardingItem(
         animation: 'search',
@@ -361,6 +365,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
                       animation: allScreens[screenType]?.animation ?? '',
                       customLeftWidget: allScreens[screenType]?.customLeftWidget,
                       child: allScreens[screenType]!.widget ?? Container(),
+                      leftWidget: allScreens[screenType]?.leftWidget,
                     );
                   },
                 ),
