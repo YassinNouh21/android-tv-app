@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
 import 'package:mawaqit/src/helpers/StringUtils.dart';
-import 'package:mawaqit/src/services/theme_manager.dart';
 import 'package:mawaqit/src/state_management/random_hadith/random_hadith_notifier.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:sizer/sizer.dart';
@@ -217,31 +216,31 @@ class DisplayTextWidget extends ConsumerWidget {
   }
 
   // Helper method to get hadith text style with Turkish font fix
+  // Uses locally bundled fonts instead of GoogleFonts to avoid async font loading
+  // that causes AutoSizeText to miscalculate on the first frame.
   TextStyle _getHadithTextStyle(BuildContext context, Locale hadithLanguage) {
-    // Get the base style from context (keeps all existing logic)
-    final baseStyle = context.getLocalizedTextStyle(locale: hadithLanguage).copyWith(
-          color: Colors.white,
-          shadows: kIqamaCountDownTextShadow,
-          fontWeight: FontWeight.bold,
-          fontSize: 32.sp,
-        );
+    final baseStyle = TextStyle(
+      color: Colors.white,
+      shadows: kIqamaCountDownTextShadow,
+      fontWeight: FontWeight.bold,
+      fontSize: 32.sp,
+    );
 
-    // For Turkish, override only the font family to use system font
+    // For Turkish, use system font
     if (hadithLanguage.languageCode == 'tr') {
+      return baseStyle;
+    }
+
+    // For Arabic, use the locally bundled Kufi font
+    if (hadithLanguage.languageCode == 'ar') {
       return baseStyle.copyWith(
-        fontFamily: null,
-        fontFamilyFallback: null,
+        fontFamily: StringManager.fontFamilyKufi,
       );
     }
 
-    // For non-Arabic languages, add Kufi as fallback for Arabic words
-    if (hadithLanguage.languageCode != 'ar') {
-      return baseStyle.copyWith(
-        fontFamilyFallback: [StringManager.fontFamilyKufi],
-      );
-    }
-
-    // For all other languages, return the original style
-    return baseStyle;
+    // For non-Arabic languages, use default font with Kufi as fallback for Arabic words
+    return baseStyle.copyWith(
+      fontFamilyFallback: [StringManager.fontFamilyKufi],
+    );
   }
 }
