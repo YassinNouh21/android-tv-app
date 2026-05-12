@@ -67,10 +67,15 @@ class SalahItemWidget extends StatelessOrientationWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Fixed height container for title to maintain consistent sizing across cards
+            // Title's container and TextStyle.height both use 1.0 (was 1.2/1.5).
+            // The Container exactly matches the text's natural size, so FittedBox
+            // doesn't scale and the title still renders at fontSize titleFont*fontScale.
+            // The trimmed line-height padding hands ~17px of vertical room back to
+            // the Flexible(time) below, which is what the time/iqama need to render
+            // at full 1.2× natural size without being scaled back down.
             if (title != null && title!.trim().isNotEmpty)
               Container(
-                height: titleFont * fontScale * 1.5,
+                height: titleFont * fontScale,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
@@ -80,13 +85,12 @@ class SalahItemWidget extends StatelessOrientationWidget {
                       fontSize: titleFont * fontScale,
                       shadows: kHomeTextShadow,
                       color: Colors.white,
-                      height: 1.5,
+                      height: 1.0,
                     ),
                   ),
                 ),
               ),
-            SizedBox(height: 1.vr),
-            // Flexible content area for times — only times scale-down on overflow, not title
+            SizedBox(height: 0.5.vr),
             Flexible(
               child: FittedBox(
                 alignment: Alignment.center,
@@ -126,7 +130,8 @@ class SalahItemWidget extends StatelessOrientationWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Fixed height container for title to maintain consistent sizing across cards
+            // See landscape note: the parent layout's flex must also grow with
+            // fontScale, otherwise the time below stays the same visual size.
             if (title != null && title!.trim().isNotEmpty)
               Container(
                 height: titleFont * fontScale * 1.2,
@@ -145,7 +150,6 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 ),
               ),
             SizedBox(height: 0.5.vh),
-            // Flexible content area for times — only times scale-down on overflow, not title
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -246,13 +250,7 @@ class SalahItemWidget extends StatelessOrientationWidget {
               ),
             ),
           if (iqama != null && showIqama && !withDivider)
-            SizedBox(
-              height: isArabic ? 1.5.vr : 1.3.vwr,
-              child: Divider(
-                thickness: 1,
-                color: Colors.transparent,
-              ),
-            ),
+            SizedBox(height: isArabic ? 0.7.vr : 0.5.vwr),
           if (iqama != null && showIqama)
             TimeWidget.fromString(
               show24hFormat: !is12period,
@@ -263,6 +261,7 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 shadows: kHomeTextShadow,
                 letterSpacing: 1,
                 color: Colors.white,
+                height: 1.0,
               ),
             ),
         ],
