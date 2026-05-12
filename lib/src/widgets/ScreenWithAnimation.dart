@@ -11,6 +11,7 @@ class ScreenWithAnimationWidget extends StatelessWidget {
     required this.animation,
     required this.child,
     this.hasBackButton = false,
+    this.leftWidget,
     this.customLeftWidget,
   }) : super(key: key);
 
@@ -21,7 +22,10 @@ class ScreenWithAnimationWidget extends StatelessWidget {
   final Widget child;
   final bool hasBackButton;
 
-  /// optional custom widget to replace the lottie animation on the left side
+  /// optional widget to replace the animation on the left side (uses 7/3 flex in portrait)
+  final Widget? leftWidget;
+
+  /// optional custom widget to replace the lottie animation on the left side (uses 5/5 flex in portrait)
   final Widget? customLeftWidget;
 
   @override
@@ -55,15 +59,18 @@ class ScreenWithAnimationWidget extends StatelessWidget {
 
   Widget _buildBody(BuildContext context, UserPreferencesManager userPrefs) {
     final isPortrait = userPrefs.calculatedOrientation == Orientation.portrait;
-    final hasCustomLeft = customLeftWidget != null;
+    final effectiveLeftWidget = leftWidget ?? customLeftWidget;
+    final hasCustomLeft = effectiveLeftWidget != null;
+    final leftFlex = isPortrait && hasCustomLeft ? (leftWidget != null ? 7 : 5) : 4;
+    final rightFlex = isPortrait && hasCustomLeft ? (leftWidget != null ? 3 : 5) : 6;
 
     return Flex(
       direction: isPortrait ? Axis.vertical : Axis.horizontal,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          flex: isPortrait && hasCustomLeft ? 5 : 4,
-          child: customLeftWidget ??
+          flex: leftFlex,
+          child: effectiveLeftWidget ??
               Align(
                 alignment: Alignment.center,
                 child: Padding(
@@ -76,7 +83,7 @@ class ScreenWithAnimationWidget extends StatelessWidget {
               ),
         ),
         Expanded(
-          flex: isPortrait && hasCustomLeft ? 5 : 6,
+          flex: rightFlex,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: child,

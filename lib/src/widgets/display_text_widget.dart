@@ -231,7 +231,6 @@ class DisplayTextWidget extends ConsumerWidget {
 
   // Helper method to get hadith text style with Turkish font fix
   TextStyle _getHadithTextStyle(BuildContext context, Locale hadithLanguage, double fontScale) {
-    // Get the base style from context (keeps all existing logic)
     final baseStyle = context.getLocalizedTextStyle(locale: hadithLanguage).copyWith(
           color: Colors.white,
           shadows: kIqamaCountDownTextShadow,
@@ -239,22 +238,21 @@ class DisplayTextWidget extends ConsumerWidget {
           fontSize: 32.sp * fontScale,
         );
 
-    // For Turkish, override only the font family to use system font
+    // For Turkish, use system font
     if (hadithLanguage.languageCode == 'tr') {
+      return baseStyle;
+    }
+
+    // For Arabic, use the locally bundled Kufi font
+    if (hadithLanguage.languageCode == 'ar') {
       return baseStyle.copyWith(
-        fontFamily: null,
-        fontFamilyFallback: null,
+        fontFamily: StringManager.fontFamilyKufi,
       );
     }
 
-    // For non-Arabic languages, add Kufi as fallback for Arabic words
-    if (hadithLanguage.languageCode != 'ar') {
-      return baseStyle.copyWith(
-        fontFamilyFallback: [StringManager.fontFamilyKufi],
-      );
-    }
-
-    // For all other languages, return the original style
-    return baseStyle;
+    // For non-Arabic languages, use default font with Kufi as fallback for Arabic words
+    return baseStyle.copyWith(
+      fontFamilyFallback: [StringManager.fontFamilyKufi],
+    );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mawaqit/main.dart';
@@ -78,7 +79,19 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       _cacheTimestamp = null;
     }
     try {
-      // For all devices, check S3 for updates and install via system installer
+      // Check if device is ONVO first
+      final deviceModel = await _getDeviceModel();
+      if (_isOnvoDevice(deviceModel)) {
+        await _openOnvoStore();
+        state = AsyncData(UpdateState(
+          status: UpdateStatus.notAvailable,
+          message: 'Redirected to ONVO Store',
+          currentVersion: currentVersion,
+        ));
+        return;
+      }
+
+      // For all non-ONVO devices, check S3 for updates and install via system installer
       final hasUpdate = await _isUpdateAvailableForRootedDevice(currentVersion);
 
       if (hasUpdate) {
@@ -110,6 +123,24 @@ class ManualUpdateNotifier extends AsyncNotifier<UpdateState> {
       }
     } catch (e, st) {
       state = AsyncError(e, st);
+    }
+  }
+
+  bool _isOnvoDevice(String deviceModel) {
+    return RegExp(r'ONVO.*').hasMatch(deviceModel);
+  }
+
+  Future<String> _getDeviceModel() async {
+    final hardware = await DeviceInfoPlugin().androidInfo;
+    return hardware.model;
+  }
+
+  Future<void> _openOnvoStore() async {
+    try {
+      await MethodChannel(TurnOnOffTvConstant.kNativeMethodsChannel).invokeMethod('openOnvoStore');
+    } catch (e) {
+      logger.e('Failed to open ONVO store', error: e);
+      rethrow;
     }
   }
 
