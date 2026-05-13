@@ -350,13 +350,13 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                           itemLabelBuilder: (size) {
                             switch (size) {
                               case AppFontSize.small:
-                                return '${S.of(context).fontSizeSmall} (-10%)';
+                                return S.of(context).fontSizeSmall;
                               case AppFontSize.medium:
-                                return '${S.of(context).fontSizeNormal} (default)';
+                                return S.of(context).fontSizeNormal;
                               case AppFontSize.large:
-                                return '${S.of(context).fontSizeLarge} (+10%)';
+                                return S.of(context).fontSizeLarge;
                               case AppFontSize.extraLarge:
-                                return '${S.of(context).fontSizeXLarge} (+20%)';
+                                return S.of(context).fontSizeXLarge;
                             }
                           },
                         ),
