@@ -88,18 +88,18 @@ class AppWorkflowScreen extends StatelessWidget {
 
         // Jumuaa Workflow — one item per Jumua session (mosques may have up to 3)
         ...mosqueManager.allJumuaaDates().mapIndexed(
-          (index, jumuaaDate) => RepeatingWorkflowItem(
-            debugName: 'JumuaaWorkflowScreen ${index + 1}',
-            builder: (context, next) => JumuaaWorkflowScreen(onDone: next, jumuaaTime: jumuaaDate),
-            repeatingDuration: 7.days,
-            dateTime: jumuaaDate,
-            showInitial: () {
-              if (now.isBefore(jumuaaDate)) return false;
-              final timeout = mosqueManager.mosqueConfig?.jumuaTimeout ?? 30;
-              return now.isBefore(jumuaaDate.add(Duration(minutes: timeout)));
-            },
-          ),
-        ),
+              (index, jumuaaDate) => RepeatingWorkflowItem(
+                debugName: 'JumuaaWorkflowScreen ${index + 1}',
+                builder: (context, next) => JumuaaWorkflowScreen(onDone: next, jumuaaTime: jumuaaDate),
+                repeatingDuration: 7.days,
+                dateTime: jumuaaDate,
+                showInitial: () {
+                  if (now.isBefore(jumuaaDate)) return false;
+                  final timeout = mosqueManager.mosqueConfig?.jumuaTimeout ?? 30;
+                  return now.isBefore(jumuaaDate.add(Duration(minutes: timeout)));
+                },
+              ),
+            ),
       ],
     );
   }
