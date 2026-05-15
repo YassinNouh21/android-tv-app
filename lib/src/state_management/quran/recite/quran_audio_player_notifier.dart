@@ -389,6 +389,13 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
     await stop();
   }
 
+  /// Persists the current playback position without stopping the player.
+  /// Used when navigating away from the player screen so audio keeps
+  /// playing in the background and the home indicator can show controls.
+  Future<void> savePlaybackSession() async {
+    await _savePlaybackSession();
+  }
+
   Future<void> seekTo(Duration position) async {
     try {
       await audioPlayer.seek(position);

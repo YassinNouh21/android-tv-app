@@ -71,7 +71,9 @@ class _QuranPlayerScreenState extends ConsumerState<QuranPlayerScreen> {
     final quranPlayerState = ref.watch(quranPlayerNotifierProvider);
     return WillPopScope(
       onWillPop: () async {
-        await ref.read(quranPlayerNotifierProvider.notifier).saveAndStop();
+        // Keep audio playing in the background; the home indicator takes over
+        // pause/stop controls. Only persist the position in case the app is killed.
+        await ref.read(quranPlayerNotifierProvider.notifier).savePlaybackSession();
         ref.read(navigateIntoNewPageProvider.notifier).state = false;
         return true;
       },
@@ -85,7 +87,8 @@ class _QuranPlayerScreenState extends ConsumerState<QuranPlayerScreen> {
             borderRadius: BorderRadius.circular(20.sp),
             child: Icon(Icons.arrow_back),
             onTap: () async {
-              await ref.read(quranPlayerNotifierProvider.notifier).saveAndStop();
+              await ref.read(quranPlayerNotifierProvider.notifier).savePlaybackSession();
+              ref.read(navigateIntoNewPageProvider.notifier).state = false;
               Navigator.of(context).pop();
             },
           ),
