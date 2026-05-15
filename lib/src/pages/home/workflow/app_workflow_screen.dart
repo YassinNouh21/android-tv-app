@@ -95,9 +95,8 @@ class AppWorkflowScreen extends StatelessWidget {
             dateTime: jumuaaDate,
             showInitial: () {
               if (now.isBefore(jumuaaDate)) return false;
-              return now.isBefore(
-                jumuaaDate.add(Duration(minutes: mosqueManager.mosqueConfig!.jumuaTimeout ?? 30)),
-              );
+              final timeout = mosqueManager.mosqueConfig?.jumuaTimeout ?? 30;
+              return now.isBefore(jumuaaDate.add(Duration(minutes: timeout)));
             },
           ),
         ),

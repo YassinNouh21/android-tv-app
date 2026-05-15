@@ -7,6 +7,7 @@ import 'package:mawaqit/src/pages/home/workflow/normal_workflow.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// show the back screen during the jumuaa
 class JumuaaWorkflowScreen extends StatelessWidget {
@@ -22,8 +23,23 @@ class JumuaaWorkflowScreen extends StatelessWidget {
     final mosqueManager = context.read<MosqueManager>();
     final now = mosqueManager.mosqueDate();
 
-    final jumuaaTimeout = mosqueManager.mosqueConfig?.jumuaTimeout ?? 30;
-    final salahTime = int.tryParse(mosqueManager.mosqueConfig!.duaAfterPrayerShowTimes[1]) ?? 0;
+    final config = mosqueManager.mosqueConfig;
+    final jumuaaTimeout = config?.jumuaTimeout ?? 30;
+
+    final salahTimeRaw = config?.duaAfterPrayerShowTimes.elementAtOrNull(1);
+    final salahTime = int.tryParse(salahTimeRaw ?? '') ?? 0;
+    if (salahTimeRaw != null && int.tryParse(salahTimeRaw) == null) {
+      Sentry.captureMessage(
+        'Failed to parse duaAfterPrayerShowTimes[1]: "$salahTimeRaw"',
+        level: SentryLevel.warning,
+        withScope: (scope) {
+          scope.setTag('mosque_uuid', mosqueManager.mosque?.uuid ?? 'unknown');
+          scope.setContexts('config', {
+            'duaAfterPrayerShowTimes': config?.duaAfterPrayerShowTimes,
+          });
+        },
+      );
+    }
 
     final activeJumuaaTime = jumuaaTime ?? mosqueManager.activeJumuaaDate();
     final jumuaaEndTime = activeJumuaaTime.add(Duration(minutes: jumuaaTimeout));

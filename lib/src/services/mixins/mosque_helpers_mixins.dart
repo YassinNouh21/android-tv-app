@@ -12,6 +12,7 @@ import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/models/mosque.dart';
 import 'package:mawaqit/src/models/mosqueConfig.dart';
 import 'package:mawaqit/src/models/times.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 const kDuhaDurationAfterShuruq = Duration(minutes: 25);
 
@@ -499,12 +500,45 @@ mixin MosqueHelpersMixin on ChangeNotifier {
     return jumuaTimes[0].toTimeOfDay()!.toDate(nextFriday);
   }
 
-  /// Returns DateTimes for all Jumua times on the next Friday
+  /// Returns DateTimes for all Jumua times on the next Friday.
+  /// Malformed time strings are skipped and reported to Sentry so support can
+  /// trace bad mosque config without crashing the workflow tree.
   List<DateTime> allJumuaaDates([DateTime? now]) {
     final nextFriday = nextFridayDate(now);
-    return getOrderedJumuaTimes()
-        .map((t) => t.toTimeOfDay()!.toDate(nextFriday))
-        .toList();
+    final rawTimes = getOrderedJumuaTimes();
+
+    final dates = <DateTime>[];
+    for (final raw in rawTimes) {
+      final time = raw.toTimeOfDay();
+      if (time == null) {
+        Sentry.captureMessage(
+          'Malformed Jumua time string: "$raw"',
+          level: SentryLevel.warning,
+          withScope: (scope) {
+            scope.setTag('mosque_uuid', mosque?.uuid ?? 'unknown');
+            scope.setContexts('jumua_config', {'raw_times': rawTimes});
+          },
+        );
+        continue;
+      }
+      dates.add(time.toDate(nextFriday));
+    }
+
+    if (dates.isEmpty && typeIsMosque) {
+      Sentry.captureMessage(
+        'Mosque has no valid Jumua times configured',
+        level: SentryLevel.warning,
+        withScope: (scope) {
+          scope.setTag('mosque_uuid', mosque?.uuid ?? 'unknown');
+          scope.setContexts('jumua_config', {
+            'raw_times': rawTimes,
+            'jumuaAsDuhr': times?.jumuaAsDuhr,
+          });
+        },
+      );
+    }
+
+    return dates;
   }
 
   /// Checks if we are currently in Jumua workflow time (any of the Jumua sessions)
