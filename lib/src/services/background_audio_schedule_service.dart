@@ -20,7 +20,6 @@ class BackgroundAudioScheduleService {
   static bool isPlaying() => _audioPlayer?.playing ?? false;
   static AudioPlayer? get player => _audioPlayer;
   static final FlutterBackgroundService _service = FlutterBackgroundService();
-  static StreamSubscription? _currentIndexSubscription;
 
   /// Initialize the background service
   static Future<void> initialize() async {
@@ -57,14 +56,10 @@ class BackgroundAudioScheduleService {
       }
 
       await _startPlayback(createPlaylist);
-      try {
-        _service.invoke('kAudioStateChanged', {'isPlaying': true});
-      } catch (_) {}
+      _service.invoke('kAudioStateChanged', {'isPlaying': true});
     } catch (e) {
       print('Error playing audio: $e');
-      try {
-        _service.invoke('kAudioStateChanged', {'isPlaying': false});
-      } catch (_) {}
+      _service.invoke('kAudioStateChanged', {'isPlaying': false});
     }
   }
 
@@ -123,30 +118,18 @@ class BackgroundAudioScheduleService {
 
   /// Setup playlist audio source
   static Future<void> _setupPlaylist(dynamic surahSource) async {
-    final urls = (surahSource as List).cast<String>();
     final playlist = ConcatenatingAudioSource(
-      children: urls.map((url) => AudioSource.uri(Uri.parse(url))).toList(),
+      children: (surahSource as List).map((source) {
+        if (source is String) {
+          return AudioSource.uri(Uri.parse(source));
+        } else if (source is AudioSource) {
+          return source;
+        }
+        throw ArgumentError('Invalid source type: ${source.runtimeType}');
+      }).toList(),
     );
     await _audioPlayer?.setAudioSource(playlist);
     await _audioPlayer?.setLoopMode(LoopMode.all);
-
-    // Eagerly write the first surah ID so the UI can show the name immediately,
-    // without waiting for the currentIndexStream to fire.
-    await _writeCurrentSurahFromIndex(0);
-  }
-
-  /// Reads the random surah IDs from SharedPreferences and writes
-  /// the one at [index] to kCurrentPlayingSurahId.
-  static Future<void> _writeCurrentSurahFromIndex(int index) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      final idStrings = prefs.getStringList(BackgroundScheduleAudioServiceConstant.kRandomSurahIds);
-      if (idStrings == null || index >= idStrings.length) return;
-      final surahId = int.tryParse(idStrings[index]);
-      if (surahId == null || surahId <= 0) return;
-      await prefs.setInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId, surahId);
-    } catch (_) {}
   }
 
   /// Setup single audio source
@@ -163,7 +146,6 @@ class BackgroundAudioScheduleService {
     // Cancel existing subscriptions before creating new ones
     await _playbackEventSubscription?.cancel();
     await _playerStateSubscription?.cancel();
-    await _currentIndexSubscription?.cancel();
 
     _playbackEventSubscription = _audioPlayer?.playbackEventStream.listen((event) {
       if (event.processingState == ProcessingState.completed && !createPlaylist) {
@@ -178,27 +160,15 @@ class BackgroundAudioScheduleService {
       final isPlaying = playerState.playing;
       _service.invoke('kAudioStateChanged', {'isPlaying': isPlaying});
     });
-
-    if (createPlaylist) {
-      // Sync the current index immediately in case the stream doesn't emit
-      // on subscribe (e.g. player resumed at a non-zero index).
-      await _writeCurrentSurahFromIndex(_audioPlayer?.currentIndex ?? 0);
-      _currentIndexSubscription = _audioPlayer?.currentIndexStream.listen((index) async {
-        if (index == null) return;
-        await _writeCurrentSurahFromIndex(index);
-      });
-    }
   }
 
   /// Cleanup all resources
   static Future<void> dispose() async {
     await _playbackEventSubscription?.cancel();
     await _playerStateSubscription?.cancel();
-    await _currentIndexSubscription?.cancel();
     await _audioPlayer?.dispose();
     _playbackEventSubscription = null;
     _playerStateSubscription = null;
-    _currentIndexSubscription = null;
     _audioPlayer = null;
     _savedPosition = null;
   }
