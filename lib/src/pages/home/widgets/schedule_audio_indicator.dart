@@ -62,6 +62,13 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
     SharedPreferences.getInstance().then((p) {
       if (mounted) setState(() => _prefs = p);
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final quranState = ref.read(quranNotifierProvider);
+      if (quranState.hasValue && quranState.value!.suwar.isEmpty && !quranState.isLoading) {
+        ref.read(quranNotifierProvider.notifier).getSuwarByLanguage();
+      }
+    });
   }
 
   /// Persists the surah name for fallback on next restart.
@@ -69,18 +76,20 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
     _prefs?.setString(BackgroundScheduleAudioServiceConstant.kSelectedSurahName, surahName);
   }
 
-  String _resolveSurahName(BuildContext context, dynamic schedule, AsyncValue<dynamic> quranAsync) {
-    if (schedule.isRandomEnabled) {
-      return S.of(context).randomSurahSelection;
-    }
-    if (schedule.selectedSurahId != null && quranAsync.hasValue) {
+  String _resolveSurahName(
+      BuildContext context, dynamic schedule, AsyncValue<dynamic> quranAsync, int? currentPlayingSurahId) {
+    final surahIdToLookup = schedule.isRandomEnabled ? currentPlayingSurahId : schedule.selectedSurahId;
+    if (surahIdToLookup != null && quranAsync.hasValue) {
       final suwar = quranAsync.value!.suwar;
-      final match = suwar.where((s) => s.id == schedule.selectedSurahId).toList();
+      final match = suwar.where((s) => s.id == surahIdToLookup).toList();
       if (match.isNotEmpty) {
         final name = match.first.name;
         _cacheSurahName(name);
         return name;
       }
+    }
+    if (schedule.isRandomEnabled) {
+      return S.of(context).randomSurahSelection;
     }
     return _prefs?.getString(BackgroundScheduleAudioServiceConstant.kSelectedSurahName) ?? '';
   }
@@ -109,7 +118,7 @@ class _ScheduleAudioIndicatorState extends ConsumerState<ScheduleAudioIndicator>
     }
 
     final isPlaying = audioState.status == AudioStatus.playing;
-    final surahName = _resolveSurahName(context, schedule, quranAsync);
+    final surahName = _resolveSurahName(context, schedule, quranAsync, audioState.currentPlayingSurahId);
 
     final qariName = schedule.selectedReciter?.name ??
         _prefs?.getString(BackgroundScheduleAudioServiceConstant.kSelectedReciter) ??

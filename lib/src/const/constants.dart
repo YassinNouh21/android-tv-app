@@ -143,6 +143,8 @@ class BackgroundScheduleAudioServiceConstant {
   static const String kGetPlaybackState = 'kGetPlaybackState';
   static const String kStopAudio = 'kStopAudio';
   static const String kResumeAudio = 'kResumeAudio';
+  static const String kCurrentPlayingSurahId = 'current_playing_surah_id';
+  static const String kRandomSurahIds = 'random_surah_ids';
 }
 
 abstract class MawaqitBackendSettingsConstant {

@@ -184,17 +184,21 @@ class ScheduleNotifier extends AsyncNotifier<ScheduleState> {
     ));
   }
 
-  /// Generates a list of random Surah URLs for playback.
-  List<String> _generateRandomUrls() {
+  /// Generates random Surah URLs and their corresponding IDs for playback.
+  ({List<String> urls, List<int> ids}) _generateRandomData() {
     final random = Random();
     final currentState = state.value!;
     final availableSurahs = currentState.selectedMoshaf!.surahList;
     final count = min(5, availableSurahs.length);
 
-    return List.generate(count, (_) {
-      final randomSurahId = availableSurahs[random.nextInt(availableSurahs.length)].toString().padLeft(3, '0');
-      return '${currentState.selectedMoshaf!.server}$randomSurahId.mp3';
-    });
+    final List<String> urls = [];
+    final List<int> ids = [];
+    for (int i = 0; i < count; i++) {
+      final surahId = availableSurahs[random.nextInt(availableSurahs.length)];
+      urls.add('${currentState.selectedMoshaf!.server}${surahId.toString().padLeft(3, '0')}.mp3');
+      ids.add(surahId);
+    }
+    return (urls: urls, ids: ids);
   }
 
   /// Saves the current schedule configuration.
@@ -287,9 +291,18 @@ class ScheduleNotifier extends AsyncNotifier<ScheduleState> {
 
   Future<void> _savePlaybackPreferences(ScheduleState currentState) async {
     if (currentState.isRandomEnabled) {
-      final randomUrls = _generateRandomUrls();
+      final randomData = _generateRandomData();
       await Future.wait([
-        _prefs.setStringList(BackgroundScheduleAudioServiceConstant.kRandomUrls, randomUrls),
+        _prefs.setStringList(BackgroundScheduleAudioServiceConstant.kRandomUrls, randomData.urls),
+        _prefs.setStringList(
+          BackgroundScheduleAudioServiceConstant.kRandomSurahIds,
+          randomData.ids.map((id) => id.toString()).toList(),
+        ),
+        // Seed the currently-playing surah with the first item in the random list,
+        // so the UI shows a real name immediately without waiting on the
+        // background service to broadcast the current track.
+        if (randomData.ids.isNotEmpty)
+          _prefs.setInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId, randomData.ids.first),
         _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedSurah),
         _prefs.remove(BackgroundScheduleAudioServiceConstant.kSelectedSurahUrl),
       ]);
@@ -298,6 +311,7 @@ class ScheduleNotifier extends AsyncNotifier<ScheduleState> {
         _prefs.setInt(BackgroundScheduleAudioServiceConstant.kSelectedSurah, currentState.selectedSurahId!),
         _prefs.setString(BackgroundScheduleAudioServiceConstant.kSelectedSurahUrl, currentState.selectedMoshaf!.server),
         _prefs.remove(BackgroundScheduleAudioServiceConstant.kRandomUrls),
+        _prefs.remove(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId),
       ]);
     }
   }

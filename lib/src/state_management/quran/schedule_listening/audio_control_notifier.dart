@@ -60,11 +60,27 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     _audioStateSubscription?.cancel();
     _scheduleUpdateSubscription?.cancel();
 
-    _audioStateSubscription = _service.on('kAudioStateChanged').listen((event) {
+    _audioStateSubscription = _service.on('kAudioStateChanged').listen((event) async {
       if (event != null) {
         final isPlaying = event['isPlaying'] as bool?;
         if (isPlaying != null) {
           _updatePlaybackState(isPlaying);
+        }
+        // Prefer ID delivered directly in the payload (track-change events).
+        // Fall back to a prefs reload for events that don't carry it (play/pause).
+        final raw = event['currentSurahId'];
+        final directId = raw is int ? raw : (raw is num ? raw.toInt() : (raw is String ? int.tryParse(raw) : null));
+        if (directId != null && state.hasValue) {
+          state = AsyncData(state.value!.copyWith(currentPlayingSurahId: directId));
+        } else {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.reload();
+            final surahId = prefs.getInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId);
+            if (surahId != null && state.hasValue) {
+              state = AsyncData(state.value!.copyWith(currentPlayingSurahId: surahId));
+            }
+          } catch (_) {}
         }
       }
     });
@@ -73,14 +89,6 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     _scheduleUpdateSubscription = _service.on('update_schedule').listen((_) {
       _checkPlaybackState();
     });
-  }
-
-  /// Handles audio state changes received from the background service
-  void _handleAudioStateChange(Map<String, dynamic>? event) {
-    if (event == null || event['isPlaying'] == null) return;
-
-    final isPlaying = event['isPlaying'] as bool;
-    _updatePlaybackState(isPlaying);
   }
 
   /// Updates the playback state in the notifier
@@ -131,10 +139,12 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isScheduleEnabled = prefs.getBool(BackgroundScheduleAudioServiceConstant.kScheduleEnabled) ?? false;
+      final currentPlayingSurahId = prefs.getInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId);
 
       return AudioControlState(
         status: AudioStatus.paused,
         shouldShowControls: isScheduleEnabled,
+        currentPlayingSurahId: currentPlayingSurahId,
       );
     } catch (e) {
       _handleError('Failed to get initial state: $e');
@@ -160,6 +170,13 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
 
       if (!isScheduleEnabled || isPendingSchedule) {
         _updatePlaybackState(false);
+      }
+
+      // Read the currently playing surah ID written by the background service
+      await prefs.reload();
+      final currentPlayingSurahId = prefs.getInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId);
+      if (currentPlayingSurahId != null && state.hasValue) {
+        state = AsyncData(state.value!.copyWith(currentPlayingSurahId: currentPlayingSurahId));
       }
     } catch (e) {
       _handleError('Failed to check playback state: $e');
@@ -245,29 +262,6 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
       state = AsyncData(state.value!.copyWith(isLoading: false, clearError: true));
     } catch (e) {
       _handleError('Failed to stop playback: $e');
-    }
-  }
-
-  /// Updates the playback state with loading indicator
-  Future<void> _updatePlaybackStateWithLoading(AudioStatus status) async {
-    try {
-      state = AsyncData(
-        state.value!.copyWith(
-          status: status,
-          isLoading: true,
-        ),
-      );
-
-      // Simulate a small delay for UI feedback
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      state = AsyncData(
-        state.value!.copyWith(
-          isLoading: false,
-        ),
-      );
-    } catch (e) {
-      _handleError('Failed to update playback state: $e');
     }
   }
 }
