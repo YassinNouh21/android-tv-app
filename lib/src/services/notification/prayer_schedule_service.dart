@@ -336,7 +336,7 @@ class PrayerScheduleService {
       baseLink = "$kStaticFilesUrl/audio/${mosqueConfig!.adhanVoice!}.mp3";
     }
 
-    if (useFajrAdhan && !baseLink.contains('bip')) {
+    if (useFajrAdhan && !PrayerAudioConstant.isSignalAdhanVoice(mosqueConfig?.adhanVoice)) {
       baseLink = baseLink.replaceAll('.mp3', '-fajr.mp3');
     }
 

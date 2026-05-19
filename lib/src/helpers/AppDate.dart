@@ -32,8 +32,8 @@ class AppDateTime {
     _initialRealTime.year,
     _initialRealTime.month,
     _initialRealTime.day - 3,
-    17,
-    27,
+    19,
+    15,
     00,
   );
 
