@@ -24,7 +24,9 @@ import android.os.AsyncTask
 import android.util.Log
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
+import android.net.wifi.WifiInfo
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import java.util.concurrent.Executors
 import android.os.Looper
 import android.os.Handler
@@ -274,6 +276,73 @@ class MainActivity : FlutterActivity() {
     }
   }
 
+  /** Strips the surrounding quotes Android wraps around SSIDs in WifiInfo. */
+  private fun normalizeSsid(ssid: String?): String = ssid?.removeSurrounding("\"") ?: ""
+
+  /**
+   * Polls until the device has a *validated* Wi-Fi internet connection on the
+   * network we asked for, or [timeoutMs] elapses.
+   *
+   * The old `WifiInfo.networkId != -1` check was unreliable both ways: a wrong
+   * password fails the handshake yet the device falls back to another network
+   * (false success), and on Android 9+ `getConnectionInfo()` is redacted to
+   * networkId -1 / "<unknown ssid>" when location services are off (false
+   * failure). NET_CAPABILITY_VALIDATED is location-independent and is only set
+   * once the network actually has working internet, which a wrong password
+   * never gets.
+   */
+  private fun awaitWifiConnected(
+    targetSsid: String?,
+    targetNetworkId: Int?,
+    timeoutMs: Long = 15000,
+  ): Boolean {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (System.currentTimeMillis() < deadline) {
+      if (isConnectedToTargetWifi(targetSsid, targetNetworkId)) return true
+      Thread.sleep(500)
+    }
+    return false
+  }
+
+  private fun isConnectedToTargetWifi(targetSsid: String?, targetNetworkId: Int?): Boolean {
+    val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+    if (VERSION.SDK_INT >= VERSION_CODES.M) {
+      val cm =
+        applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      val hasValidatedWifi = cm.allNetworks.any { network ->
+        val caps = cm.getNetworkCapabilities(network)
+        caps != null &&
+          caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+          caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+      }
+      if (!hasValidatedWifi) return false
+      // Working Wi-Fi internet is up — confirm it is the requested network
+      // when the OS still lets us read its identity.
+      return matchesTarget(wifiManager.connectionInfo, targetSsid, targetNetworkId)
+    }
+
+    // Android < 6: getConnectionInfo() is reliable (no location redaction).
+    val info = wifiManager.connectionInfo ?: return false
+    if (info.networkId == -1) return false
+    return matchesTarget(info, targetSsid, targetNetworkId)
+  }
+
+  /**
+   * True when [info] is the network we tried to connect to. When both the SSID
+   * and networkId are hidden (location services off) we cannot tell, so we
+   * trust the validated connection rather than reporting a false failure.
+   */
+  private fun matchesTarget(info: WifiInfo?, targetSsid: String?, targetNetworkId: Int?): Boolean {
+    if (info == null) return true
+    if (targetNetworkId != null && targetNetworkId != -1 && info.networkId != -1) {
+      return info.networkId == targetNetworkId
+    }
+    val ssid = normalizeSsid(info.ssid)
+    if (ssid.isEmpty() || ssid == WifiManager.UNKNOWN_SSID) return true
+    return targetSsid == null || ssid == targetSsid
+  }
+
   private fun connectToWifi(call: MethodCall, result: MethodChannel.Result) {
     AsyncTask.execute {
       try {
@@ -310,19 +379,14 @@ class MainActivity : FlutterActivity() {
           return@execute
         }
 
-        // Wait for the actual connection to be established (up to 10 seconds)
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        var connectionAttempts = 0
-        while (wifiManager.connectionInfo.networkId == -1 && connectionAttempts < 20) {
-          Thread.sleep(500)
-          connectionAttempts++
-        }
-
-        val connected = wifiManager.connectionInfo.networkId != -1
+        // Verify the device actually reached the requested network with
+        // working internet. Checking only that *some* network is connected
+        // reports false results in both directions (see awaitWifiConnected).
+        val connected = awaitWifiConnected(targetSsid = ssid, targetNetworkId = null)
         if (connected) {
-          Log.i("SU_COMMAND", "Connected to network successfully.")
+          Log.i("SU_COMMAND", "Connected to $ssid successfully.")
         } else {
-          Log.e("SU_COMMAND", "Connection timed out after 10 seconds.")
+          Log.e("SU_COMMAND", "Failed to connect to $ssid (wrong password or timeout).")
         }
         result.success(connected)
 
@@ -356,25 +420,27 @@ class MainActivity : FlutterActivity() {
 
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val networkId = wifiManager.addNetwork(conf)
+        if (networkId == -1) {
+          Log.e("connectToNetworkWPA", "Failed to add network configuration")
+          result.success(false)
+          return@execute
+        }
         wifiManager.disconnect()
         wifiManager.enableNetwork(networkId, true)
         wifiManager.reconnect()
 
-        // Wait for the connection to be established (up to 10 seconds)
-        var connectionAttempts = 0
-        while (wifiManager.getConnectionInfo().networkId == -1 && connectionAttempts < 20) {
-          Thread.sleep(500)
-          connectionAttempts++
-        }
-
-        val wifiInfo = wifiManager.getConnectionInfo()
-        if (wifiInfo.networkId != -1) {
-          Log.d("connectToNetworkWPA", "Connected to network:")
-          result.success(true)
+        // Verify the connection settled on the network we just configured and
+        // has working internet. A wrong password fails the handshake, so the
+        // device ends up on a different (or no) network.
+        val connected = awaitWifiConnected(targetSsid = networkSSID, targetNetworkId = networkId)
+        if (connected) {
+          Log.d("connectToNetworkWPA", "Connected to network successfully.")
         } else {
-          Log.e("connectToNetworkWPA", "Failed to connect to network")
-          result.success(false)
+          Log.e("connectToNetworkWPA", "Failed to connect (wrong password or timeout).")
+          // Drop the bad config so Android doesn't keep retrying it.
+          wifiManager.removeNetwork(networkId)
         }
+        result.success(connected)
       } catch (ex: Exception) {
         Log.e("connectToNetworkWPA", "Error connecting to network", ex)
         result.error("exception", ex.message, ex)
