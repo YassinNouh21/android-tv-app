@@ -91,7 +91,7 @@ class ThemeNotifier with ChangeNotifier {
     if (locale.languageCode != 'ku') return lightTheme;
     return lightTheme.copyWith(
       textTheme: lightTheme.textTheme.apply(
-        fontFamily: StringManager.fontFamilyRabar,
+        fontFamily: StringManager.fontFamilyKJino,
         fontFamilyFallback: _kurdishFallback,
       ),
     );
@@ -101,7 +101,7 @@ class ThemeNotifier with ChangeNotifier {
     if (locale.languageCode != 'ku') return darkTheme;
     return darkTheme.copyWith(
       textTheme: darkTheme.textTheme.apply(
-        fontFamily: StringManager.fontFamilyRabar,
+        fontFamily: StringManager.fontFamilyKJino,
         fontFamilyFallback: _kurdishFallback,
       ),
     );

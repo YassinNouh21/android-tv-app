@@ -262,12 +262,9 @@ flutter:
     - family: WeatherIcons
       fonts:
         - asset: assets/fonts/weathericons-regular-webfont.ttf
-    - family: Rabar
+    - family: KJino
       fonts:
-        - asset: assets/fonts/Rabar-001.ttf
-          weight: 400
-        - asset: assets/fonts/Rabar-002.ttf
-          weight: 700
+        - asset: assets/fonts/KJino.TTF
           
 patrol:
   app_name: Mawaqit Android TV
