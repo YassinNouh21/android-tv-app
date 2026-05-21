@@ -22,6 +22,7 @@ import java.io.IOException
 import android.app.KeyguardManager
 import android.os.AsyncTask
 import android.util.Log
+import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiInfo
 import android.net.wifi.SupplicantState
@@ -352,6 +353,10 @@ class MainActivity : FlutterActivity() {
         val capabilities = call.argument<String>("security")
         val security = getSecurityType(capabilities, password)
 
+        // Prefer `cmd wifi connect-network` (added in API 30 / Android 11).
+        // Older boxes like MAWAQITBOX V2 (API 29) reject it with
+        // "Unknown command", in which case we fall back to the legacy
+        // WifiManager.addNetwork() path.
         val command = if (password.isNullOrEmpty()) {
           "cmd wifi connect-network ${shellEscape(ssid)} open"
         } else {
@@ -360,29 +365,28 @@ class MainActivity : FlutterActivity() {
 
         Log.i("SU_COMMAND", "Wifi Command: $command")
 
-        val suProcess = Runtime.getRuntime().exec("su")
-        val os = DataOutputStream(suProcess.outputStream)
-        os.writeBytes("$command\n")
-        os.flush()
-        os.close()
+        val cmd = runSuCommand(command)
+        Log.i("SU_COMMAND", "Command output: ${cmd.output}")
+        Log.e("SU_COMMAND", "Command error: ${cmd.error}")
+        Log.d("SU_COMMAND", "Exit code: ${cmd.exitCode}")
 
-        val output = BufferedReader(InputStreamReader(suProcess.inputStream)).readText()
-        val error = BufferedReader(InputStreamReader(suProcess.errorStream)).readText()
-        val exitCode = suProcess.waitFor()
+        val cmdUnsupported = cmd.error.contains("Unknown command", ignoreCase = true) ||
+          cmd.output.contains("Unknown command", ignoreCase = true)
+        if (cmdUnsupported) {
+          Log.i("SU_COMMAND", "cmd wifi connect-network unsupported, falling back to WifiManager.")
+          connectViaWifiManager(ssid, password, result)
+          return@execute
+        }
 
-        Log.i("SU_COMMAND", "Command output: $output")
-        Log.e("SU_COMMAND", "Command error: $error")
-        Log.d("SU_COMMAND", "Exit code: $exitCode")
-
-        if (exitCode != 0 || output.contains("Connection failed") || output.contains("Invalid args")) {
-          Log.e("SU_COMMAND", "Command failed with exit code $exitCode.")
+        if (cmd.exitCode != 0 ||
+          cmd.output.contains("Connection failed") ||
+          cmd.output.contains("Invalid args")
+        ) {
+          Log.e("SU_COMMAND", "Command failed with exit code ${cmd.exitCode}.")
           result.success(false)
           return@execute
         }
 
-        // Verify the device actually reached the requested network with
-        // working internet. Checking only that *some* network is connected
-        // reports false results in both directions (see awaitWifiConnected).
         val connected = awaitWifiConnected(targetSsid = ssid, targetNetworkId = null)
         if (connected) {
           Log.i("SU_COMMAND", "Connected to $ssid successfully.")
@@ -394,6 +398,71 @@ class MainActivity : FlutterActivity() {
       } catch (e: Exception) {
         handleCommandException(e, result)
       }
+    }
+  }
+
+  private data class SuResult(val output: String, val error: String, val exitCode: Int)
+
+  private fun runSuCommand(command: String): SuResult {
+    val process = Runtime.getRuntime().exec("su")
+    val os = DataOutputStream(process.outputStream)
+    os.writeBytes("$command\n")
+    os.flush()
+    os.close()
+    val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
+    val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
+    return SuResult(output, error, process.waitFor())
+  }
+
+  /**
+   * Legacy connect path for boxes whose Android build doesn't ship
+   * `cmd wifi connect-network` (MAWAQITBOX V2 on API 29). Uses the deprecated
+   * WifiManager.addNetwork() API which still works on these devices.
+   */
+  private fun connectViaWifiManager(
+    ssid: String,
+    password: String?,
+    result: MethodChannel.Result,
+  ) {
+    try {
+      val conf = WifiConfiguration().apply {
+        SSID = "\"$ssid\""
+        status = WifiConfiguration.Status.ENABLED
+        allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP)
+        allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP)
+        allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP)
+        allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP)
+        if (password.isNullOrEmpty()) {
+          allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE)
+        } else {
+          preSharedKey = "\"$password\""
+          allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK)
+        }
+      }
+
+      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+      val networkId = wifiManager.addNetwork(conf)
+      if (networkId == -1) {
+        Log.e("WIFI_LEGACY", "addNetwork returned -1 for SSID $ssid")
+        result.success(false)
+        return
+      }
+      wifiManager.disconnect()
+      wifiManager.enableNetwork(networkId, true)
+      wifiManager.reconnect()
+
+      val connected = awaitWifiConnected(targetSsid = ssid, targetNetworkId = networkId)
+      if (connected) {
+        Log.i("WIFI_LEGACY", "Connected to $ssid via WifiManager.")
+      } else {
+        Log.e("WIFI_LEGACY", "Failed to connect to $ssid (wrong password or timeout).")
+        // Drop the bad config so Android doesn't keep retrying it.
+        wifiManager.removeNetwork(networkId)
+      }
+      result.success(connected)
+    } catch (ex: Exception) {
+      Log.e("WIFI_LEGACY", "Error connecting to network", ex)
+      result.error("exception", ex.message, ex)
     }
   }
 
