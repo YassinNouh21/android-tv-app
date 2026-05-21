@@ -26,8 +26,6 @@ import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiInfo
 import android.net.wifi.SupplicantState
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import java.util.concurrent.Executors
 import android.os.Looper
 import android.os.Handler
@@ -283,12 +281,12 @@ class MainActivity : FlutterActivity() {
    * Polls until the supplicant reports a completed handshake on the target
    * network (i.e. the password was accepted), or [timeoutMs] elapses.
    *
-   * SupplicantState.COMPLETED is the right signal for "did the password
-   * work": a wrong PSK fails the 4-way handshake and never reaches COMPLETED,
-   * while a correct PSK reaches COMPLETED even on networks that have no
-   * internet or a slow captive-portal check (which would otherwise leave
-   * NET_CAPABILITY_VALIDATED unset and produce a false failure on devices
-   * like MAWAQITBOX V2).
+   * SupplicantState.COMPLETED is the only safe success signal: a wrong PSK
+   * fails the 4-way handshake and never reaches COMPLETED, while a correct
+   * PSK reaches it even when the network has no internet / slow captive-portal
+   * check. We deliberately ignore NET_CAPABILITY_VALIDATED here because a
+   * previously-connected validated network lingers in ConnectivityManager
+   * during our attempt and would mask a wrong-password failure.
    */
   private fun awaitWifiConnected(
     targetSsid: String?,
@@ -306,42 +304,23 @@ class MainActivity : FlutterActivity() {
   private fun isConnectedToTargetWifi(targetSsid: String?, targetNetworkId: Int?): Boolean {
     val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     val info = wifiManager.connectionInfo ?: return false
-
-    // Validated internet is the strongest signal, but it's not required —
-    // many setups never get NET_CAPABILITY_VALIDATED yet are fully usable.
-    if (VERSION.SDK_INT >= VERSION_CODES.M && hasValidatedWifi()) {
-      return matchesTarget(info, targetSsid, targetNetworkId)
-    }
-
-    // Fall back to supplicant state: COMPLETED means the 4-way handshake
-    // succeeded, which a wrong password cannot achieve.
     if (info.supplicantState != SupplicantState.COMPLETED) return false
     return matchesTarget(info, targetSsid, targetNetworkId)
   }
 
-  private fun hasValidatedWifi(): Boolean {
-    val cm =
-      applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    return cm.allNetworks.any { network ->
-      val caps = cm.getNetworkCapabilities(network)
-      caps != null &&
-        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
-  }
-
   /**
-   * True when [info] is the network we tried to connect to. When both the SSID
-   * and networkId are hidden (location services off) we cannot tell, so we
-   * trust the validated connection rather than reporting a false failure.
+   * Strict identity check. Returns true only when [info] is positively the
+   * network we asked for — either by networkId or by SSID. If neither is
+   * available (transient DISCONNECTED state, redacted SSID) we report no-match
+   * so a wrong-password attempt can't squeak through on the back of a previous
+   * connection's lingering state.
    */
-  private fun matchesTarget(info: WifiInfo?, targetSsid: String?, targetNetworkId: Int?): Boolean {
-    if (info == null) return true
+  private fun matchesTarget(info: WifiInfo, targetSsid: String?, targetNetworkId: Int?): Boolean {
     if (targetNetworkId != null && targetNetworkId != -1 && info.networkId != -1) {
       return info.networkId == targetNetworkId
     }
     val ssid = normalizeSsid(info.ssid)
-    if (ssid.isEmpty() || ssid == WifiManager.UNKNOWN_SSID) return true
+    if (ssid.isEmpty() || ssid == WifiManager.UNKNOWN_SSID) return false
     return targetSsid == null || ssid == targetSsid
   }
 
