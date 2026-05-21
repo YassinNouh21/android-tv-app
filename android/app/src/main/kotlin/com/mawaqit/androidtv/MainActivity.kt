@@ -22,9 +22,9 @@ import java.io.IOException
 import android.app.KeyguardManager
 import android.os.AsyncTask
 import android.util.Log
-import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiInfo
+import android.net.wifi.SupplicantState
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import java.util.concurrent.Executors
@@ -87,7 +87,6 @@ class MainActivity : FlutterActivity() {
           }
 
           "checkRoot" -> result.success(checkRoot())
-          "connectToNetworkWPA" -> connectToNetworkWPA(call, result)
           "addLocationPermission" -> addLocationPermission(call, result)
           "grantFineLocationPermission" -> grantFineLocationPermission(call, result)
           "grantOverlayPermission" -> grantOverlayPermission(call, result)
@@ -280,16 +279,15 @@ class MainActivity : FlutterActivity() {
   private fun normalizeSsid(ssid: String?): String = ssid?.removeSurrounding("\"") ?: ""
 
   /**
-   * Polls until the device has a *validated* Wi-Fi internet connection on the
-   * network we asked for, or [timeoutMs] elapses.
+   * Polls until the supplicant reports a completed handshake on the target
+   * network (i.e. the password was accepted), or [timeoutMs] elapses.
    *
-   * The old `WifiInfo.networkId != -1` check was unreliable both ways: a wrong
-   * password fails the handshake yet the device falls back to another network
-   * (false success), and on Android 9+ `getConnectionInfo()` is redacted to
-   * networkId -1 / "<unknown ssid>" when location services are off (false
-   * failure). NET_CAPABILITY_VALIDATED is location-independent and is only set
-   * once the network actually has working internet, which a wrong password
-   * never gets.
+   * SupplicantState.COMPLETED is the right signal for "did the password
+   * work": a wrong PSK fails the 4-way handshake and never reaches COMPLETED,
+   * while a correct PSK reaches COMPLETED even on networks that have no
+   * internet or a slow captive-portal check (which would otherwise leave
+   * NET_CAPABILITY_VALIDATED unset and produce a false failure on devices
+   * like MAWAQITBOX V2).
    */
   private fun awaitWifiConnected(
     targetSsid: String?,
@@ -306,26 +304,29 @@ class MainActivity : FlutterActivity() {
 
   private fun isConnectedToTargetWifi(targetSsid: String?, targetNetworkId: Int?): Boolean {
     val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val info = wifiManager.connectionInfo ?: return false
 
-    if (VERSION.SDK_INT >= VERSION_CODES.M) {
-      val cm =
-        applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-      val hasValidatedWifi = cm.allNetworks.any { network ->
-        val caps = cm.getNetworkCapabilities(network)
-        caps != null &&
-          caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-          caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-      }
-      if (!hasValidatedWifi) return false
-      // Working Wi-Fi internet is up — confirm it is the requested network
-      // when the OS still lets us read its identity.
-      return matchesTarget(wifiManager.connectionInfo, targetSsid, targetNetworkId)
+    // Validated internet is the strongest signal, but it's not required —
+    // many setups never get NET_CAPABILITY_VALIDATED yet are fully usable.
+    if (VERSION.SDK_INT >= VERSION_CODES.M && hasValidatedWifi()) {
+      return matchesTarget(info, targetSsid, targetNetworkId)
     }
 
-    // Android < 6: getConnectionInfo() is reliable (no location redaction).
-    val info = wifiManager.connectionInfo ?: return false
-    if (info.networkId == -1) return false
+    // Fall back to supplicant state: COMPLETED means the 4-way handshake
+    // succeeded, which a wrong password cannot achieve.
+    if (info.supplicantState != SupplicantState.COMPLETED) return false
     return matchesTarget(info, targetSsid, targetNetworkId)
+  }
+
+  private fun hasValidatedWifi(): Boolean {
+    val cm =
+      applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    return cm.allNetworks.any { network ->
+      val caps = cm.getNetworkCapabilities(network)
+      caps != null &&
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
   }
 
   /**
@@ -392,58 +393,6 @@ class MainActivity : FlutterActivity() {
 
       } catch (e: Exception) {
         handleCommandException(e, result)
-      }
-    }
-  }
-
-  fun connectToNetworkWPA(call: MethodCall, result: MethodChannel.Result) {
-    AsyncTask.execute {
-      try {
-        val networkSSID = call.argument<String>("ssid")
-        val password = call.argument<String>("password")
-        val conf = WifiConfiguration().apply {
-          SSID = "\"$networkSSID\""
-          status = WifiConfiguration.Status.ENABLED
-          allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP)
-          allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP)
-          allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP)
-          allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP)
-          if (password.isNullOrEmpty()) {
-            allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE)
-          } else {
-            preSharedKey = "\"$password\""
-            allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK)
-          }
-        }
-
-        Log.d("connectToNetworkWPA", "Connecting to SSID: ${conf.SSID}")
-
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val networkId = wifiManager.addNetwork(conf)
-        if (networkId == -1) {
-          Log.e("connectToNetworkWPA", "Failed to add network configuration")
-          result.success(false)
-          return@execute
-        }
-        wifiManager.disconnect()
-        wifiManager.enableNetwork(networkId, true)
-        wifiManager.reconnect()
-
-        // Verify the connection settled on the network we just configured and
-        // has working internet. A wrong password fails the handshake, so the
-        // device ends up on a different (or no) network.
-        val connected = awaitWifiConnected(targetSsid = networkSSID, targetNetworkId = networkId)
-        if (connected) {
-          Log.d("connectToNetworkWPA", "Connected to network successfully.")
-        } else {
-          Log.e("connectToNetworkWPA", "Failed to connect (wrong password or timeout).")
-          // Drop the bad config so Android doesn't keep retrying it.
-          wifiManager.removeNetwork(networkId)
-        }
-        result.success(connected)
-      } catch (ex: Exception) {
-        Log.e("connectToNetworkWPA", "Error connecting to network", ex)
-        result.error("exception", ex.message, ex)
       }
     }
   }

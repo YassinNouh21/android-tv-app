@@ -119,10 +119,16 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
       return KeyEventResult.ignored;
     }
 
-    // While the soft keyboard is visible and the password field has focus, let
-    // the IME handle all key events — don't let D-pad navigation close it.
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    if (keyboardVisible && _passwordFocusNode.hasFocus) {
+    // When the password field has focus, defer every key to the IME except
+    // Escape/Back. On Android TV the soft keyboard floats and doesn't update
+    // viewInsets.bottom, so we can't gate on "keyboard visible" — handling
+    // D-pad keys here would move focus away and dismiss the IME instantly.
+    if (_passwordFocusNode.hasFocus) {
+      if (event.logicalKey == LogicalKeyboardKey.escape ||
+          event.logicalKey == LogicalKeyboardKey.gameButtonB) {
+        _cancel();
+        return KeyEventResult.handled;
+      }
       return KeyEventResult.ignored;
     }
 
