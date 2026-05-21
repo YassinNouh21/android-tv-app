@@ -139,6 +139,16 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final wifiScanState = ref.watch(wifiScanNotifierProvider);
+
+    // Show the scan-failure toast from a listener, not from inside .when's
+    // error builder. The error builder runs on every rebuild, which would
+    // re-fire the toast (and showing a toast during build is unsafe).
+    ref.listen(wifiScanNotifierProvider, (previous, next) {
+      if (mounted && next is AsyncError && previous is! AsyncError) {
+        _showToast('Error fetching access points');
+      }
+    });
+
     return Column(
       children: [
         Text(
@@ -247,11 +257,12 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
                     style: TextStyle(fontSize: 14.sp),
                   )
                 : _buildAccessPointsList(state.accessPoints, state.hasPermission),
-            error: (error, s) {
-              _showToast('Error fetching access points');
-
-              return Container();
-            },
+            error: (error, s) => Center(
+              child: Text(
+                S.of(context).noScannedResultsFound,
+                style: TextStyle(fontSize: 14.sp),
+              ),
+            ),
             loading: () => Align(
               child: SizedBox(
                 child: CircularProgressIndicator(

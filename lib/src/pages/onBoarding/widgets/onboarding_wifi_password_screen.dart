@@ -44,6 +44,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   final FocusNode _parentFocusNode = FocusNode(debugLabel: 'parent_container');
 
   bool _obscureText = true;
+  bool _isConnecting = false;
   FocusNode? _lastFocusedNode;
 
   @override
@@ -98,11 +99,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   }
 
   void _connectToWifi() {
+    if (_isConnecting) return;
     if (_passwordController.text.isEmpty) {
       _showToast(S.of(context).wifiFailure);
       return;
     }
 
+    setState(() => _isConnecting = true);
     ref.read(wifiScanNotifierProvider.notifier).connectToWifi(
           widget.ssid,
           widget.capabilities,
@@ -194,20 +197,26 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
     final themeData = Theme.of(context);
     final size = MediaQuery.of(context).size;
 
-    // Listen for Wi-Fi connection status changes
+    // Listen for Wi-Fi connection status changes. Guarded so a late-arriving
+    // result doesn't touch a disposed FocusNode after the user navigated back.
     ref.listen(wifiScanNotifierProvider, (previous, next) {
-      if (next.hasValue && !next.isRefreshing) {
-        if (next.value!.status == Status.connected) {
-          _showToast(S.of(context).wifiSuccess);
-          widget.onComplete(true);
-          Navigator.of(context).pop(false);
-        } else if (next.value!.status == Status.error) {
-          _showToast(S.of(context).wifiFailure);
-          widget.onComplete(false);
-          Future.delayed(Duration(milliseconds: 500), () {
+      if (!mounted || !_isConnecting) return;
+      if (!next.hasValue || next.isRefreshing) return;
+      final status = next.value!.status;
+      if (status == Status.connected) {
+        setState(() => _isConnecting = false);
+        _showToast(S.of(context).wifiSuccess);
+        widget.onComplete(true);
+        Navigator.of(context).pop(false);
+      } else if (status == Status.error) {
+        setState(() => _isConnecting = false);
+        _showToast(S.of(context).wifiFailure);
+        widget.onComplete(false);
+        Future.delayed(Duration(milliseconds: 500), () {
+          if (mounted && _connectButtonFocusNode.canRequestFocus) {
             _connectButtonFocusNode.requestFocus();
-          });
-        }
+          }
+        });
       }
     });
 
@@ -356,17 +365,25 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                 child: MawaqitBackIconButton(
                                   icon: Icons.close,
                                   label: S.of(context).cancel,
-                                  onPressed: _cancel,
+                                  onPressed: _isConnecting ? null : _cancel,
                                 ),
                               ),
                               SizedBox(width: 16),
                               Expanded(
-                                child: MawaqitIconButton(
-                                  focusNode: _connectButtonFocusNode,
-                                  icon: Icons.wifi,
-                                  label: S.of(context).connect,
-                                  onPressed: _connectToWifi,
-                                ),
+                                child: _isConnecting
+                                    ? Center(
+                                        child: SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                                        ),
+                                      )
+                                    : MawaqitIconButton(
+                                        focusNode: _connectButtonFocusNode,
+                                        icon: Icons.wifi,
+                                        label: S.of(context).connect,
+                                        onPressed: _connectToWifi,
+                                      ),
                               ),
                             ],
                           )
