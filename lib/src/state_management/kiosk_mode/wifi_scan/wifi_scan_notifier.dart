@@ -22,8 +22,7 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
       await platform.invokeMethod('addLocationPermission');
       await platform.invokeMethod('grantFineLocationPermission');
     } on PlatformException catch (e, s) {
-      logger.e('kiosk mode: wifi_scan: location grant via su failed: $e',
-          stackTrace: s);
+      logger.e('kiosk mode: wifi_scan: location grant via su failed: $e', stackTrace: s);
     }
   }
 
@@ -40,15 +39,13 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
       // askPermissions: false — location is granted upfront via su in
       // [_ensureLocationPermission]; letting the plugin ask would pop a
       // system dialog the user must dismiss.
-      final canGet =
-          await WiFiScan.instance.canGetScannedResults(askPermissions: false);
+      final canGet = await WiFiScan.instance.canGetScannedResults(askPermissions: false);
       if (canGet != CanGetScannedResults.yes) {
         throw StateError('cannot read wifi scan results: $canGet');
       }
       // Best-effort fresh scan; if Android throttles it we still read the
       // platform's last cached results below.
-      if (await WiFiScan.instance.canStartScan(askPermissions: false) ==
-          CanStartScan.yes) {
+      if (await WiFiScan.instance.canStartScan(askPermissions: false) == CanStartScan.yes) {
         await WiFiScan.instance.startScan();
       }
       final results = await WiFiScan.instance.getScannedResults();
@@ -63,8 +60,7 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
     }
   }
 
-  Future<void> connectToWifi(
-      String ssid, String security, String password) async {
+  Future<void> connectToWifi(String ssid, String security, String password) async {
     // A failed scan leaves no state value; nothing to connect from.
     final current = state.value;
     if (current == null) return;
@@ -97,6 +93,4 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
   }
 }
 
-final wifiScanNotifierProvider =
-    AsyncNotifierProvider<WifiScanNotifier, WifiScanState>(
-        WifiScanNotifier.new);
+final wifiScanNotifierProvider = AsyncNotifierProvider<WifiScanNotifier, WifiScanState>(WifiScanNotifier.new);

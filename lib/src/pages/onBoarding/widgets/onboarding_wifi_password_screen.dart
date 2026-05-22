@@ -38,10 +38,8 @@ class TvWifiPasswordScreen extends ConsumerStatefulWidget {
 class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _passwordFocusNode = FocusNode(debugLabel: 'password_input');
-  final FocusNode _connectButtonFocusNode =
-      FocusNode(debugLabel: 'connect_button');
-  final FocusNode _toggleVisibilityFocusNode =
-      FocusNode(debugLabel: 'toggle_visibility');
+  final FocusNode _connectButtonFocusNode = FocusNode(debugLabel: 'connect_button');
+  final FocusNode _toggleVisibilityFocusNode = FocusNode(debugLabel: 'toggle_visibility');
   final FocusNode _parentFocusNode = FocusNode(debugLabel: 'parent_container');
 
   bool _obscureText = true;
@@ -118,8 +116,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
     // viewInsets.bottom, so we can't gate on "keyboard visible" — handling
     // D-pad keys here would move focus away and dismiss the IME instantly.
     if (_passwordFocusNode.hasFocus) {
-      if (event.logicalKey == LogicalKeyboardKey.escape ||
-          event.logicalKey == LogicalKeyboardKey.gameButtonB) {
+      if (event.logicalKey == LogicalKeyboardKey.escape || event.logicalKey == LogicalKeyboardKey.gameButtonB) {
         _cancel();
         return KeyEventResult.handled;
       }
@@ -165,8 +162,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
         _connectToWifi();
         return KeyEventResult.handled;
       }
-    } else if (event.logicalKey == LogicalKeyboardKey.escape ||
-        event.logicalKey == LogicalKeyboardKey.gameButtonB) {
+    } else if (event.logicalKey == LogicalKeyboardKey.escape || event.logicalKey == LogicalKeyboardKey.gameButtonB) {
       _cancel();
       return KeyEventResult.handled;
     }
@@ -233,9 +229,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
               bottom: keyboardInsetReported ? 0 : size.height * 0.44,
             ),
             child: Align(
-              alignment: keyboardInsetReported
-                  ? Alignment.center
-                  : Alignment.topCenter,
+              alignment: keyboardInsetReported ? Alignment.center : Alignment.topCenter,
               child: SingleChildScrollView(
                 child: GestureDetector(
                   onTap: () {},
@@ -250,12 +244,10 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                       vertical: 20,
                     ),
                     child: Card(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       elevation: 10,
                       child: Padding(
-                        padding:
-                            EdgeInsets.all(keyboardInsetReported ? 30 : 24),
+                        padding: EdgeInsets.all(keyboardInsetReported ? 30 : 24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,9 +258,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                               style: TextStyle(
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.bold,
-                                color: themeData.brightness == Brightness.dark
-                                    ? null
-                                    : themeData.primaryColor,
+                                color: themeData.brightness == Brightness.dark ? null : themeData.primaryColor,
                               ),
                             ),
                             SizedBox(height: 15),
@@ -298,9 +288,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: _passwordFocusNode.hasFocus
-                                      ? const Color(0xFF490094)
-                                      : Colors.grey.shade400,
+                                  color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : Colors.grey.shade400,
                                   width: _passwordFocusNode.hasFocus ? 2.5 : 1,
                                 ),
                               ),
@@ -311,8 +299,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                       controller: _passwordController,
                                       focusNode: _passwordFocusNode,
                                       obscureText: _obscureText,
-                                      keyboardType:
-                                          TextInputType.visiblePassword,
+                                      keyboardType: TextInputType.visiblePassword,
                                       textInputAction: TextInputAction.done,
                                       style: TextStyle(fontSize: 10.sp),
                                       decoration: InputDecoration(
@@ -320,17 +307,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                         hintStyle: TextStyle(fontSize: 10.sp),
                                         prefixIcon: Icon(
                                           Icons.lock,
-                                          color: _passwordFocusNode.hasFocus
-                                              ? const Color(0xFF490094)
-                                              : null,
+                                          color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : null,
                                           size: 15.sp,
                                         ),
                                         border: InputBorder.none,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 2),
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                         fillColor: _passwordFocusNode.hasFocus
-                                            ? const Color(0xFF490094)
-                                                .withOpacity(0.05)
+                                            ? const Color(0xFF490094).withOpacity(0.05)
                                             : Colors.transparent,
                                         filled: true,
                                       ),
@@ -356,18 +339,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                             topRight: Radius.circular(20),
                                             bottomRight: Radius.circular(20),
                                           ),
-                                          color: _toggleVisibilityFocusNode
-                                                  .hasFocus
-                                              ? const Color(0xFF490094)
-                                                  .withOpacity(0.1)
+                                          color: _toggleVisibilityFocusNode.hasFocus
+                                              ? const Color(0xFF490094).withOpacity(0.1)
                                               : Colors.transparent,
                                         ),
                                         child: Icon(
-                                          _obscureText
-                                              ? Icons.visibility
-                                              : Icons.visibility_off,
-                                          color: _toggleVisibilityFocusNode
-                                                  .hasFocus
+                                          _obscureText ? Icons.visibility : Icons.visibility_off,
+                                          color: _toggleVisibilityFocusNode.hasFocus
                                               ? const Color(0xFF490094)
                                               : Colors.grey.shade600,
                                           size: 12.sp,
@@ -397,8 +375,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
                                           child: SizedBox(
                                             height: 24,
                                             width: 24,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2.5),
+                                            child: CircularProgressIndicator(strokeWidth: 2.5),
                                           ),
                                         )
                                       : MawaqitIconButton(
