@@ -65,6 +65,9 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
   late FocusNode skipButtonFocusNode;
   late FocusNode nextButtonFocusNode;
   late FocusNode previousButtonFocusNode;
+
+  /// "No" option focus node — lets the nav bar's Up key target it.
+  late FocusNode mosqueSearchNoFocusNode;
   Option<Country> country = None();
 
   @override
@@ -73,6 +76,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
     nextButtonFocusNode = FocusNode(debugLabel: 'next_button_focus_node');
     previousButtonFocusNode = FocusNode(debugLabel: 'previous_button_focus_node');
     skipButtonFocusNode = FocusNode(debugLabel: 'skip_button_focus_node');
+    mosqueSearchNoFocusNode = FocusNode(debugLabel: 'mosque_search_no_focus_node');
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(onBoardingProvider.notifier).getSystemLanguage();
@@ -100,6 +104,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
     nextButtonFocusNode.dispose();
     previousButtonFocusNode.dispose();
     skipButtonFocusNode.dispose();
+    mosqueSearchNoFocusNode.dispose();
 
     super.dispose();
   }
@@ -168,6 +173,7 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
           nextButtonFocusNode: Some(nextButtonFocusNode),
           isOnboarding: true,
           onDone: () {},
+          noFocusNode: mosqueSearchNoFocusNode,
         ),
         enableNextButton: true,
         enablePreviousButton: true,
@@ -377,6 +383,13 @@ class _OnBoardingScreenState extends riverpod.ConsumerState<OnBoardingScreen> {
 
                         if (screenType == OnboardingScreenType.about) {
                           return KeyEventResult.ignored;
+                        }
+
+                        // Up would land on the (closer) video; focus "No" instead.
+                        if (screenType == OnboardingScreenType.mosqueSearchType &&
+                            mosqueSearchNoFocusNode.canRequestFocus) {
+                          mosqueSearchNoFocusNode.requestFocus();
+                          return KeyEventResult.handled;
                         }
 
                         FocusScope.of(context).focusInDirection(TraversalDirection.up);
