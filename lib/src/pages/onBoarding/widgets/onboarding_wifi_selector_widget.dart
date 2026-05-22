@@ -8,7 +8,7 @@ import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_notifier.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
 import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
-import 'package:wifi_hunter/wifi_hunter_result.dart';
+import 'package:wifi_scan/wifi_scan.dart';
 import 'package:sizer/sizer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart' as fp;
@@ -39,7 +39,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
   late AutoScrollController _scrollController;
   int _focusedIndex = 0;
   List<FocusNode> _focusNodes = [];
-  List<WiFiHunterResultEntry> _filteredAccessPoints = [];
+  List<WiFiAccessPoint> _filteredAccessPoints = [];
 
   @override
   void initState() {
@@ -276,10 +276,11 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
     );
   }
 
-  List<WiFiHunterResultEntry> _filterAccessPoints(List<WiFiHunterResultEntry> accessPoints) {
+  List<WiFiAccessPoint> _filterAccessPoints(List<WiFiAccessPoint> accessPoints) {
     final seenSSIDs = <String>{};
     return accessPoints.where((ap) {
-      if (ap.ssid == "**Hidden SSID**") {
+      // wifi_scan reports hidden networks with an empty SSID — keep them all.
+      if (ap.ssid.isEmpty) {
         return true;
       }
       if (!seenSSIDs.contains(ap.ssid)) {
@@ -290,7 +291,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
     }).toList();
   }
 
-  _buildAccessPointsList(List<WiFiHunterResultEntry> accessPoints, bool _hasPermission) {
+  _buildAccessPointsList(List<WiFiAccessPoint> accessPoints, bool _hasPermission) {
     _filteredAccessPoints = _filterAccessPoints(accessPoints);
 
     // Initialize focus nodes for each item if needed
@@ -385,7 +386,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
 }
 
 class _AccessPointTile extends ConsumerStatefulWidget {
-  final WiFiHunterResultEntry accessPoint;
+  final WiFiAccessPoint accessPoint;
   final FocusNode skipButtonFocusNode;
   final FocusNode scanAgainFocusNode;
   final bool hasPermission;

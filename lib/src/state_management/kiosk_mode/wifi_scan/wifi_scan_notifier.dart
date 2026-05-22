@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/widgets.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
-import 'package:wifi_hunter/wifi_hunter.dart';
+import 'package:wifi_scan/wifi_scan.dart';
 
 class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
   @override
@@ -11,13 +11,28 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
 
   /// Scans for nearby networks. Throws on failure so Riverpod surfaces a clean
   /// [AsyncError]; callers must not assume [state] always has a value.
+  ///
+  /// Uses the `wifi_scan` plugin rather than `wifi_hunter`: the latter holds
+  /// the Flutter result inside a `SCAN_RESULTS` broadcast receiver it never
+  /// unregisters, so a second system scan broadcast makes it reply twice and
+  /// crash the app ("Reply already submitted"). `wifi_scan` reads results via
+  /// an explicit call instead, so it has no such race.
   Future<WifiScanState> _scan() async {
-    logger.i('[wifi-debug] scan: starting WiFiHunter.huntWiFiNetworks');
+    logger.i('[wifi-debug] scan: starting wifi_scan');
     try {
-      final result = await WiFiHunter.huntWiFiNetworks;
-      logger.i('[wifi-debug] scan: succeeded with ${result?.results.length ?? 0} networks');
+      final canGet = await WiFiScan.instance.canGetScannedResults();
+      if (canGet != CanGetScannedResults.yes) {
+        throw StateError('cannot read wifi scan results: $canGet');
+      }
+      // Best-effort fresh scan; if Android throttles it we still read the
+      // platform's last cached results below.
+      if (await WiFiScan.instance.canStartScan() == CanStartScan.yes) {
+        await WiFiScan.instance.startScan();
+      }
+      final results = await WiFiScan.instance.getScannedResults();
+      logger.i('[wifi-debug] scan: succeeded with ${results.length} networks');
       return WifiScanState(
-        accessPoints: result?.results ?? const [],
+        accessPoints: results,
         hasPermission: true,
         status: Status.connecting,
       );
