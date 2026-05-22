@@ -325,14 +325,12 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun connectToWifi(call: MethodCall, result: MethodChannel.Result) {
-    Log.i("SU_COMMAND", "[wifi-debug] connectToWifi: native handler entered")
     AsyncTask.execute {
       try {
         val ssid = call.argument<String>("ssid") ?: ""
         val password = call.argument<String>("password")
         val capabilities = call.argument<String>("security")
         val security = getSecurityType(capabilities, password)
-        Log.i("SU_COMMAND", "[wifi-debug] connectToWifi: ssid=\"$ssid\" security=$security")
 
         // Prefer `cmd wifi connect-network` (added in API 30 / Android 11).
         // Older boxes like MAWAQITBOX V2 (API 29) reject it with
@@ -374,11 +372,9 @@ class MainActivity : FlutterActivity() {
         } else {
           Log.e("SU_COMMAND", "Failed to connect to $ssid (wrong password or timeout).")
         }
-        Log.i("SU_COMMAND", "[wifi-debug] connectToWifi: returning result=$connected to Flutter")
         result.success(connected)
 
       } catch (e: Exception) {
-        Log.e("SU_COMMAND", "[wifi-debug] connectToWifi: exception, returning error to Flutter", e)
         handleCommandException(e, result)
       }
     }
@@ -387,8 +383,6 @@ class MainActivity : FlutterActivity() {
   private data class SuResult(val output: String, val error: String, val exitCode: Int)
 
   private fun runSuCommand(command: String): SuResult {
-    Log.i("SU_COMMAND", "[wifi-debug] runSuCommand: exec su (if this is the last " +
-      "line you see, su is hanging — likely a pending Magisk grant prompt)")
     val process = Runtime.getRuntime().exec("su")
     val os = DataOutputStream(process.outputStream)
     os.writeBytes("$command\n")
@@ -396,9 +390,7 @@ class MainActivity : FlutterActivity() {
     os.close()
     val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
     val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
-    val exitCode = process.waitFor()
-    Log.i("SU_COMMAND", "[wifi-debug] runSuCommand: su finished, exitCode=$exitCode")
-    return SuResult(output, error, exitCode)
+    return SuResult(output, error, process.waitFor())
   }
 
   /**
@@ -446,10 +438,9 @@ class MainActivity : FlutterActivity() {
         // Drop the bad config so Android doesn't keep retrying it.
         wifiManager.removeNetwork(networkId)
       }
-      Log.i("WIFI_LEGACY", "[wifi-debug] connectViaWifiManager: returning result=$connected to Flutter")
       result.success(connected)
     } catch (ex: Exception) {
-      Log.e("WIFI_LEGACY", "[wifi-debug] connectViaWifiManager: exception, returning error to Flutter", ex)
+      Log.e("WIFI_LEGACY", "Error connecting to network", ex)
       result.error("exception", ex.message, ex)
     }
   }

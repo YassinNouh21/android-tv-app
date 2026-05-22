@@ -21,9 +21,9 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
     try {
       await platform.invokeMethod('addLocationPermission');
       await platform.invokeMethod('grantFineLocationPermission');
-      logger.i('[wifi-debug] scan: location granted via su');
     } on PlatformException catch (e, s) {
-      logger.e('[wifi-debug] scan: location grant via su failed: $e', stackTrace: s);
+      logger.e('kiosk mode: wifi_scan: location grant via su failed: $e',
+          stackTrace: s);
     }
   }
 
@@ -36,77 +36,67 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
   /// crash the app ("Reply already submitted"). `wifi_scan` reads results via
   /// an explicit call instead, so it has no such race.
   Future<WifiScanState> _scan() async {
-    logger.i('[wifi-debug] scan: starting wifi_scan');
     try {
       // askPermissions: false — location is granted upfront via su in
       // [_ensureLocationPermission]; letting the plugin ask would pop a
       // system dialog the user must dismiss.
-      final canGet = await WiFiScan.instance.canGetScannedResults(askPermissions: false);
+      final canGet =
+          await WiFiScan.instance.canGetScannedResults(askPermissions: false);
       if (canGet != CanGetScannedResults.yes) {
         throw StateError('cannot read wifi scan results: $canGet');
       }
       // Best-effort fresh scan; if Android throttles it we still read the
       // platform's last cached results below.
-      if (await WiFiScan.instance.canStartScan(askPermissions: false) == CanStartScan.yes) {
+      if (await WiFiScan.instance.canStartScan(askPermissions: false) ==
+          CanStartScan.yes) {
         await WiFiScan.instance.startScan();
       }
       final results = await WiFiScan.instance.getScannedResults();
-      logger.i('[wifi-debug] scan: succeeded with ${results.length} networks');
       return WifiScanState(
         accessPoints: results,
         hasPermission: true,
         status: Status.connecting,
       );
     } catch (e, s) {
-      logger.e('[wifi-debug] scan: FAILED: $e', stackTrace: s);
+      logger.e('kiosk mode: wifi_scan: scan failed: $e', stackTrace: s);
       rethrow;
     }
   }
 
-  Future<void> connectToWifi(String ssid, String security, String password) async {
-    logger.i('[wifi-debug] connectToWifi: invoked for ssid="$ssid"');
+  Future<void> connectToWifi(
+      String ssid, String security, String password) async {
     // A failed scan leaves no state value; nothing to connect from.
     final current = state.value;
-    if (current == null) {
-      logger.e('[wifi-debug] connectToWifi: ABORT — state has no value '
-          '(isLoading=${state.isLoading} hasError=${state.hasError}); '
-          'password screen spinner will not clear');
-      return;
-    }
+    if (current == null) return;
     try {
-      logger.i('[wifi-debug] connectToWifi: calling native connectToWifi channel');
-      final isSuccess = await platform.invokeMethod('connectToWifi', {
+      final result = await platform.invokeMethod('connectToWifi', {
         "ssid": ssid,
         "security": security,
         "password": password,
-      }) as bool? ??
-          false;
-      logger.i('[wifi-debug] connectToWifi: native returned isSuccess=$isSuccess');
-      if (isSuccess) {
-        state = AsyncData(current.copyWith(status: Status.connected));
-      } else {
-        state = AsyncData(current.copyWith(status: Status.error));
-      }
+      });
+      final isSuccess = result as bool? ?? false;
+      state = AsyncData(current.copyWith(
+        status: isSuccess ? Status.connected : Status.error,
+      ));
     } on PlatformException catch (e, s) {
       // Keep a value in state (Status.error) rather than emitting an AsyncError
       // the password screen would skip, leaving its spinner stuck forever.
-      logger.e('[wifi-debug] connectToWifi: PlatformException: $e', stackTrace: s);
+      logger.e('kiosk mode: wifi_scan: connect failed: $e', stackTrace: s);
       state = AsyncData(current.copyWith(status: Status.error));
     } catch (e, s) {
-      // Any non-platform error (e.g. a bad cast) must still resolve the state,
-      // otherwise the spinner hangs.
-      logger.e('[wifi-debug] connectToWifi: unexpected error: $e', stackTrace: s);
+      // Any non-platform error must still resolve the state, otherwise the
+      // password screen spinner hangs.
+      logger.e('kiosk mode: wifi_scan: connect error: $e', stackTrace: s);
       state = AsyncData(current.copyWith(status: Status.error));
     }
   }
 
   Future<void> retry() async {
-    logger.i('[wifi-debug] retry: rescanning');
     state = const AsyncLoading<WifiScanState>();
     state = await AsyncValue.guard(_scan);
-    logger.i('[wifi-debug] retry: done — hasError=${state.hasError} '
-        'networks=${state.value?.accessPoints.length}');
   }
 }
 
-final wifiScanNotifierProvider = AsyncNotifierProvider<WifiScanNotifier, WifiScanState>(WifiScanNotifier.new);
+final wifiScanNotifierProvider =
+    AsyncNotifierProvider<WifiScanNotifier, WifiScanState>(
+        WifiScanNotifier.new);
