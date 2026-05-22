@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/main.dart';
+import 'package:mawaqit/src/pages/onBoarding/widgets/widgets.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
 import 'package:wifi_hunter/wifi_hunter.dart';
 
