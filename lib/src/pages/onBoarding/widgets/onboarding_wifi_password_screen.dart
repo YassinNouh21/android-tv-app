@@ -99,12 +99,18 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   }
 
   void _connectToWifi() {
-    if (_isConnecting) return;
+    if (_isConnecting) {
+      logger.i('[wifi-debug] connect tapped but already connecting — ignored');
+      return;
+    }
     if (_passwordController.text.isEmpty) {
+      logger.i('[wifi-debug] connect tapped with empty password — aborted');
       _showToast(S.of(context).wifiFailure);
       return;
     }
 
+    logger.i('[wifi-debug] connect tapped: ssid="${widget.ssid}" '
+        'capabilities="${widget.capabilities}" passwordLength=${_passwordController.text.length}');
     setState(() => _isConnecting = true);
     ref.read(wifiScanNotifierProvider.notifier).connectToWifi(
           widget.ssid,
@@ -200,15 +206,22 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
     // Listen for Wi-Fi connection status changes. Guarded so a late-arriving
     // result doesn't touch a disposed FocusNode after the user navigated back.
     ref.listen(wifiScanNotifierProvider, (previous, next) {
+      logger.i('[wifi-debug] password screen listener fired: '
+          'mounted=$mounted isConnecting=$_isConnecting '
+          'hasValue=${next.hasValue} isRefreshing=${next.isRefreshing} '
+          'isLoading=${next.isLoading} hasError=${next.hasError} '
+          'status=${next.value?.status}');
       if (!mounted || !_isConnecting) return;
       if (!next.hasValue || next.isRefreshing) return;
       final status = next.value!.status;
       if (status == Status.connected) {
+        logger.i('[wifi-debug] connection succeeded — closing password screen');
         setState(() => _isConnecting = false);
         _showToast(S.of(context).wifiSuccess);
         widget.onComplete(true);
         Navigator.of(context).pop(false);
       } else if (status == Status.error) {
+        logger.i('[wifi-debug] connection failed — showing failure toast');
         setState(() => _isConnecting = false);
         _showToast(S.of(context).wifiFailure);
         widget.onComplete(false);
