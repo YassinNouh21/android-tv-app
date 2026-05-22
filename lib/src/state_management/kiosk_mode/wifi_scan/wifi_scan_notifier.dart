@@ -7,7 +7,25 @@ import 'package:wifi_scan/wifi_scan.dart';
 
 class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
   @override
-  Future<WifiScanState> build() => _scan();
+  Future<WifiScanState> build() async {
+    // Grant location through su before the first scan so wifi_scan never has
+    // to pop a system permission dialog (see [_scan]'s askPermissions: false).
+    await _ensureLocationPermission();
+    return _scan();
+  }
+
+  /// Grants ACCESS_FINE_LOCATION and enables location services via the app's
+  /// root (su) channel. Swallows failures — a denied grant just means the
+  /// scan below reports no permission, which the UI handles gracefully.
+  Future<void> _ensureLocationPermission() async {
+    try {
+      await platform.invokeMethod('addLocationPermission');
+      await platform.invokeMethod('grantFineLocationPermission');
+      logger.i('[wifi-debug] scan: location granted via su');
+    } on PlatformException catch (e, s) {
+      logger.e('[wifi-debug] scan: location grant via su failed: $e', stackTrace: s);
+    }
+  }
 
   /// Scans for nearby networks. Throws on failure so Riverpod surfaces a clean
   /// [AsyncError]; callers must not assume [state] always has a value.
@@ -20,13 +38,16 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
   Future<WifiScanState> _scan() async {
     logger.i('[wifi-debug] scan: starting wifi_scan');
     try {
-      final canGet = await WiFiScan.instance.canGetScannedResults();
+      // askPermissions: false — location is granted upfront via su in
+      // [_ensureLocationPermission]; letting the plugin ask would pop a
+      // system dialog the user must dismiss.
+      final canGet = await WiFiScan.instance.canGetScannedResults(askPermissions: false);
       if (canGet != CanGetScannedResults.yes) {
         throw StateError('cannot read wifi scan results: $canGet');
       }
       // Best-effort fresh scan; if Android throttles it we still read the
       // platform's last cached results below.
-      if (await WiFiScan.instance.canStartScan() == CanStartScan.yes) {
+      if (await WiFiScan.instance.canStartScan(askPermissions: false) == CanStartScan.yes) {
         await WiFiScan.instance.startScan();
       }
       final results = await WiFiScan.instance.getScannedResults();

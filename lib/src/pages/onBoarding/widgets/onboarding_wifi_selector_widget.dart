@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_notifier.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
 import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
@@ -45,11 +44,8 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
   void initState() {
     super.initState();
     _scrollController = AutoScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _addLocationPermission();
-      await _addFineLocationPermission();
-      await ref.read(wifiScanNotifierProvider.notifier).retry();
-    });
+    // The initial scan (and its su location grant) is driven by the
+    // wifiScanNotifier's build(); the "Scan again" button triggers retry().
   }
 
   @override
@@ -61,22 +57,6 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
       node.dispose();
     }
     super.dispose();
-  }
-
-  Future<void> _addLocationPermission() async {
-    try {
-      await platform.invokeMethod('addLocationPermission');
-    } on PlatformException catch (e) {
-      logger.e("kiosk mode: location permission: error: $e");
-    }
-  }
-
-  Future<void> _addFineLocationPermission() async {
-    try {
-      await platform.invokeMethod('grantFineLocationPermission');
-    } on PlatformException catch (e) {
-      logger.e("kiosk mode: location permission: error: $e");
-    }
   }
 
   void _showToast(String message) {
