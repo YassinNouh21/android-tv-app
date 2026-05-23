@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/const/constants.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/mawaqit_icons_icons.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
@@ -88,8 +89,9 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
                 mosqueConfig,
                 useFajrAdhan: mosqueManager.salahIndex == 0,
               );
-        } catch (e) {
-          log('AdhanSubScreen: Error calling playAdhan', error: e);
+        } catch (e, s) {
+          log('AdhanSubScreen: Error calling playAdhan', error: e, stackTrace: s);
+          unawaited(Sentry.captureException(e, stackTrace: s));
         }
       });
 
