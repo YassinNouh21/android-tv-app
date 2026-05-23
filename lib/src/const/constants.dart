@@ -147,6 +147,12 @@ class BackgroundScheduleAudioServiceConstant {
   static const String kRandomSurahIds = 'random_surah_ids';
 }
 
+abstract class OnboardingConstant {
+  // Source asset pixel widths — clamp `cacheWidth` so high-DPR decodes never upscale past native resolution.
+  static const int kLandscapeNativeWidth = 1600;
+  static const int kPortraitNativeWidth = 900;
+}
+
 abstract class MawaqitBackendSettingsConstant {
   static const String kSettingsTitle = "Mawaqit";
   static const String kSettingsShare =

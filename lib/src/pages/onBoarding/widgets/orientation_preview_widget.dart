@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit/src/const/constants.dart';
 
 class OrientationPreviewWidget extends StatefulWidget {
   const OrientationPreviewWidget({Key? key}) : super(key: key);
@@ -47,13 +48,6 @@ class _OrientationPreviewWidgetState extends State<OrientationPreviewWidget> wit
       setState(() => _showLandscape = !_showLandscape);
       _controller.forward(from: 0.0);
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    precacheImage(const AssetImage('assets/img/onboarding/landscape.png'), context);
-    precacheImage(const AssetImage('assets/img/onboarding/portrait.png'), context);
   }
 
   @override
@@ -141,6 +135,8 @@ class _OrientationPreviewWidgetState extends State<OrientationPreviewWidget> wit
   }) {
     final isPortrait = aspectRatio < 1.0;
     final radius = isPortrait ? 4.0 : 10.0;
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final nativeWidth = isPortrait ? OnboardingConstant.kPortraitNativeWidth : OnboardingConstant.kLandscapeNativeWidth;
 
     final maxWidth = isPortrait ? portraitMaxWidth : landscapeMaxWidth;
     final imageMaxHeight = math.max(0.0, cardMaxHeight - labelSpacing - labelFontSize * 1.5);
@@ -172,7 +168,15 @@ class _OrientationPreviewWidgetState extends State<OrientationPreviewWidget> wit
             child: Image.asset(
               imagePath,
               fit: BoxFit.contain,
-              cacheWidth: math.max(1, imageWidth.toInt()),
+              filterQuality: FilterQuality.low,
+              // Decode at physical pixel size, capped to the source's native width.
+              cacheWidth: math.max(
+                1,
+                math.min(
+                  nativeWidth,
+                  (imageWidth * devicePixelRatio).round(),
+                ),
+              ),
               errorBuilder: (context, error, stackTrace) => Center(
                 child: Icon(
                   isPortrait ? Icons.stay_current_portrait : Icons.stay_current_landscape,
