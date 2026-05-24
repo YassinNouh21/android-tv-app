@@ -32,6 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/data_source/device_info_data_source.dart';
 import '../helpers/AppDate.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 import 'mixins/audio_mixin.dart';
 import 'mixins/connectivity_mixin.dart';
 
@@ -94,8 +95,9 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
 
         await prefs.setString(LiveStreamConstants.prefKeyBackofficeUrl, processedUrl);
       }
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('Error syncing stream URL to LiveStream: $e');
+      await CrashlyticsWrapper.sendException(e, s);
     }
   }
 
@@ -196,6 +198,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
       _saveToLocale();
     } catch (e, stack) {
       debugPrintStack(stackTrace: stack);
+      await CrashlyticsWrapper.sendException(e, stack);
       rethrow;
     }
   }
@@ -299,6 +302,7 @@ class MosqueManager extends ChangeNotifier with WeatherMixin, AudioMixin, Mosque
         ]);
       } catch (e, stack) {
         debugPrintStack(label: e.toString(), stackTrace: stack);
+        await CrashlyticsWrapper.sendException(e, stack);
       }
     }
 

@@ -88,6 +88,7 @@ Future<void> main() async {
         );
       } catch (e, stackTrace) {
         developer.log('Initialization error', error: e, stackTrace: stackTrace);
+        await CrashlyticsWrapper.sendException(e, stackTrace);
         rethrow;
       }
     },
@@ -109,6 +110,7 @@ Future<void> _initializeCoreServices() async {
     MediaKit.ensureInitialized();
   } catch (e, stackTrace) {
     developer.log('Core services initialization error', error: e, stackTrace: stackTrace);
+    await CrashlyticsWrapper.sendException(e, stackTrace);
   }
 }
 
@@ -142,6 +144,7 @@ Future<void> _safelyInitializeBackgroundServices() async {
     developer.log('Background services initialization completed');
   } catch (e, stackTrace) {
     developer.log('Background services initialization error', error: e, stackTrace: stackTrace);
+    await CrashlyticsWrapper.sendException(e, stackTrace);
   }
 }
 
