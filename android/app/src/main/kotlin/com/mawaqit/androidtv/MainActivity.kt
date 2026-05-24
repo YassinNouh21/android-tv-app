@@ -342,11 +342,23 @@ class MainActivity : FlutterActivity() {
           "cmd wifi connect-network ${shellEscape(ssid)} $security ${shellEscape(password)}"
         }
 
-        Log.i("SU_COMMAND", "Wifi Command: $command")
+        // Never log the raw command: it embeds the PSK and would leak via logcat / Sentry.
+        val safeCommand = if (password.isNullOrEmpty()) command
+          else command.replace(shellEscape(password), "***")
+        Log.i("SU_COMMAND", "Wifi Command: $safeCommand")
+
+        // Clear any lingering SupplicantState.COMPLETED from a prior connection to
+        // the same SSID before polling — otherwise awaitWifiConnected can return
+        // true on stale state even when this attempt's handshake hasn't completed.
+        (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).disconnect()
 
         val cmd = runSuCommand(command)
-        Log.i("SU_COMMAND", "Command output: ${cmd.output}")
-        Log.e("SU_COMMAND", "Command error: ${cmd.error}")
+        val safeOutput = if (password.isNullOrEmpty()) cmd.output
+          else cmd.output.replace(password, "***").replace(shellEscape(password), "***")
+        val safeError = if (password.isNullOrEmpty()) cmd.error
+          else cmd.error.replace(password, "***").replace(shellEscape(password), "***")
+        Log.i("SU_COMMAND", "Command output: $safeOutput")
+        Log.e("SU_COMMAND", "Command error: $safeError")
         Log.d("SU_COMMAND", "Exit code: ${cmd.exitCode}")
 
         val cmdUnsupported = cmd.error.contains("Unknown command", ignoreCase = true) ||
@@ -371,12 +383,41 @@ class MainActivity : FlutterActivity() {
           Log.i("SU_COMMAND", "Connected to $ssid successfully.")
         } else {
           Log.e("SU_COMMAND", "Failed to connect to $ssid (wrong password or timeout).")
+          // Drop the just-added profile so the framework doesn't auto-reconnect
+          // with the bad credentials on the next scan — mirrors the legacy path's
+          // wifiManager.removeNetwork() cleanup. `cmd wifi forget-network` takes
+          // a networkId, so look it up via `cmd wifi list-networks` first.
+          forgetNetworkBySsid(ssid)
         }
         result.success(connected)
 
       } catch (e: Exception) {
         handleCommandException(e, result)
       }
+    }
+  }
+
+  private fun forgetNetworkBySsid(ssid: String) {
+    val list = runSuCommand("cmd wifi list-networks")
+    // Output format (Android 11+):
+    //   Network Id      SSID                    Security
+    //   0               MyHomeWifi              WPA_PSK
+    // SSID may or may not be quoted depending on ROM.
+    val id = list.output.lineSequence()
+      .mapNotNull { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("Network Id")) return@mapNotNull null
+        val firstSpace = trimmed.indexOf(' ')
+        if (firstSpace <= 0) return@mapNotNull null
+        val idStr = trimmed.substring(0, firstSpace)
+        val rest = trimmed.substring(firstSpace).trim().trim('"')
+        if (rest.startsWith(ssid)) idStr.toIntOrNull() else null
+      }
+      .firstOrNull()
+    if (id != null) {
+      runSuCommand("cmd wifi forget-network $id")
+    } else {
+      Log.w("SU_COMMAND", "forget-network: could not find networkId for SSID.")
     }
   }
 

@@ -215,8 +215,6 @@ dependency_overrides:
       url: https://github.com/mawaqit/flutter_background_service
       ref: master
       path: packages/flutter_background_service_android
-  screen_brightness_android: 2.1.3
-  screen_brightness_platform_interface: 2.1.0
 # The following section is specific to Flutter.
 flutter:
 

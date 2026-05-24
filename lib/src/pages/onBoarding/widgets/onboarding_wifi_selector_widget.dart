@@ -123,7 +123,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
     // re-fire the toast (and showing a toast during build is unsafe).
     ref.listen(wifiScanNotifierProvider, (previous, next) {
       if (mounted && next is AsyncError && previous is! AsyncError) {
-        _showToast('Error fetching access points');
+        _showToast(S.of(context).noScannedResultsFound);
       }
     });
 
@@ -428,7 +428,7 @@ class _AccessPointTileState extends ConsumerState<_AccessPointTile> {
       if (next.hasValue && !next.isRefreshing && next.value!.status == Status.connected) {
         _showToast(S.of(context).wifiSuccess);
       }
-      if (next.value!.status == Status.error) {
+      if (next.hasValue && next.value!.status == Status.error) {
         _showToast(S.of(context).wifiFailure);
       }
     });
