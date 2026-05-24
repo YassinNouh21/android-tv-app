@@ -32,7 +32,7 @@ class StringManager {
   static const fontFamilyKufi = "kufi";
   static const fontFamilyArial = "arial";
   static const fontFamilyHelvetica = "helvetica";
-  static const fontFamilyRabar = "Rabar";
+  static const fontFamilyKJino = "KJino";
 
   static const rtlLanguages = const ['ar', 'he', 'fa', 'ur', 'arc', 'az', 'dv', 'ckb'];
 

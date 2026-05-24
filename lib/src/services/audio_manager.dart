@@ -41,7 +41,7 @@ class AudioManager extends ChangeNotifier {
       adhanLink = "$kStaticFilesUrl/audio/${mosqueConfig.adhanVoice!}.mp3";
     }
 
-    if (useFajrAdhan && !adhanLink.contains('bip')) {
+    if (useFajrAdhan && !PrayerAudioConstant.isSignalAdhanVoice(mosqueConfig.adhanVoice)) {
       adhanLink = adhanLink.replaceAll('.mp3', '-fajr.mp3');
     }
 

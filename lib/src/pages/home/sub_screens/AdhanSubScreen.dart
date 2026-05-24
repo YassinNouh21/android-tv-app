@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/i18n/l10n.dart';
+import 'package:mawaqit/src/const/constants.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/mawaqit_icons_icons.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
@@ -42,7 +44,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
   Timer? _noAdhanDisplayTimer;
   bool _audioStarted = false;
   bool _closeCalled = false;
-  bool _isBipAdhan = false;
+  bool _isSignalAdhan = false;
   late final MosqueManager _mosqueManager;
   late final PrayerAudioNotifier _audioNotifier;
 
@@ -74,7 +76,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     if (widget.forceAdhan || mosqueManager.adhanVoiceEnable()) {
       log('AdhanSubScreen: Starting adhan playback');
       _audioStarted = true;
-      _isBipAdhan = mosqueConfig?.adhanVoice?.contains('bip') ?? false;
+      _isSignalAdhan = PrayerAudioConstant.isSignalAdhanVoice(mosqueConfig?.adhanVoice);
 
       // Ensure ref is accessed on the next frame after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -87,17 +89,18 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
                 mosqueConfig,
                 useFajrAdhan: mosqueManager.salahIndex == 0,
               );
-        } catch (e) {
-          log('AdhanSubScreen: Error calling playAdhan', error: e);
+        } catch (e, s) {
+          log('AdhanSubScreen: Error calling playAdhan', error: e, stackTrace: s);
+          unawaited(Sentry.captureException(e, stackTrace: s));
         }
       });
 
-      // For bip adhan, use adhanDuration from API to keep the screen open
-      if (_isBipAdhan) {
+      // Signal adhan: keep screen open via adhanDuration from API
+      if (_isSignalAdhan) {
         final screenDuration = Duration(seconds: mosqueConfig?.adhanDuration ?? 150);
-        log('AdhanSubScreen: Bip adhan detected, using adhanDuration: $screenDuration');
+        log('AdhanSubScreen: Signal adhan detected, using adhanDuration: $screenDuration');
         _noAdhanDisplayTimer = Timer(screenDuration, () {
-          log('AdhanSubScreen: Bip adhan display timer elapsed. Closing screen.');
+          log('AdhanSubScreen: Signal adhan display timer elapsed. Closing screen.');
           _closeScreenSafely();
         });
       }
@@ -186,8 +189,8 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
             'next: ${next.processingState}');
 
         // Detect completion: if the new state is completed
-        // For bip adhan, don't close on audio completion — screen duration is controlled by adhanDuration timer
-        if (next.processingState == ProcessingState.completed && !_isBipAdhan) {
+        // Signal adhan: don't close on audio completion (adhanDuration timer handles it)
+        if (next.processingState == ProcessingState.completed && !_isSignalAdhan) {
           log('AdhanSubScreen: Playback COMPLETED detected - closing screen');
           _closeScreenSafely();
         }
