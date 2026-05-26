@@ -243,6 +243,24 @@ class AudioControlNotifier extends AsyncNotifier<AudioControlState> {
     }
   }
 
+  Future<void> pausePlayback() async {
+    if (state.value == null || state.value!.status != AudioStatus.playing) return;
+    state = AsyncData(
+        state.value!.copyWith(status: AudioStatus.paused, isLoading: true, isStopped: false, clearError: true));
+    _service.invoke('kStopAudio');
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _checkPlaybackState();
+  }
+
+  Future<void> resumePlayback() async {
+    if (state.value == null || state.value!.status != AudioStatus.paused) return;
+    state = AsyncData(
+        state.value!.copyWith(status: AudioStatus.playing, isLoading: true, isStopped: false, clearError: true));
+    _service.invoke('kResumeAudio');
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _checkPlaybackState();
+  }
+
   /// Stops playback and hides the audio indicator (shows countdown again).
   Future<void> stopPlayback() async {
     if (state.value == null) return;
