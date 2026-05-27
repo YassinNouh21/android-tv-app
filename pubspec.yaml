@@ -18,7 +18,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 
 
-version: 1.33.0+0
+version: 1.34.0+0
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -86,7 +86,6 @@ dependencies:
   # STATE MANAGEMENT
   provider: ^6.0.5
   flutter_riverpod: ^2.3.6
-  wifi_hunter: ^1.1.1+2
   flutter_styled_toast: ^2.2.1
   flutter_keyboard_visibility: ^6.0.0
   auto_size_text: ^3.0.0
@@ -216,6 +215,9 @@ dependency_overrides:
       url: https://github.com/mawaqit/flutter_background_service
       ref: master
       path: packages/flutter_background_service_android
+  # Pin media_kit_video's transitive deps to avoid unwanted bumps
+  screen_brightness_android: 2.1.3
+  screen_brightness_platform_interface: 2.1.0
 # The following section is specific to Flutter.
 flutter:
 
@@ -262,12 +264,9 @@ flutter:
     - family: WeatherIcons
       fonts:
         - asset: assets/fonts/weathericons-regular-webfont.ttf
-    - family: Rabar
+    - family: KJino
       fonts:
-        - asset: assets/fonts/Rabar-001.ttf
-          weight: 400
-        - asset: assets/fonts/Rabar-002.ttf
-          weight: 700
+        - asset: assets/fonts/KJino.TTF
           
 patrol:
   app_name: Mawaqit Android TV
