@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
-import 'package:mawaqit/const/resource.dart';
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_notifier.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
-import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
-import 'package:wifi_hunter/wifi_hunter_result.dart';
+import 'package:wifi_scan/wifi_scan.dart';
 import 'package:sizer/sizer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart' as fp;
@@ -39,17 +36,14 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
   late AutoScrollController _scrollController;
   int _focusedIndex = 0;
   List<FocusNode> _focusNodes = [];
-  List<WiFiHunterResultEntry> _filteredAccessPoints = [];
+  List<WiFiAccessPoint> _filteredAccessPoints = [];
 
   @override
   void initState() {
     super.initState();
     _scrollController = AutoScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _addLocationPermission();
-      await _addFineLocationPermission();
-      await ref.read(wifiScanNotifierProvider.notifier).retry();
-    });
+    // The initial scan (and its su location grant) is driven by the
+    // wifiScanNotifier's build(); the "Scan again" button triggers retry().
   }
 
   @override
@@ -61,22 +55,6 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
       node.dispose();
     }
     super.dispose();
-  }
-
-  Future<void> _addLocationPermission() async {
-    try {
-      await platform.invokeMethod('addLocationPermission');
-    } on PlatformException catch (e) {
-      logger.e("kiosk mode: location permission: error: $e");
-    }
-  }
-
-  Future<void> _addFineLocationPermission() async {
-    try {
-      await platform.invokeMethod('grantFineLocationPermission');
-    } on PlatformException catch (e) {
-      logger.e("kiosk mode: location permission: error: $e");
-    }
   }
 
   void _showToast(String message) {
@@ -139,6 +117,16 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final wifiScanState = ref.watch(wifiScanNotifierProvider);
+
+    // Show the scan-failure toast from a listener, not from inside .when's
+    // error builder. The error builder runs on every rebuild, which would
+    // re-fire the toast (and showing a toast during build is unsafe).
+    ref.listen(wifiScanNotifierProvider, (previous, next) {
+      if (mounted && next is AsyncError && previous is! AsyncError) {
+        _showToast(S.of(context).noScannedResultsFound);
+      }
+    });
+
     return Column(
       children: [
         Text(
@@ -247,11 +235,12 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
                     style: TextStyle(fontSize: 14.sp),
                   )
                 : _buildAccessPointsList(state.accessPoints, state.hasPermission),
-            error: (error, s) {
-              _showToast('Error fetching access points');
-
-              return Container();
-            },
+            error: (error, s) => Center(
+              child: Text(
+                S.of(context).noScannedResultsFound,
+                style: TextStyle(fontSize: 14.sp),
+              ),
+            ),
             loading: () => Align(
               child: SizedBox(
                 child: CircularProgressIndicator(
@@ -265,10 +254,11 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
     );
   }
 
-  List<WiFiHunterResultEntry> _filterAccessPoints(List<WiFiHunterResultEntry> accessPoints) {
+  List<WiFiAccessPoint> _filterAccessPoints(List<WiFiAccessPoint> accessPoints) {
     final seenSSIDs = <String>{};
     return accessPoints.where((ap) {
-      if (ap.ssid == "**Hidden SSID**") {
+      // wifi_scan reports hidden networks with an empty SSID — keep them all.
+      if (ap.ssid.isEmpty) {
         return true;
       }
       if (!seenSSIDs.contains(ap.ssid)) {
@@ -279,7 +269,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
     }).toList();
   }
 
-  _buildAccessPointsList(List<WiFiHunterResultEntry> accessPoints, bool _hasPermission) {
+  _buildAccessPointsList(List<WiFiAccessPoint> accessPoints, bool _hasPermission) {
     _filteredAccessPoints = _filterAccessPoints(accessPoints);
 
     // Initialize focus nodes for each item if needed
@@ -374,7 +364,7 @@ class _OnBoardingWifiSelectorState extends ConsumerState<OnBoardingWifiSelector>
 }
 
 class _AccessPointTile extends ConsumerStatefulWidget {
-  final WiFiHunterResultEntry accessPoint;
+  final WiFiAccessPoint accessPoint;
   final FocusNode skipButtonFocusNode;
   final FocusNode scanAgainFocusNode;
   final bool hasPermission;
@@ -438,7 +428,7 @@ class _AccessPointTileState extends ConsumerState<_AccessPointTile> {
       if (next.hasValue && !next.isRefreshing && next.value!.status == Status.connected) {
         _showToast(S.of(context).wifiSuccess);
       }
-      if (next.value!.status == Status.error) {
+      if (next.hasValue && next.value!.status == Status.error) {
         _showToast(S.of(context).wifiFailure);
       }
     });

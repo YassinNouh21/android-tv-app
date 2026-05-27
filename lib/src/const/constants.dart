@@ -147,6 +147,12 @@ class BackgroundScheduleAudioServiceConstant {
   static const String kRandomSurahIds = 'random_surah_ids';
 }
 
+abstract class OnboardingConstant {
+  // Source asset pixel widths — clamp `cacheWidth` so high-DPR decodes never upscale past native resolution.
+  static const int kLandscapeNativeWidth = 1600;
+  static const int kPortraitNativeWidth = 900;
+}
+
 abstract class MawaqitBackendSettingsConstant {
   static const String kSettingsTitle = "Mawaqit";
   static const String kSettingsShare =
@@ -178,6 +184,15 @@ abstract class PrayerAudioConstant {
   static const String kHttpProtocol = 'http://';
   static const String kHttpsProtocol = 'https://';
   static const String kHttpsPrefix = 'https:';
+
+  /// Short signal adhans: closed via adhanDuration, no `-fajr` variant.
+  /// `hayya-ala-assalat` replaced `bip` in the new backend; `bip` kept as legacy.
+  static const List<String> kSignalAdhanVoices = ['hayya-ala-assalat', 'bip'];
+
+  static bool isSignalAdhanVoice(String? adhanVoice) {
+    if (adhanVoice == null || adhanVoice.isEmpty) return false;
+    return kSignalAdhanVoices.any((voice) => adhanVoice.contains(voice));
+  }
 }
 
 abstract class DeviceDetectionConstant {

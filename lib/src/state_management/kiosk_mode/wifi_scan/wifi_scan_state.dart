@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:wifi_hunter/wifi_hunter_result.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
 enum Status {
@@ -9,7 +8,7 @@ enum Status {
 }
 
 class WifiScanState extends Equatable {
-  final List<WiFiHunterResultEntry> accessPoints;
+  final List<WiFiAccessPoint> accessPoints;
   final bool hasPermission;
   final Status status;
 
@@ -20,7 +19,7 @@ class WifiScanState extends Equatable {
   });
 
   WifiScanState copyWith({
-    List<WiFiHunterResultEntry>? accessPoints,
+    List<WiFiAccessPoint>? accessPoints,
     bool? shouldCheckCan,
     Status? status,
     bool? hasPermission,
