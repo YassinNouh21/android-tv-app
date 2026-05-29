@@ -142,6 +142,7 @@ class _ReciterCardState extends ConsumerState<ReciterCard> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -209,7 +210,7 @@ class _ReciterCardState extends ConsumerState<ReciterCard> with SingleTickerProv
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
-                            fontSize: 8.sp * context.watch<UserPreferencesManager>().appFontSizeScale,
+                            fontSize: 8.sp * fontScale,
                             shadows: [
                               Shadow(
                                 offset: Offset(1, 1),

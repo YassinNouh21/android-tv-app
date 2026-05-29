@@ -248,10 +248,15 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
                           debugShowCheckedModeBanner: false,
                           onGenerateRoute: RouteGenerator.generateRoute,
                           builder: (context, child) {
-                            final prefs = Provider.of<UserPreferencesManager>(context);
+                            // App-wide font scaling. Deliberately overrides (not clamps) the
+                            // system textScaler: the scale comes from the in-app AppFontSize
+                            // setting on a fixed kiosk display, not the OS accessibility setting.
+                            // `select` so only a font-size change rebuilds the app, not every
+                            // unrelated UserPreferencesManager notification.
+                            final fontScale = context.select<UserPreferencesManager, double>((p) => p.appFontSizeScale);
                             return MediaQuery(
                               data: MediaQuery.of(context).copyWith(
-                                textScaler: TextScaler.linear(prefs.appFontSizeScale),
+                                textScaler: TextScaler.linear(fontScale),
                               ),
                               child: child!,
                             );

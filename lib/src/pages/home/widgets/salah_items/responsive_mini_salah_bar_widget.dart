@@ -8,6 +8,7 @@ import 'package:mawaqit/src/pages/home/widgets/orientation_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/SalahItem.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/mini_horizontal_salah_item.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:provider/provider.dart';
 
 /// salah item animation step duration
@@ -93,6 +94,7 @@ class ResponsiveMiniSalahBarWidget extends StatelessOrientationWidget {
   @override
   Widget buildPortrait(BuildContext context) {
     final mosqueProvider = context.watch<MosqueManager>();
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     final nextActiveIqama = activeItem ?? mosqueProvider.nextIqamaIndex();
 
     final times = mosqueProvider.times!;
@@ -114,9 +116,11 @@ class ResponsiveMiniSalahBarWidget extends StatelessOrientationWidget {
     }) {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: 1.vw),
+        // Box grows with the font scale so the inner FittedBox has room to render
+        // larger times. Without this the time would shrink as the title grows.
         child: SizedBox(
-          width: 22.vw,
-          height: 12.vh,
+          width: 22.vw * fontScale,
+          height: 12.vh * fontScale,
           child: SalahItemWidget(
             title: title,
             time: time,

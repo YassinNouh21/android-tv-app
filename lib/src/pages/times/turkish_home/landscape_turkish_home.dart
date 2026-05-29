@@ -117,7 +117,22 @@ class _LandScapeTurkishHomeState extends riverpod.ConsumerState<LandScapeTurkish
                   ).animate().slideX().fade(),
                 ),
               ),
-              Expanded(flex: 4, child: HomeTimeWidget().animate().slideY().fade()),
+              Expanded(
+                flex: 4,
+                // Guard against vertical overflow on short panels: the bottom prayer row
+                // grows with fontScale (shrinking this slot) while the clock's text grows.
+                // FittedBox scales the clock down only if it would overflow; on tall panels
+                // it is a no-op and the clock renders at full size.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      child: HomeTimeWidget().animate().slideY().fade(),
+                    ),
+                  ),
+                ),
+              ),
               Expanded(flex: 2, child: Center(child: JumuaWidget().animate().slideX(begin: 1).fade())),
             ],
           ),

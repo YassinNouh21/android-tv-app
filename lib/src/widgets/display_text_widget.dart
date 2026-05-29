@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
 import 'package:mawaqit/src/helpers/StringUtils.dart';
-import 'package:mawaqit/src/services/theme_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/random_hadith/random_hadith_notifier.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
@@ -230,13 +229,15 @@ class DisplayTextWidget extends ConsumerWidget {
   }
 
   // Helper method to get hadith text style with Turkish font fix
+  // Uses locally bundled fonts instead of GoogleFonts to avoid async font loading
+  // that causes AutoSizeText to miscalculate on the first frame.
   TextStyle _getHadithTextStyle(BuildContext context, Locale hadithLanguage, double fontScale) {
-    final baseStyle = context.getLocalizedTextStyle(locale: hadithLanguage).copyWith(
-          color: Colors.white,
-          shadows: kIqamaCountDownTextShadow,
-          fontWeight: FontWeight.bold,
-          fontSize: 32.sp * fontScale,
-        );
+    final baseStyle = TextStyle(
+      color: Colors.white,
+      shadows: kIqamaCountDownTextShadow,
+      fontWeight: FontWeight.bold,
+      fontSize: 32.sp * fontScale,
+    );
 
     // For Turkish, use system font
     if (hadithLanguage.languageCode == 'tr') {

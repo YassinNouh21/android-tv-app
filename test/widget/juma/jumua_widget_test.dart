@@ -83,6 +83,10 @@ void main() {
     when(() => userPreferencesManager.hijriAdjustments).thenReturn(0);
     when(() => userPreferencesManager.isSecondaryScreen).thenReturn(false);
     when(() => userPreferencesManager.calculatedOrientation).thenReturn(Orientation.portrait);
+    // SalahItemWidget/CurrentTimeWidget now read the font scale; without these stubs
+    // the mock throws on the unstubbed non-nullable getters.
+    when(() => userPreferencesManager.appFontSize).thenReturn(AppFontSize.medium);
+    when(() => userPreferencesManager.appFontSizeScale).thenReturn(1.0);
 
     when(() => mosqueConfig.iqamaMoreImportant).thenReturn(false);
     when(() => mosqueConfig.jumuaTimeout).thenReturn(30);

@@ -311,7 +311,9 @@ class _TextAnnouncement extends StatelessWidget {
                       letterSpacing: 1,
                     ),
                     maxLines: 10,
-                    minFontSize: 10 * fontScale,
+                    // Keep the auto-size floor constant: scaling it up can push long
+                    // announcements past maxLines and overflow. fontSize above carries fontScale.
+                    minFontSize: 10,
                   ).animate().fade(delay: 500.milliseconds).addRepaintBoundary(),
                 ),
                 Spacer(flex: 1),

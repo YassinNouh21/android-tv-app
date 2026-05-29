@@ -132,7 +132,22 @@ class _LandscapeNormalHomeState extends riverpod.ConsumerState<LandscapeNormalHo
                   ),
                 ),
               ),
-              Expanded(child: HomeTimeWidget().animate().fadeIn().slideY(begin: -1), flex: 4),
+              Expanded(
+                flex: 4,
+                // Guard against vertical overflow on short panels: the bottom prayer row
+                // grows with fontScale (shrinking this slot) while the clock's text grows.
+                // FittedBox scales the clock down only if it would overflow; on tall panels
+                // (e.g. the demoed 1920x1080) it is a no-op and the clock renders at full size.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      child: HomeTimeWidget().animate().fadeIn().slideY(begin: -1),
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 flex: 2,
                 child:

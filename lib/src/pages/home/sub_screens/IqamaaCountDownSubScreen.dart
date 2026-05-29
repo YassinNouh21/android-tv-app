@@ -16,6 +16,7 @@ import 'package:mawaqit/src/pages/home/widgets/WeatherWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
+import 'package:mawaqit/src/widgets/no_text_scaling.dart';
 import 'package:provider/provider.dart';
 
 import '../../../helpers/time_utils.dart';
@@ -116,14 +117,14 @@ class _IqamaaCountDownSubScreenState extends State<IqamaaCountDownSubScreen> {
   }
 
   Widget _buildCountdownText({required double fontSize}) {
-    final fontScale = context.read<UserPreferencesManager>().appFontSizeScale;
+    // watch (not read) so changing the font-size setting live-updates the countdown.
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return StreamBuilder(
       stream: _countdownStream,
       builder: (context, snapshot) {
         return FittedBox(
           fit: BoxFit.scaleDown,
-          child: MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+          child: NoTextScaling(
             child: Text(
               _formatRemainingTime(),
               style: TextStyle(
