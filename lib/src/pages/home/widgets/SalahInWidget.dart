@@ -33,29 +33,34 @@ class SalahInWidget extends StatelessWidget {
 
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        mainAxisSize: MainAxisSize.min,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
-          Container(
-            constraints: BoxConstraints(maxWidth: 30.vwr * fontScale),
-            padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
-            child: FittedBox(
-              child: Text(
-                mosqueManager.getActiveCountdownText(context, countDownText),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 2.8.vwr * fontScale,
-                  color: Colors.white,
-                  shadows: kHomeTextShadow,
+      // scaleDown so the scaled icons + countdown can't overflow the narrow
+      // 70%-width clock area in portrait at Large/X-Large.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          mainAxisSize: MainAxisSize.min,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
+            Container(
+              constraints: BoxConstraints(maxWidth: 30.vwr * fontScale),
+              padding: EdgeInsets.symmetric(horizontal: 1.45.vwr),
+              child: FittedBox(
+                child: Text(
+                  mosqueManager.getActiveCountdownText(context, countDownText),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 2.8.vwr * fontScale,
+                    color: Colors.white,
+                    shadows: kHomeTextShadow,
+                  ),
                 ),
               ),
             ),
-          ),
-          Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
-        ],
+            Icon(MawaqitIcons.icon_adhan, color: Colors.white, size: 2.3.vwr * fontScale),
+          ],
+        ),
       ),
     );
   }

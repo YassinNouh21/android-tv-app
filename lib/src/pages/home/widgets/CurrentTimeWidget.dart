@@ -29,70 +29,76 @@ class CurrentTimeWidget extends StatelessWidget {
       textDirection: TextDirection.ltr,
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              DateFormat("${is12hourFormat ? "hh:mm" : "HH:mm"}").format(now),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 8.vwr * fontScale,
-                shadows: kHomeTextShadow,
-                color: Colors.white,
-                height: 1,
+        // scaleDown so the manually-scaled clock can't overflow horizontally in a
+        // narrow box (e.g. the 70%-width portrait clock at Large/X-Large).
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                DateFormat("${is12hourFormat ? "hh:mm" : "HH:mm"}").format(now),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 8.vwr * fontScale,
+                  shadows: kHomeTextShadow,
+                  color: Colors.white,
+                  height: 1,
+                ),
               ),
-            ),
-            if (!hideSeconds)
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    ':${DateFormat('ss', 'en').format(now)}',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontWeight: FontWeight.bold,
-                      fontSize: (is12hourFormat ? 4.vwr : 6.vwr) * fontScale,
-                      shadows: kHomeTextShadow,
-                      height: is12hourFormat ? 1 : null,
+              if (!hideSeconds)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      ':${DateFormat('ss', 'en').format(now)}',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                        fontSize: (is12hourFormat ? 4.vwr : 6.vwr) * fontScale,
+                        shadows: kHomeTextShadow,
+                        height: is12hourFormat ? 1 : null,
+                      ),
                     ),
-                  ),
-                  if (is12hourFormat)
-                    Padding(
-                      padding: EdgeInsets.only(bottom: .6.vh, left: .9.vw),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 8.vwr * fontScale),
-                        child: FittedBox(
-                          child: Text(
-                            DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode))
-                                .format(now),
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 3.2.vwr * fontScale,
-                              shadows: kHomeTextShadow,
-                              height: .9,
+                    if (is12hourFormat)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: .6.vh, left: .9.vw),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 8.vwr * fontScale),
+                          child: FittedBox(
+                            child: Text(
+                              DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode))
+                                  .format(now),
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 3.2.vwr * fontScale,
+                                shadows: kHomeTextShadow,
+                                height: .9,
+                              ),
                             ),
                           ),
                         ),
                       ),
+                  ],
+                ),
+              if (hideSeconds && is12hourFormat)
+                Padding(
+                  padding: EdgeInsets.only(left: 1.vw),
+                  child: Text(
+                    DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode))
+                        .format(now),
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 4.vwr * fontScale,
+                      shadows: kHomeTextShadow,
                     ),
-                ],
-              ),
-            if (hideSeconds && is12hourFormat)
-              Padding(
-                padding: EdgeInsets.only(left: 1.vw),
-                child: Text(
-                  DateFormat('a', LocaleHelper.getAmPmLocale(Localizations.localeOf(context).languageCode)).format(now),
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 4.vwr * fontScale,
-                    shadows: kHomeTextShadow,
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

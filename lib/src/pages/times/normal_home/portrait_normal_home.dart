@@ -93,7 +93,10 @@ class _PortraitNormalHomeState extends riverpod.ConsumerState<PortraitNormalHome
         : mosqueManager.nextSalahIndex();
     return Column(
       children: [
-        SizedBox(height: 15.vh, child: MosqueHeader(mosque: mosqueManager.mosque!)),
+        // Let the header take its natural height (matches PortraitTurkishHome).
+        // The fixed SizedBox(15.vh) was ~13px too short for the header content,
+        // which overflowed regardless of font scale.
+        MosqueHeader(mosque: mosqueManager.mosque!),
         FractionallySizedBox(widthFactor: .7, child: HomeTimeWidget().animate().slideY(begin: -1).fade()),
         SizedBox(height: 2.vh),
         Expanded(
