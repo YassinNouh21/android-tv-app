@@ -41,42 +41,21 @@ class StringManager {
   }
 
 ///////////// Salah count down text in Time widget
-  static String getCountDownText(BuildContext context, Duration salahTime, String salahName) {
-    // Get current language code
-    final currentLang = Localizations.localeOf(context).languageCode;
-    final isEnglishOrPortuguese = currentLang == 'en' || currentLang == 'pt';
-    final isKurdish = currentLang == 'ku';
 
-    // Check if the prayer is Shuruq or Duha by comparing the prayer name
-    final isShurukOrDuhaPrayer = salahName == S.of(context).shuruk || salahName == S.of(context).duha;
+  static String _formatTime(BuildContext context, Duration t) {
+    return t.inMinutes > 0
+        ? "${t.inHours.toString().padLeft(2, '0')}:${(t.inMinutes % 60).toString().padLeft(2, '0')}"
+        : "${(t.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}";
+  }
 
-    final timeStr = salahTime.inMinutes > 0
-        ? "${salahTime.inHours.toString().padLeft(2, '0')}:${(salahTime.inMinutes % 60).toString().padLeft(2, '0')}"
-        : "${(salahTime.inSeconds % 60).toString().padLeft(2, '0')} ${S.of(context).sec}";
+  /// Countdown for obligatory prayers (Fajr, Dhuhr, Asr, Maghrib, Isha, Jumua).
+  static String getPrayerCountdown(BuildContext context, Duration salahTime, String salahName) {
+    return S.of(context).countdownPrayer(salahName, _formatTime(context, salahTime));
+  }
 
-    // Kurdish uses possessive construct: "بانگی [prayerName] لەدوای [time]"
-    if (isKurdish && !isShurukOrDuhaPrayer) {
-      return "${S.of(context).alAdhan}ی $salahName ${S.of(context).in1} $timeStr";
-    }
-
-    // Swedish grammar requires the prefix before the prayer name: "Tid kvar till Dhuhr Salah 01:19".
-    // Shuruq and Duha are not obligatory prayers, so they don't get the "Salah" suffix.
-    if (currentLang == 'sv') {
-      final suffix = isShurukOrDuhaPrayer ? '' : ' Salah';
-      return "Tid kvar till $salahName$suffix $timeStr";
-    }
-
-    // Determine which string to use
-    // For English/Portuguese: use azanIn for normal prayers, in1 for Shuruq/Duha (no athan for these)
-    // For other languages: use in1 for everything
-    String inString;
-    if (isEnglishOrPortuguese && !isShurukOrDuhaPrayer) {
-      inString = S.of(context).azanIn;
-    } else {
-      inString = S.of(context).in1;
-    }
-
-    return "$salahName $inString $timeStr";
+  /// Countdown for non-prayer events (Shuruq, Duha).
+  static String getEventCountdown(BuildContext context, Duration eventTime, String eventName) {
+    return S.of(context).countdownNonPrayer(eventName, _formatTime(context, eventTime));
   }
 
 //////////// get font family

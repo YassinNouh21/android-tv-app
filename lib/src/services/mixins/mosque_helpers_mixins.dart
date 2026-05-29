@@ -102,7 +102,7 @@ mixin MosqueHelpersMixin on ChangeNotifier {
 
   String getShurukInString(BuildContext context) {
     final shurukTime = times!.shuruq(AppDateTime.now())!.difference(AppDateTime.now());
-    return StringManager.getCountDownText(context, shurukTime, S.of(context).shuruk);
+    return StringManager.getEventCountdown(context, shurukTime, S.of(context).shuruk);
   }
 
   /// Returns true when we are between shuruq and shuruq + 25 minutes (Duha countdown period).
@@ -120,7 +120,7 @@ mixin MosqueHelpersMixin on ChangeNotifier {
     final duhaEnd = shuruqDate.add(kDuhaDurationAfterShuruq);
     final remaining = duhaEnd.difference(now);
     if (remaining.isNegative) return '';
-    return StringManager.getCountDownText(context, remaining, S.of(context).duha);
+    return StringManager.getEventCountdown(context, remaining, S.of(context).duha);
   }
 
   String getActiveCountdownText(BuildContext context, String defaultCountdown) {

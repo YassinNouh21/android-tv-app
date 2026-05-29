@@ -23,7 +23,7 @@ class SalahInWidget extends StatelessWidget {
       nextSalahName = S.of(context).jumua;
     }
 
-    String countDownText = StringManager.getCountDownText(
+    String countDownText = StringManager.getPrayerCountdown(
       context,
       nextSalahTime,
       nextSalahName,
