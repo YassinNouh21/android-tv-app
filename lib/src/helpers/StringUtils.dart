@@ -33,6 +33,7 @@ class StringManager {
   static const fontFamilyArial = "arial";
   static const fontFamilyHelvetica = "helvetica";
   static const fontFamilyKJino = "KJino";
+  static const fontFamilyJameelNoori = "JameelNooriNastaleeq";
 
   static const rtlLanguages = const ['ar', 'he', 'fa', 'ur', 'arc', 'az', 'dv', 'ckb'];
 

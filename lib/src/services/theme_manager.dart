@@ -86,25 +86,45 @@ class ThemeNotifier with ChangeNotifier {
       );
 
   static List<String> get _kurdishFallback => [GoogleFonts.notoSans().fontFamily!, StringManager.fontFamilyKufi];
+  static List<String> get _urduFallback =>
+      [StringManager.fontFamilyJameelNoori, GoogleFonts.notoSans().fontFamily!, StringManager.fontFamilyKufi];
 
   ThemeData lightThemeFor(Locale locale) {
-    if (locale.languageCode != 'ku') return lightTheme;
-    return lightTheme.copyWith(
-      textTheme: lightTheme.textTheme.apply(
-        fontFamily: StringManager.fontFamilyKJino,
-        fontFamilyFallback: _kurdishFallback,
-      ),
-    );
+    if (locale.languageCode == 'ku') {
+      return lightTheme.copyWith(
+        textTheme: lightTheme.textTheme.apply(
+          fontFamily: StringManager.fontFamilyKJino,
+          fontFamilyFallback: _kurdishFallback,
+        ),
+      );
+    }
+    if (locale.languageCode == 'ur') {
+      return lightTheme.copyWith(
+        textTheme: lightTheme.textTheme.apply(
+          fontFamilyFallback: _urduFallback,
+        ),
+      );
+    }
+    return lightTheme;
   }
 
   ThemeData darkThemeFor(Locale locale) {
-    if (locale.languageCode != 'ku') return darkTheme;
-    return darkTheme.copyWith(
-      textTheme: darkTheme.textTheme.apply(
-        fontFamily: StringManager.fontFamilyKJino,
-        fontFamilyFallback: _kurdishFallback,
-      ),
-    );
+    if (locale.languageCode == 'ku') {
+      return darkTheme.copyWith(
+        textTheme: darkTheme.textTheme.apply(
+          fontFamily: StringManager.fontFamilyKJino,
+          fontFamilyFallback: _kurdishFallback,
+        ),
+      );
+    }
+    if (locale.languageCode == 'ur') {
+      return darkTheme.copyWith(
+        textTheme: darkTheme.textTheme.apply(
+          fontFamilyFallback: _urduFallback,
+        ),
+      );
+    }
+    return darkTheme;
   }
 
   bool? isLightTheme;

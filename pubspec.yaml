@@ -267,7 +267,9 @@ flutter:
     - family: KJino
       fonts:
         - asset: assets/fonts/KJino.TTF
-          
+    - family: JameelNooriNastaleeq
+      fonts:
+        - asset: assets/fonts/JameelNooriNastaleeqRegular.ttf
 patrol:
   app_name: Mawaqit Android TV
   android:
