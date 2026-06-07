@@ -203,7 +203,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
         Navigator.of(context).pop(false);
       } else if (status == Status.error) {
         setState(() => _isConnecting = false);
-        _showToast(S.of(context).wifiFailure);
+        // A system-owned saved config can't be overwritten by the app — tell the
+        // user to forget it in Android settings rather than show a generic fail.
+        _showToast(
+          next.value!.isSystemOwnedError
+              ? S.of(context).wifiForgetNetwork
+              : S.of(context).wifiFailure,
+        );
         widget.onComplete(false);
         Future.delayed(Duration(milliseconds: 500), () {
           if (mounted && _connectButtonFocusNode.canRequestFocus) {

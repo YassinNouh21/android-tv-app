@@ -463,8 +463,12 @@ class MainActivity : FlutterActivity() {
       val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
       val networkId = wifiManager.addNetwork(conf)
       if (networkId == -1) {
-        Log.e("WIFI_LEGACY", "addNetwork returned -1 for SSID $ssid")
-        result.success(false)
+        // -1 means a saved config for this SSID already exists and is owned by
+        // another uid (e.g. created in Android Settings, uid=system). This app
+        // isn't privileged enough to overwrite it, so the user must forget it in
+        // Settings first. Signal that distinct case so the UI shows the right hint.
+        Log.e("WIFI_LEGACY", "addNetwork returned -1 for SSID $ssid (system-owned config)")
+        result.success("SYSTEM_OWNED")
         return
       }
       wifiManager.disconnect()

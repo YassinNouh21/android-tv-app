@@ -70,20 +70,26 @@ class WifiScanNotifier extends AsyncNotifier<WifiScanState> {
         "security": security,
         "password": password,
       });
-      final isSuccess = result as bool? ?? false;
-      state = AsyncData(current.copyWith(
-        status: isSuccess ? Status.connected : Status.error,
-      ));
+      // Native returns true on success, "SYSTEM_OWNED" when the SSID has a config
+      // owned by Android Settings (can't overwrite), or false for other failures.
+      final isSuccess = result == true;
+      final isSystemOwned = result == 'SYSTEM_OWNED';
+      state = AsyncData(
+        current.copyWith(
+          status: isSuccess ? Status.connected : Status.error,
+          isSystemOwnedError: isSystemOwned,
+        ),
+      );
     } on PlatformException catch (e, s) {
       // Keep a value in state (Status.error) rather than emitting an AsyncError
       // the password screen would skip, leaving its spinner stuck forever.
       logger.e('kiosk mode: wifi_scan: connect failed: $e', stackTrace: s);
-      state = AsyncData(current.copyWith(status: Status.error));
+      state = AsyncData(current.copyWith(status: Status.error, isSystemOwnedError: false));
     } catch (e, s) {
       // Any non-platform error must still resolve the state, otherwise the
       // password screen spinner hangs.
       logger.e('kiosk mode: wifi_scan: connect error: $e', stackTrace: s);
-      state = AsyncData(current.copyWith(status: Status.error));
+      state = AsyncData(current.copyWith(status: Status.error, isSystemOwnedError: false));
     }
   }
 
