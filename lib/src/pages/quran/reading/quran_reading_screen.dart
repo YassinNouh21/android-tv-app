@@ -677,7 +677,6 @@ class _QuranReadingScreenState extends ConsumerState<QuranReadingScreen> {
   late FocusNode _portraitModeBackButtonFocusNode;
   late FocusNode _portraitModeSwitchQuranFocusNode;
   late FocusNode _portraitModePageSelectorFocusNode;
-  final ScrollController _gridScrollController = ScrollController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   Orientation? _lastOrientation;
