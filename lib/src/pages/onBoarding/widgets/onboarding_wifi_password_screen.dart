@@ -206,9 +206,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
         // A system-owned saved config can't be overwritten by the app — tell the
         // user to forget it in Android settings rather than show a generic fail.
         _showToast(
-          next.value!.isSystemOwnedError
-              ? S.of(context).wifiForgetNetwork
-              : S.of(context).wifiFailure,
+          next.value!.isSystemOwnedError ? S.of(context).wifiForgetNetwork : S.of(context).wifiFailure,
         );
         widget.onComplete(false);
         Future.delayed(Duration(milliseconds: 500), () {
