@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/models/calendar/MawaqitHijriCalendar.dart';
-import 'package:mawaqit/src/pages/home/sub_screens/AfterAdhanHadithSubScreen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/AfterSalahAzkarScreen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/DuaaBetweenAdhanAndIqama.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/DuaaEftarScreen.dart';
@@ -13,10 +12,9 @@ import 'package:mawaqit/src/pages/home/widgets/workflows/repeating_workflow_widg
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
+import 'package:mawaqit/src/pages/home/workflow/workflow_segments.dart';
 import 'package:provider/provider.dart';
 
-import '../sub_screens/AdhanSubScreen.dart';
 import '../widgets/workflows/WorkFlowWidget.dart';
 
 /// handling the logic form 5min before adhan -> the last of after salah azkar
@@ -98,18 +96,11 @@ class _SalahWorkflowScreenState extends ConsumerState<SalahWorkflowScreen> {
         skip: mosqueManger.nextSalahAfter() > Duration(minutes: 6),
         builder: (context, next) => beforeSalahTime(mosqueManger, currentSalah, hijri),
       ),
-      WorkFlowItem(
-        builder: (context, next) => AdhanSubScreen(onDone: next),
-        skip: () {
-          final adhanDuration = mosqueManger.typeIsMosque && mosqueConfig.adhanDuration != null
-              ? Duration(seconds: mosqueConfig.adhanDuration!)
-              : ref.read(prayerAudioProvider).duration ?? Duration(seconds: 150);
-          return now.isAfter(currentSalahTime.add(adhanDuration));
-        }(),
-      ),
-      WorkFlowItem(
-        builder: (context, next) => AfterAdhanSubScreen(onDone: next),
-        disabled: mosqueConfig.duaAfterAzanEnabled == false,
+      ...adhanAndDuaaSegment(
+        mosque: mosqueManger,
+        ref: ref,
+        adhanTime: currentSalahTime,
+        now: now,
       ),
       WorkFlowItem(
         builder: (context, next) => DuaaBetweenAdhanAndIqamaaScreen(

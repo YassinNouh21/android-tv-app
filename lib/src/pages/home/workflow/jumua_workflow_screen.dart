@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:mawaqit/src/helpers/time_utils.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/AfterSalahAzkarScreen.dart';
 import 'package:mawaqit/src/pages/home/sub_screens/JummuaLive.dart';
 import 'package:mawaqit/src/pages/home/workflow/normal_workflow.dart';
+import 'package:mawaqit/src/pages/home/workflow/workflow_segments.dart';
 import 'package:mawaqit/src/pages/home/widgets/workflows/WorkFlowWidget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// show the back screen during the jumuaa
-class JumuaaWorkflowScreen extends StatelessWidget {
+/// Workflow: Normal → Adhan → Duaa after Adhan → Jumuaa Live → Normal → Azkar
+class JumuaaWorkflowScreen extends ConsumerWidget {
   const JumuaaWorkflowScreen({Key? key, this.onDone, this.jumuaaTime}) : super(key: key);
   final VoidCallback? onDone;
 
@@ -19,7 +21,7 @@ class JumuaaWorkflowScreen extends StatelessWidget {
   final DateTime? jumuaaTime;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final mosqueManager = context.read<MosqueManager>();
     final now = mosqueManager.mosqueDate();
 
@@ -47,14 +49,22 @@ class JumuaaWorkflowScreen extends StatelessWidget {
     return ContinuesWorkFlowWidget(
       debug: true,
       workFlowItems: [
-        /// 5m before the jumuaa start time
-        /// Use NormalWorkflowScreen with interruptions disabled to prevent announcements
+        /// Until jumuaa adhan time
         WorkFlowItem(
           builder: (context, next) => NormalWorkflowScreen(disableInterruptions: true),
           duration: activeJumuaaTime.difference(now),
           skip: now.isAfter(activeJumuaaTime),
         ),
 
+        /// Adhan + duaa after adhan (shared with the salah workflow)
+        ...adhanAndDuaaSegment(
+          mosque: mosqueManager,
+          ref: ref,
+          adhanTime: activeJumuaaTime,
+          now: now,
+        ),
+
+        /// Jumuaa live (khutba)
         WorkFlowItem(
           builder: (context, next) => JummuaLive(onDone: next),
           skip: now.isAfter(jumuaaEndTime),
