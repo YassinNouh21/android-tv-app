@@ -249,8 +249,7 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 ),
               ),
             ),
-          if (iqama != null && showIqama && !withDivider)
-            SizedBox(height: isArabic ? 0.7.vr : 0.5.vwr),
+          if (iqama != null && showIqama && !withDivider) SizedBox(height: isArabic ? 0.7.vr : 0.5.vwr),
           if (iqama != null && showIqama)
             TimeWidget.fromString(
               show24hFormat: !is12period,
