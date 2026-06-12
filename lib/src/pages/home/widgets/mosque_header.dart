@@ -7,7 +7,9 @@ import 'package:mawaqit/src/pages/home/widgets/WeatherWidget.dart';
 import 'package:mawaqit/src/pages/home/widgets/offline_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/orientation_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
+import 'package:mawaqit/src/widgets/no_text_scaling.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:text_scroll/text_scroll.dart';
@@ -22,6 +24,7 @@ class MosqueHeader extends StatelessOrientationWidget {
   @override
   Widget buildLandscape(BuildContext context) {
     final mosqueConfig = context.watch<MosqueManager>().mosqueConfig;
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return Padding(
       padding: EdgeInsets.only(top: 1.8.vh, right: .8.vw),
       child: Row(
@@ -33,7 +36,10 @@ class MosqueHeader extends StatelessOrientationWidget {
             flex: 6,
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: buildMosqueName(mosqueConfig),
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                child: buildMosqueName(mosqueConfig, fontScale),
+              ),
             ),
           ),
           Expanded(
@@ -55,64 +61,69 @@ class MosqueHeader extends StatelessOrientationWidget {
 
     return Padding(
       padding: EdgeInsets.only(top: 1.8.vh, left: .8.vw, right: .8.vw),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              OfflineWidget(),
-              WeatherWidget(),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (mosque.logo != null && mosqueConfig!.showLogo)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: MawaqitNetworkImage(imageUrl: mosque.logo!, width: 40, height: 40),
-                ),
-              Flexible(
-                child: Container(
-                  padding: EdgeInsets.only(left: 1.vw),
-                  child: StatefulBuilder(
-                    builder: (context, setState) => TextScroll(
-                      key: ValueKey(mosque.name.hashCode ^ SizerUtil.orientation.hashCode),
-                      mosque.name,
-                      intervalSpaces: 10,
-                      pauseBetween: 3.seconds,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 4.vwr,
-                        height: 1.2,
-                        shadows: kIqamaCountDownTextShadow,
-                        fontWeight: FontWeight.bold,
+      // Opt out of the app-wide text scaler: the portrait header lives in a fixed
+      // SizedBox(15.vh) (see PortraitNormalHome); letting the global scale inflate
+      // the status/name text overflows that band at Large/X-Large.
+      child: NoTextScaling(
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OfflineWidget(),
+                WeatherWidget(),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (mosque.logo != null && mosqueConfig!.showLogo)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: MawaqitNetworkImage(imageUrl: mosque.logo!, width: 40, height: 40),
+                  ),
+                Flexible(
+                  child: Container(
+                    padding: EdgeInsets.only(left: 1.vw),
+                    child: StatefulBuilder(
+                      builder: (context, setState) => TextScroll(
+                        key: ValueKey(mosque.name.hashCode ^ SizerUtil.orientation.hashCode),
+                        mosque.name,
+                        intervalSpaces: 10,
+                        pauseBetween: 3.seconds,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 4.vwr,
+                          height: 1.2,
+                          shadows: kIqamaCountDownTextShadow,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // SizedBox(width: 10),
-              if (mosque.logo != null && mosqueConfig!.showLogo)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: MawaqitNetworkImage(
-                    imageUrl: mosque.logo!,
-                    width: 40,
-                    height: 40,
+                // SizedBox(width: 10),
+                if (mosque.logo != null && mosqueConfig!.showLogo)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: MawaqitNetworkImage(
+                      imageUrl: mosque.logo!,
+                      width: 40,
+                      height: 40,
+                    ),
                   ),
-                ),
-            ],
-          ),
-          SizedBox(height: 1.8.vh),
-        ],
+              ],
+            ),
+            SizedBox(height: 1.8.vh),
+          ],
+        ),
       ),
     );
   }
 
-  Container buildMosqueName(MosqueConfig? mosqueConfig) {
+  Container buildMosqueName(MosqueConfig? mosqueConfig, [double fontScale = 1.0]) {
     return Container(
       alignment: Alignment.bottomCenter,
       child: Row(
@@ -130,19 +141,16 @@ class MosqueHeader extends StatelessOrientationWidget {
                 )
               : SizedBox(),
           SizedBox(width: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              mosque.name,
-              maxLines: 1,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 4.vwr,
-                height: 1.2,
-                overflow: TextOverflow.visible,
-                shadows: kIqamaCountDownTextShadow,
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            mosque.name,
+            maxLines: 1,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 4.vwr * fontScale,
+              height: 1.2,
+              overflow: TextOverflow.visible,
+              shadows: kIqamaCountDownTextShadow,
+              fontWeight: FontWeight.bold,
             ),
           ),
           SizedBox(width: 10),

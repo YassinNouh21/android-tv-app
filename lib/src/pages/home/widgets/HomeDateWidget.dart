@@ -23,50 +23,55 @@ class HomeDateWidget extends StatelessWidget {
 
     final georgianDate = now.formatIntoMawaqitFormat(local: '${lang}_${mosqueManager.mosque?.countryCode}');
 
+    final fontScale = userPrefs.appFontSizeScale;
+
     return FittedBox(
       fit: BoxFit.scaleDown,
-      child: Container(
-        constraints: BoxConstraints(
-          minWidth: 1,
-          minHeight: 1,
-        ),
-        child: FadeInOutWidget(
-          duration: Duration(seconds: 10),
-          disableSecond: mosqueManager.mosqueConfig!.hijriDateEnabled == false,
-          first: Text(
-            georgianDate,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 2.7.vwr,
-              shadows: kHomeTextShadow,
-              height: .8,
-            ),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Container(
+          constraints: BoxConstraints(
+            minWidth: 1,
+            minHeight: 1,
           ),
-          secondDuration: Duration(seconds: 10),
-          second: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                hijriDateFormatted,
-                textDirection: hijriDateFormatted.isArabic() ? TextDirection.rtl : TextDirection.ltr,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 2.5.vwr,
-                  height: .8,
-                  shadows: kHomeTextShadow,
-                ),
+          child: FadeInOutWidget(
+            duration: Duration(seconds: 10),
+            disableSecond: mosqueManager.mosqueConfig!.hijriDateEnabled == false,
+            first: Text(
+              georgianDate,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 2.7.vwr * fontScale,
+                shadows: kHomeTextShadow,
+                height: .8,
               ),
-              if (hijriDate.isInLunarDays)
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: .5.vwr,
-                  ),
-                  child: FaIcon(
-                    FontAwesomeIcons.solidMoon,
-                    size: 1.8.vwr,
+            ),
+            secondDuration: Duration(seconds: 10),
+            second: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  hijriDateFormatted,
+                  textDirection: hijriDateFormatted.isArabic() ? TextDirection.rtl : TextDirection.ltr,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 2.5.vwr * fontScale,
+                    height: .8,
+                    shadows: kHomeTextShadow,
                   ),
                 ),
-            ],
+                if (hijriDate.isInLunarDays)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: .5.vwr,
+                    ),
+                    child: FaIcon(
+                      FontAwesomeIcons.solidMoon,
+                      size: 1.8.vwr * fontScale,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

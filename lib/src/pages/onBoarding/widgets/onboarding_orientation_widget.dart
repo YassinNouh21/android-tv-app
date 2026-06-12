@@ -78,42 +78,47 @@ class OnBoardingOrientationWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final userPrefs = context.watch<UserPreferencesManager>();
+    final fontScale = userPrefs.appFontSizeScale;
     final tr = S.of(context);
     final isPortrait = userPrefs.calculatedOrientation == Orientation.portrait;
 
-    // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 14.sp : 20.sp;
-    final double subtitleFontSize = isPortrait ? 9.sp : 12.sp;
-    final double buttonFontSize = isPortrait ? 9.sp : 12.sp;
-    final double descriptionFontSize = isPortrait ? 7.sp : 10.sp;
+    // Adjust font sizes based on orientation (already multiplied by fontScale)
+    final double headerFontSize = (isPortrait ? 14.sp : 20.sp) * fontScale;
+    final double subtitleFontSize = (isPortrait ? 9.sp : 12.sp) * fontScale;
+    final double buttonFontSize = (isPortrait ? 9.sp : 12.sp) * fontScale;
+    final double descriptionFontSize = (isPortrait ? 7.sp : 10.sp) * fontScale;
 
     return Material(
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isPortrait ? 4.w : 8.w,
-            vertical: isPortrait ? 0 : 3.h,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header section
-              _buildHeader(theme, tr, headerFontSize, subtitleFontSize, isPortrait),
-              SizedBox(height: isPortrait ? 0 : 2.h),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isPortrait ? 4.w : 8.w,
+              vertical: isPortrait ? 0 : 3.h,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header section
+                _buildHeader(theme, tr, headerFontSize, subtitleFontSize, fontScale, isPortrait),
+                SizedBox(height: isPortrait ? 0 : 2.h),
 
-              // Orientation options
-              Flexible(
-                child: _buildOrientationOptions(
-                  theme: theme,
-                  tr: tr,
-                  userPrefs: userPrefs,
-                  buttonFontSize: buttonFontSize,
-                  descriptionFontSize: descriptionFontSize,
-                  isPortrait: isPortrait,
+                // Orientation options
+                Flexible(
+                  child: _buildOrientationOptions(
+                    theme: theme,
+                    tr: tr,
+                    userPrefs: userPrefs,
+                    fontScale: fontScale,
+                    buttonFontSize: buttonFontSize,
+                    descriptionFontSize: descriptionFontSize,
+                    isPortrait: isPortrait,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -126,6 +131,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     MawaqitTvLocalizations tr,
     double headerFontSize,
     double subtitleFontSize,
+    double fontScale,
     bool isPortrait,
   ) {
     return Column(
@@ -163,6 +169,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     required ThemeData theme,
     required MawaqitTvLocalizations tr,
     required UserPreferencesManager userPrefs,
+    required double fontScale,
     required double buttonFontSize,
     required double descriptionFontSize,
     required bool isPortrait,
@@ -176,6 +183,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
             onToggle: () => userPrefs.orientationLandscape = true,
             label: tr.landscape,
             description: tr.landscapeBTNDescription,
+            fontScale: fontScale,
             buttonFontSize: buttonFontSize,
             descriptionFontSize: descriptionFontSize,
             isPortrait: isPortrait,
@@ -189,6 +197,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
             onToggle: () => userPrefs.orientationLandscape = false,
             label: tr.portrait,
             description: tr.portraitBTNDescription,
+            fontScale: fontScale,
             buttonFontSize: buttonFontSize,
             descriptionFontSize: descriptionFontSize,
             isPortrait: isPortrait,
@@ -205,6 +214,7 @@ class OnBoardingOrientationWidget extends StatelessWidget {
     required VoidCallback onToggle,
     required String label,
     required String? description,
+    required double fontScale,
     required double buttonFontSize,
     required double descriptionFontSize,
     required bool isPortrait,

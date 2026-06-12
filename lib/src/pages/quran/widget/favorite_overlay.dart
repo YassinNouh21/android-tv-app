@@ -13,6 +13,8 @@ import 'package:mawaqit/src/pages/quran/page/surah_selection_screen.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/state_management/quran/recite/recite_notifier.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:provider/provider.dart' hide Consumer;
 import 'package:sizer/sizer.dart';
 
 class OverlayPage extends ConsumerStatefulWidget {
@@ -40,6 +42,7 @@ class _OverlayPageState extends ConsumerState<OverlayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -75,12 +78,12 @@ class _OverlayPageState extends ConsumerState<OverlayPage> {
                         children: [
                           FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
+                            child: MediaQuery(
+                              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
                               child: Text(
                                 widget.reciter.name,
                                 style: TextStyle(
-                                  fontSize: 20.sp,
+                                  fontSize: 20.sp * fontScale,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
@@ -117,14 +120,17 @@ class _OverlayPageState extends ConsumerState<OverlayPage> {
                                   ),
                                   label: FittedBox(
                                     fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      S.of(context).favorites,
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
+                                    child: MediaQuery(
+                                      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                                      child: Text(
+                                        S.of(context).favorites,
+                                        style: TextStyle(
+                                          fontSize: 12.sp * fontScale,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ),
@@ -222,6 +228,7 @@ class _OverlayPageState extends ConsumerState<OverlayPage> {
   }
 
   Widget _buildElevatedOption(MoshafModel moshaf, int index) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return Padding(
       padding: EdgeInsets.only(bottom: 2.h),
       child: SizedBox(
@@ -262,14 +269,17 @@ class _OverlayPageState extends ConsumerState<OverlayPage> {
               Expanded(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(
-                    moshaf.name,
-                    style: TextStyle(
-                      fontSize: 9.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                    child: Text(
+                      moshaf.name,
+                      style: TextStyle(
+                        fontSize: 9.sp * fontScale,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),

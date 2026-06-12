@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/helpers/repaint_boundaries.dart';
 import 'package:mawaqit/src/helpers/StringUtils.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/random_hadith/random_hadith_notifier.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 class DisplayTextWidget extends ConsumerWidget {
@@ -95,52 +97,62 @@ class DisplayTextWidget extends ConsumerWidget {
       }),
     );
 
-    return Padding(
-      padding: padding ?? EdgeInsets.all(1.vwr),
-      child: Column(
-        mainAxisAlignment: mainAxisAlignment,
-        children: [
-          if (title != null && title != '')
-            titleText(
-              title!,
-              textDirection: TextDirection.rtl,
-            ),
-          if (arabicText != null && arabicText != '')
-            contentText(
-              arabicText!,
-              context,
-              hadithLang,
-              textDirection: TextDirection.rtl,
-              delay: .1.seconds,
-            ),
-          if (translatedTitle != null && translatedTitle != title && translatedTitle != '')
-            titleText(
-              translatedTitle!,
-              textDirection: textDirection,
-              delay: .2.seconds,
-            ),
-          if (translatedText != null && translatedText != arabicText && translatedText != '')
-            contentText(
-              translatedText!,
-              context,
-              hadithLang,
-              textDirection: textDirection,
-              delay: .3.seconds,
-            ),
-        ],
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
+
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: Padding(
+        padding: padding ?? EdgeInsets.all(1.vwr),
+        child: Column(
+          mainAxisAlignment: mainAxisAlignment,
+          children: [
+            if (title != null && title != '')
+              titleText(
+                title!,
+                fontScale: fontScale,
+                textDirection: TextDirection.rtl,
+              ),
+            if (arabicText != null && arabicText != '')
+              contentText(
+                arabicText!,
+                context,
+                hadithLang,
+                fontScale: fontScale,
+                textDirection: TextDirection.rtl,
+                delay: .1.seconds,
+              ),
+            if (translatedTitle != null && translatedTitle != title && translatedTitle != '')
+              titleText(
+                translatedTitle!,
+                fontScale: fontScale,
+                textDirection: textDirection,
+                delay: .2.seconds,
+              ),
+            if (translatedText != null && translatedText != arabicText && translatedText != '')
+              contentText(
+                translatedText!,
+                context,
+                hadithLang,
+                fontScale: fontScale,
+                textDirection: textDirection,
+                delay: .3.seconds,
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget titleText(
     String text, {
+    required double fontScale,
     TextDirection? textDirection,
     Duration? delay,
   }) {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 4.vwr,
+        fontSize: 4.vwr * fontScale,
         fontWeight: FontWeight.bold,
         color: Colors.white,
         shadows: kAfterAdhanTextShadow,
@@ -154,6 +166,7 @@ class DisplayTextWidget extends ConsumerWidget {
     String text,
     BuildContext context,
     Locale hadithLanguage, {
+    required double fontScale,
     TextDirection? textDirection,
     Duration? delay,
   }) {
@@ -174,9 +187,9 @@ class DisplayTextWidget extends ConsumerWidget {
                   child: AutoSizeText(
                     text,
                     style: isHadith
-                        ? _getHadithTextStyle(context, hadithLanguage)
+                        ? _getHadithTextStyle(context, hadithLanguage, fontScale)
                         : TextStyle(
-                            fontSize: 32.sp,
+                            fontSize: 32.sp * fontScale,
                             color: Colors.white,
                             shadows: kIqamaCountDownTextShadow,
                           ),
@@ -201,9 +214,9 @@ class DisplayTextWidget extends ConsumerWidget {
                 child: AutoSizeText(
                   text,
                   style: isHadith
-                      ? _getHadithTextStyle(context, hadithLanguage)
+                      ? _getHadithTextStyle(context, hadithLanguage, fontScale)
                       : TextStyle(
-                          fontSize: 600,
+                          fontSize: 600 * fontScale,
                           color: Colors.white,
                           shadows: kIqamaCountDownTextShadow,
                         ),
@@ -218,12 +231,12 @@ class DisplayTextWidget extends ConsumerWidget {
   // Helper method to get hadith text style with Turkish font fix
   // Uses locally bundled fonts instead of GoogleFonts to avoid async font loading
   // that causes AutoSizeText to miscalculate on the first frame.
-  TextStyle _getHadithTextStyle(BuildContext context, Locale hadithLanguage) {
+  TextStyle _getHadithTextStyle(BuildContext context, Locale hadithLanguage, double fontScale) {
     final baseStyle = TextStyle(
       color: Colors.white,
       shadows: kIqamaCountDownTextShadow,
       fontWeight: FontWeight.bold,
-      fontSize: 32.sp,
+      fontSize: 32.sp * fontScale,
     );
 
     // For Turkish, use system font

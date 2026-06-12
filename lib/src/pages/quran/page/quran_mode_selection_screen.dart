@@ -9,7 +9,9 @@ import 'package:mawaqit/src/state_management/quran/quran/quran_state.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
 import 'package:mawaqit/src/routes/routes_constant.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/state_management/jx11/jx11_event_notifier.dart';
+import 'package:provider/provider.dart';
 
 class QuranModeSelection extends ConsumerStatefulWidget {
   const QuranModeSelection({super.key});
@@ -177,6 +179,7 @@ class _QuranModeSelectionState extends ConsumerState<QuranModeSelection> {
     required bool isSelected,
     required FocusNode focusNode,
   }) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     return Focus(
       focusNode: focusNode,
       child: GestureDetector(
@@ -202,16 +205,19 @@ class _QuranModeSelectionState extends ConsumerState<QuranModeSelection> {
               ),
               SizedBox(height: 20),
               FittedBox(
-                fit: BoxFit.contain,
-                child: Text(
-                  text,
-                  softWrap: true,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isSelected ? 18.sp : 16.sp,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fit: BoxFit.scaleDown,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                  child: Text(
+                    text,
+                    softWrap: true,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: (isSelected ? 18.sp : 16.sp) * fontScale,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
                   ),
                 ),
               ),

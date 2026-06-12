@@ -6,7 +6,9 @@ import 'package:mawaqit/src/pages/mosque_search/widgets/chromecast_mosque_input_
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputId.dart';
 import 'package:mawaqit/src/pages/mosque_search/widgets/MosqueInputSearch.dart';
 import 'package:mawaqit/src/pages/onBoarding/widgets/toggle_button_widget.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:page_transition/page_transition.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../i18n/l10n.dart';
@@ -144,34 +146,38 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 11.sp : 14.sp;
-    final double buttonFontSize = isPortrait ? 8.sp : 12.sp;
+    // Adjust font sizes based on orientation (already multiplied by fontScale)
+    final double headerFontSize = (isPortrait ? 11.sp : 14.sp) * fontScale;
+    final double buttonFontSize = (isPortrait ? 8.sp : 12.sp) * fontScale;
 
     // Adjust width factor based on orientation
     final double widthFactor = isPortrait ? 0.9 : 0.75;
 
     return Material(
-      child: FractionallySizedBox(
-        widthFactor: widthFactor,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header section
-            _buildHeader(theme, headerFontSize),
-            SizedBox(height: isPortrait ? 0.h : 2.h),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: FractionallySizedBox(
+          widthFactor: widthFactor,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header section
+              _buildHeader(theme, headerFontSize),
+              SizedBox(height: isPortrait ? 0.h : 2.h),
 
-            // Options section
-            _buildOptions(
-              theme: theme,
-              buttonFontSize: buttonFontSize,
-              isPortrait: isPortrait,
-            ),
-          ],
+              // Options section
+              _buildOptions(
+                theme: theme,
+                buttonFontSize: buttonFontSize,
+                isPortrait: isPortrait,
+              ),
+            ],
+          ),
         ),
       ),
     );

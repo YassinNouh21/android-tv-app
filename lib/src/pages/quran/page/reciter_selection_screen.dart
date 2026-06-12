@@ -445,21 +445,25 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   }
 
   AppBar _buildAppBar() {
+    final fontScale = provider.Provider.of<UserPreferencesManager>(context).appFontSizeScale;
     return AppBar(
       toolbarHeight: 5.h,
       backgroundColor: Color(0xFF28262F),
       title: SizedBox(
         height: 4.h,
         child: FittedBox(
-          fit: BoxFit.scaleDown, // shrink/grow to fit the box
-          child: Text(
-            S.of(context).chooseReciter,
-            maxLines: 1,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.bold,
-              height: 1.0, // make line-height = fontSize
+          fit: BoxFit.scaleDown,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+            child: Text(
+              S.of(context).chooseReciter,
+              maxLines: 1,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12.sp * fontScale,
+                fontWeight: FontWeight.bold,
+                height: 1.0,
+              ),
             ),
           ),
         ),
@@ -747,52 +751,61 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
   }
 
   Widget _buildFavoritesHeader() {
+    final fontScale = provider.Provider.of<UserPreferencesManager>(context).appFontSizeScale;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.favorite,
-            color: Theme.of(context).primaryColor,
-            size: 12.sp,
-          ),
-          SizedBox(width: 12),
-          AutoSizeText(
-            S.of(context).favorites,
-            style: TextStyle(
-              color: Colors.white,
-              fontFamily: 'Roboto',
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite,
+              color: Theme.of(context).primaryColor,
+              size: 12.sp * fontScale,
             ),
-          ),
-        ],
+            SizedBox(width: 12),
+            AutoSizeText(
+              S.of(context).favorites,
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'Roboto',
+                fontSize: 12.sp * fontScale,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAllRecitersHeader() {
+    final fontScale = provider.Provider.of<UserPreferencesManager>(context).appFontSizeScale;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding),
-      child: Row(
-        children: [
-          SizedBox(width: 8),
-          AutoSizeText(
-            S.of(context).allReciters,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.bold,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Row(
+          children: [
+            SizedBox(width: 8),
+            AutoSizeText(
+              S.of(context).allReciters,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp * fontScale,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyFavorites() {
+    final fontScale = provider.Provider.of<UserPreferencesManager>(context).appFontSizeScale;
     return Container(
       margin: EdgeInsets.symmetric(horizontal: ReciterSelectionScreen.horizontalPadding, vertical: 4),
       padding: EdgeInsets.all(4.sp),
@@ -812,13 +825,16 @@ class _ReciterSelectionScreenState extends ConsumerState<ReciterSelectionScreen>
           SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              S.of(context).noFavoriteReciters,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12.sp,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+              child: Text(
+                S.of(context).noFavoriteReciters,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.sp * fontScale,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
         ],

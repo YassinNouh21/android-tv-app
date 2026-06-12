@@ -7,6 +7,7 @@ import 'package:mawaqit/src/widgets/time_widget.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../services/mosque_manager.dart';
+import '../../../../services/user_preferences_manager.dart';
 
 class SalahItemWidget extends StatelessOrientationWidget {
   SalahItemWidget({
@@ -41,13 +42,13 @@ class SalahItemWidget extends StatelessOrientationWidget {
 
   @override
   Widget buildLandscape(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double titleFont = 3.vwr;
     double bigFont = 4.5.vwr;
     double smallFont = 3.6.vwr;
 
     final mosqueProvider = context.watch<MosqueManager>();
     final mosqueConfig = mosqueProvider.mosqueConfig;
-    final isArabic = context.read<AppLanguage>().isArabic();
     final is12period = mosqueConfig?.timeDisplayFormat == "12";
 
     return Container(
@@ -61,50 +62,57 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 : Colors.black.withOpacity(.5),
       ),
       padding: EdgeInsets.symmetric(vertical: 1.6.vr, horizontal: 1.vwr),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fixed height container for title to maintain consistent sizing
-          if (title != null && title!.trim().isNotEmpty)
-            Container(
-              height: titleFont * 1.5, // Fixed height based on font size
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  maxLines: 1,
-                  title ?? "",
-                  style: TextStyle(
-                    fontSize: titleFont,
-                    shadows: kHomeTextShadow,
-                    color: Colors.white,
-                    height: 1.5,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Title's container and TextStyle.height both use 1.0 (was 1.2/1.5).
+            // The Container exactly matches the text's natural size, so FittedBox
+            // doesn't scale and the title still renders at fontSize titleFont*fontScale.
+            // The trimmed line-height padding hands ~17px of vertical room back to
+            // the Flexible(time) below, which is what the time/iqama need to render
+            // at full 1.2× natural size without being scaled back down.
+            if (title != null && title!.trim().isNotEmpty)
+              Container(
+                height: titleFont * fontScale,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    maxLines: 1,
+                    title ?? "",
+                    style: TextStyle(
+                      fontSize: titleFont * fontScale,
+                      shadows: kHomeTextShadow,
+                      color: Colors.white,
+                      height: 1.0,
+                    ),
                   ),
                 ),
               ),
+            SizedBox(height: 0.5.vr),
+            Flexible(
+              child: FittedBox(
+                alignment: Alignment.center,
+                fit: BoxFit.scaleDown,
+                child: _buildTimeContent(context, bigFont * fontScale, smallFont * fontScale, is12period),
+              ),
             ),
-          SizedBox(height: 1.vr),
-          // Flexible content area for times
-          Flexible(
-            child: FittedBox(
-              alignment: Alignment.center,
-              fit: BoxFit.scaleDown,
-              child: _buildTimeContent(context, bigFont, smallFont, is12period),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget buildPortrait(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double titleFont = 3.5.vwr;
     double bigFont = 4.vwr;
     double smallFont = 3.vwr;
 
     final mosqueProvider = context.watch<MosqueManager>();
     final mosqueConfig = mosqueProvider.mosqueConfig;
-    final isArabic = context.read<AppLanguage>().isArabic();
     final is12period = mosqueConfig?.timeDisplayFormat == "12";
 
     return Container(
@@ -117,36 +125,39 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 : Colors.black.withOpacity(.5),
       ),
       padding: EdgeInsets.symmetric(vertical: 1.vr, horizontal: 1.vwr),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fixed height container for title to maintain consistent sizing
-          if (title != null && title!.trim().isNotEmpty)
-            Container(
-              height: titleFont * 1.2, // Fixed height based on font size
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  maxLines: 1,
-                  title ?? "",
-                  style: TextStyle(
-                    fontSize: titleFont,
-                    shadows: kHomeTextShadow,
-                    color: Colors.white,
-                    height: 1.2,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // See landscape note: the parent layout's flex must also grow with
+            // fontScale, otherwise the time below stays the same visual size.
+            if (title != null && title!.trim().isNotEmpty)
+              Container(
+                height: titleFont * fontScale * 1.2,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    maxLines: 1,
+                    title ?? "",
+                    style: TextStyle(
+                      fontSize: titleFont * fontScale,
+                      shadows: kHomeTextShadow,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
                   ),
                 ),
               ),
+            SizedBox(height: 0.5.vh),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _buildTimeContent(context, bigFont * fontScale, smallFont * fontScale, is12period),
+              ),
             ),
-          SizedBox(height: 0.5.vh),
-          // Flexible content area for times
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: _buildTimeContent(context, bigFont, smallFont, is12period),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -238,14 +249,7 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 ),
               ),
             ),
-          if (iqama != null && showIqama && !withDivider)
-            SizedBox(
-              height: isArabic ? 1.5.vr : 1.3.vwr,
-              child: Divider(
-                thickness: 1,
-                color: Colors.transparent,
-              ),
-            ),
+          if (iqama != null && showIqama && !withDivider) SizedBox(height: isArabic ? 0.7.vr : 0.5.vwr),
           if (iqama != null && showIqama)
             TimeWidget.fromString(
               show24hFormat: !is12period,
@@ -256,6 +260,7 @@ class SalahItemWidget extends StatelessOrientationWidget {
                 shadows: kHomeTextShadow,
                 letterSpacing: 1,
                 color: Colors.white,
+                height: 1.0,
               ),
             ),
         ],

@@ -52,38 +52,42 @@ class OnBoardingAnnouncementScreens extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userPrefs = context.watch<UserPreferencesManager>();
+    final fontScale = userPrefs.appFontSizeScale;
     final theme = Theme.of(context);
     final tr = S.of(context);
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 14.sp : 16.sp;
-    final double subtitleFontSize = isPortrait ? 6.sp : 8.sp;
-    final double buttonFontSize = isPortrait ? 8.sp : 10.sp;
-    final double descriptionFontSize = isPortrait ? 6.sp : 8.sp;
+    // Adjust font sizes based on orientation (already multiplied by fontScale)
+    final double headerFontSize = (isPortrait ? 14.sp : 16.sp) * fontScale;
+    final double subtitleFontSize = (isPortrait ? 6.sp : 8.sp) * fontScale;
+    final double buttonFontSize = (isPortrait ? 8.sp : 10.sp) * fontScale;
+    final double descriptionFontSize = (isPortrait ? 6.sp : 8.sp) * fontScale;
 
     // Adjust width factor based on orientation
     final double widthFactor = isPortrait ? 0.9 : 0.75;
 
     return Material(
-      child: FractionallySizedBox(
-        widthFactor: widthFactor,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(theme, tr, headerFontSize, subtitleFontSize),
-            SizedBox(height: isPortrait ? 0.5.h : 1.h),
-            _buildAnnouncementOptions(
-              theme: theme,
-              tr: tr,
-              userPrefs: userPrefs,
-              buttonFontSize: buttonFontSize,
-              descriptionFontSize: descriptionFontSize,
-              isPortrait: isPortrait,
-            ),
-          ],
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: FractionallySizedBox(
+          widthFactor: widthFactor,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(theme, tr, headerFontSize, subtitleFontSize, fontScale),
+              SizedBox(height: isPortrait ? 0.5.h : 1.h),
+              _buildAnnouncementOptions(
+                theme: theme,
+                tr: tr,
+                userPrefs: userPrefs,
+                buttonFontSize: buttonFontSize,
+                descriptionFontSize: descriptionFontSize,
+                isPortrait: isPortrait,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -95,6 +99,7 @@ class OnBoardingAnnouncementScreens extends StatelessWidget {
     MawaqitTvLocalizations tr,
     double headerFontSize,
     double subtitleFontSize,
+    double fontScale,
   ) {
     return Column(
       children: [
@@ -108,7 +113,6 @@ class OnBoardingAnnouncementScreens extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           minFontSize: 10,
-          // Minimum readable size
           overflow: TextOverflow.ellipsis,
         ),
         SizedBox(height: 1.5.h),
@@ -122,7 +126,6 @@ class OnBoardingAnnouncementScreens extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 4,
           minFontSize: 8,
-          // Minimum readable size
           overflow: TextOverflow.ellipsis,
         ),
       ],

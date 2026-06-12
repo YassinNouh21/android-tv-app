@@ -98,15 +98,16 @@ class PermissionAdhanScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userPrefs = context.watch<UserPreferencesManager>();
+    final fontScale = userPrefs.appFontSizeScale;
     final theme = Theme.of(context);
     final tr = S.of(context);
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Adjust font sizes based on orientation
-    final double headerFontSize = isPortrait ? 14.sp : 16.sp;
-    final double subtitleFontSize = isPortrait ? 6.sp : 8.sp;
-    final double descriptionFontSize = isPortrait ? 6.sp : 8.sp;
-    final double titleFontSize = isPortrait ? 8.sp : 10.sp;
+    // Adjust font sizes based on orientation (already multiplied by fontScale here)
+    final double headerFontSize = (isPortrait ? 14.sp : 16.sp) * fontScale;
+    final double subtitleFontSize = (isPortrait ? 6.sp : 8.sp) * fontScale;
+    final double descriptionFontSize = (isPortrait ? 6.sp : 8.sp) * fontScale;
+    final double titleFontSize = (isPortrait ? 8.sp : 10.sp) * fontScale;
 
     // Adjust width factor based on orientation
     final double widthFactor = isPortrait ? 0.9 : 0.75;
@@ -118,7 +119,7 @@ class PermissionAdhanScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildHeader(theme, tr, headerFontSize, subtitleFontSize, context),
+          _buildHeader(theme, tr, headerFontSize, subtitleFontSize, fontScale, context),
           SizedBox(height: isPortrait ? 3.h : 4.h),
           _buildToggleSection(
             context: context,
@@ -133,12 +134,17 @@ class PermissionAdhanScreen extends StatelessWidget {
       ),
     );
 
+    final scaledContent = MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: content,
+    );
+
     // If using animation, wrap in ScreenWithAnimationWidget
     if (useAnimation) {
       return ScreenWithAnimationWidget(
         animation: animationName ?? 'settings',
         hasBackButton: showAppBar,
-        child: Center(child: content),
+        child: Center(child: scaledContent),
       );
     }
 
@@ -151,14 +157,14 @@ class PermissionAdhanScreen extends StatelessWidget {
             )
           : null,
       body: SafeArea(
-        child: Center(child: content),
+        child: Center(child: scaledContent),
       ),
     );
   }
 
   /// Builds the header section with title and subtitle
   Widget _buildHeader(ThemeData theme, MawaqitTvLocalizations tr, double headerFontSize, double subtitleFontSize,
-      BuildContext context) {
+      double fontScale, BuildContext context) {
     return Column(
       children: [
         AutoSizeText(

@@ -217,46 +217,64 @@ class _MyAppState extends riverpod.ConsumerState<MyApp> with WidgetsBindingObser
         ChangeNotifierProvider(create: (context) => UserPreferencesManager(), lazy: false),
         StreamProvider(create: (context) => Api.updateUserStatusStream(), initialData: 0, lazy: false),
       ],
-      child: Consumer<AppLanguage>(builder: (context, model, child) {
-        return Sizer(builder: (context, orientation, size) {
-          return StreamProvider(
-            initialData: ConnectivityStatus.Offline,
-            create: (context) => ConnectivityService().connectionStatusController.stream.map((event) {
-              if (event == ConnectivityStatus.Wifi || event == ConnectivityStatus.Cellular) {
-                //todo check actual internet
-              }
+      child: Consumer<AppLanguage>(
+        builder: (context, model, child) {
+          return Sizer(
+            builder: (context, orientation, size) {
+              return StreamProvider(
+                initialData: ConnectivityStatus.Offline,
+                create: (context) => ConnectivityService().connectionStatusController.stream.map((event) {
+                  if (event == ConnectivityStatus.Wifi || event == ConnectivityStatus.Cellular) {
+                    //todo check actual internet
+                  }
 
-              return event;
-            }),
-            child: Consumer<ThemeNotifier>(
-              builder: (context, theme, _) {
-                return Shortcuts(
-                  shortcuts: {SingleActivator(LogicalKeyboardKey.select): ActivateIntent()},
-                  child: SentryWidget(
-                    child: MaterialApp(
-                      title: kAppName,
-                      themeMode: theme.mode,
-                      localeResolutionCallback: MawaqitTvExtendedLocalizations.localeResolutionCallback,
-                      theme: theme.lightThemeFor(model.appLocal),
-                      darkTheme: theme.darkThemeFor(model.appLocal),
-                      locale: model.appLocal,
-                      navigatorKey: AppRouter.navigationKey,
-                      navigatorObservers: [
-                        AnalyticsWrapper.observer(),
-                      ],
-                      localizationsDelegates: MawaqitTvExtendedLocalizations.localizationsDelegates,
-                      supportedLocales: MawaqitTvExtendedLocalizations.supportedLocales,
-                      debugShowCheckedModeBanner: false,
-                      onGenerateRoute: RouteGenerator.generateRoute,
-                      home: Splash(),
-                    ),
-                  ),
-                );
-              },
-            ),
+                  return event;
+                }),
+                child: Consumer<ThemeNotifier>(
+                  builder: (context, theme, _) {
+                    return Shortcuts(
+                      shortcuts: {SingleActivator(LogicalKeyboardKey.select): ActivateIntent()},
+                      child: SentryWidget(
+                        child: MaterialApp(
+                          title: kAppName,
+                          themeMode: theme.mode,
+                          localeResolutionCallback: MawaqitTvExtendedLocalizations.localeResolutionCallback,
+                          theme: theme.lightThemeFor(model.appLocal),
+                          darkTheme: theme.darkThemeFor(model.appLocal),
+                          locale: model.appLocal,
+                          navigatorKey: AppRouter.navigationKey,
+                          navigatorObservers: [
+                            AnalyticsWrapper.observer(),
+                          ],
+                          localizationsDelegates: MawaqitTvExtendedLocalizations.localizationsDelegates,
+                          supportedLocales: MawaqitTvExtendedLocalizations.supportedLocales,
+                          debugShowCheckedModeBanner: false,
+                          onGenerateRoute: RouteGenerator.generateRoute,
+                          builder: (context, child) {
+                            // App-wide font scaling. Deliberately overrides (not clamps) the
+                            // system textScaler: the scale comes from the in-app AppFontSize
+                            // setting on a fixed kiosk display, not the OS accessibility setting.
+                            // `select` so only a font-size change rebuilds the app, not every
+                            // unrelated UserPreferencesManager notification.
+                            final fontScale = context.select<UserPreferencesManager, double>((p) => p.appFontSizeScale);
+                            return MediaQuery(
+                              data: MediaQuery.of(context).copyWith(
+                                textScaler: TextScaler.linear(fontScale),
+                              ),
+                              child: child!,
+                            );
+                          },
+                          home: Splash(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
-        });
-      }),
+        },
+      ),
     );
   }
 }

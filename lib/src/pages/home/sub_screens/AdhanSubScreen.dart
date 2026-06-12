@@ -16,6 +16,8 @@ import 'package:mawaqit/src/pages/home/widgets/mosque_background_screen.dart';
 import 'package:mawaqit/src/pages/home/widgets/portrait_footer_widget.dart';
 import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:mawaqit/src/widgets/no_text_scaling.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_state.dart';
 import 'package:mawaqit/src/state_management/quran/quran/quran_notifier.dart';
@@ -201,6 +203,7 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
     final mosqueProvider = context.watch<MosqueManager>();
     final mosque = mosqueProvider.mosque!;
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
 
     // Debug current audio state
     final audioStateValue = ref.watch(prayerAudioProvider);
@@ -218,35 +221,41 @@ class _AdhanSubScreenState extends ConsumerState<AdhanSubScreen> {
               padding: EdgeInsets.symmetric(horizontal: 10.vw),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  textBaseline: TextBaseline.alphabetic,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  children: [
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: -1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5.vw),
-                      child: Text(
-                        S.of(context).alAdhan,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15.vw,
-                          color: Colors.white,
-                          shadows: kHomeTextShadow,
+                // Keep the flanking icons at a fixed size while only the title scales.
+                // Everything is inside FittedBox(scaleDown), so scaling the whole row
+                // uniformly is a no-op (FittedBox cancels it). Scaling only the text
+                // changes the row's aspect ratio, so the title actually renders larger.
+                child: NoTextScaling(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    children: [
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw)
+                          .animate()
+                          .slideX(begin: -1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 5.vw),
+                        child: Text(
+                          S.of(context).alAdhan,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.vw * fontScale,
+                            color: Colors.white,
+                            shadows: kHomeTextShadow,
+                          ),
                         ),
-                      ),
-                    ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
-                    Icon(MawaqitIcons.icon_adhan, size: 12.vw)
-                        .animate()
-                        .slideX(begin: 1, delay: .5.seconds)
-                        .fadeIn()
-                        .addRepaintBoundary(),
-                  ],
-                ).flashAnimation(),
+                      ).animate().moveY(begin: -120).fade().addRepaintBoundary(),
+                      Icon(MawaqitIcons.icon_adhan, size: 12.vw)
+                          .animate()
+                          .slideX(begin: 1, delay: .5.seconds)
+                          .fadeIn()
+                          .addRepaintBoundary(),
+                    ],
+                  ).flashAnimation(),
+                ),
               ),
             ),
           ),

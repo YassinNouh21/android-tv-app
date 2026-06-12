@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/themes/UIShadows.dart';
 import 'package:mawaqit/src/widgets/time_widget.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,7 @@ class MiniHorizontalSalahItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     double bigFont = 5.0.vw;
     double smallFont = 4.6.vw;
 
@@ -35,7 +37,7 @@ class MiniHorizontalSalahItem extends StatelessWidget {
     return Container(
       margin: EdgeInsets.all(1.vw),
       padding: EdgeInsets.all(1.vw),
-      height: 5.vwr,
+      height: 5.vwr * fontScale,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(2.vw),
         color: active ? mosqueProvider.getColorTheme().withOpacity(.5) : Colors.black.withOpacity(.5),
@@ -43,30 +45,32 @@ class MiniHorizontalSalahItem extends StatelessWidget {
       child: FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          // mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 3.vwr,
-                shadows: kHomeTextShadow,
-                color: Colors.white,
-                height: 1,
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 3.vwr * fontScale,
+                  shadows: kHomeTextShadow,
+                  color: Colors.white,
+                  height: 1,
+                ),
               ),
-            ),
-            SizedBox(width: 3.vw),
-            TimeWidget.fromString(
-              show24hFormat: is24period,
-              time: time,
-              style: TextStyle(
-                fontSize: isIqamaMoreImportant ? smallFont : bigFont,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              SizedBox(width: 3.vw),
+              TimeWidget.fromString(
+                show24hFormat: is24period,
+                time: time,
+                style: TextStyle(
+                  fontSize: (isIqamaMoreImportant ? smallFont : bigFont) * fontScale,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

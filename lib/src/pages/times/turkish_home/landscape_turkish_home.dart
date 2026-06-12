@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../i18n/AppLanguage.dart';
 import '../../../../main.dart';
+import '../../../services/user_preferences_manager.dart';
 import '../../../state_management/app_update/app_update_notifier.dart';
 import '../../../state_management/app_update/app_update_state.dart';
 import '../../../widgets/show_update_alert.dart';
@@ -77,6 +78,7 @@ class _LandScapeTurkishHomeState extends riverpod.ConsumerState<LandScapeTurkish
       }
     });
     final mosqueManager = context.watch<MosqueManager>();
+    final fontScale = context.watch<UserPreferencesManager>().appFontSizeScale;
     final today = mosqueManager.useTomorrowTimes ? AppDateTime.tomorrow() : AppDateTime.now();
 
     final times = mosqueManager.times!.dayTimesStrings(today, salahOnly: false);
@@ -88,11 +90,16 @@ class _LandScapeTurkishHomeState extends riverpod.ConsumerState<LandScapeTurkish
     final nextActiveSalah = mosqueManager.mosqueConfig!.iqamaMoreImportant == true
         ? mosqueManager.nextSalahAfterIqamaIndex()
         : mosqueManager.nextSalahIndex();
+    // See landscape_normal_home: bottom row flex grows gently with fontScale
+    // (19→22). More aggressive growth squeezes the middle row's countdown
+    // into a vertical overflow at the largest scale.
+    final bottomRowFlex = (20 + (fontScale - 1.0) * 10).round();
+
     return Column(
       children: [
         MosqueHeader(mosque: mosqueManager.mosque!),
         Expanded(
-          flex: 3,
+          flex: 30,
           child: Row(
             children: [
               Expanded(
@@ -110,13 +117,28 @@ class _LandScapeTurkishHomeState extends riverpod.ConsumerState<LandScapeTurkish
                   ).animate().slideX().fade(),
                 ),
               ),
-              Expanded(flex: 4, child: HomeTimeWidget().animate().slideY().fade()),
+              Expanded(
+                flex: 4,
+                // Guard against vertical overflow on short panels: the bottom prayer row
+                // grows with fontScale (shrinking this slot) while the clock's text grows.
+                // FittedBox scales the clock down only if it would overflow; on tall panels
+                // it is a no-op and the clock renders at full size.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      child: HomeTimeWidget().animate().slideY().fade(),
+                    ),
+                  ),
+                ),
+              ),
               Expanded(flex: 2, child: Center(child: JumuaWidget().animate().slideX(begin: 1).fade())),
             ],
           ),
         ),
         Expanded(
-          flex: 2,
+          flex: bottomRowFlex,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 1.vw),
             child: Row(
