@@ -17,11 +17,14 @@ import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_notifier.
 /// - The duaa item self-terminates via its sub-screen's `onDone`; it has no
 ///   `skip`, so progression is driven by the sub-screen rather than a
 ///   hardcoded cutoff.
+/// - [duaaDisabled] adds an extra disable condition on the duaa item, e.g.
+///   when a prayer stream replaces everything after the adhan.
 List<WorkFlowItem> adhanAndDuaaSegment({
   required MosqueManager mosque,
   required WidgetRef ref,
   required DateTime adhanTime,
   required DateTime now,
+  bool duaaDisabled = false,
 }) {
   final mosqueConfig = mosque.mosqueConfig!;
   return [
@@ -36,7 +39,7 @@ List<WorkFlowItem> adhanAndDuaaSegment({
     ),
     WorkFlowItem(
       builder: (context, next) => AfterAdhanSubScreen(onDone: next),
-      disabled: mosqueConfig.duaAfterAzanEnabled == false,
+      disabled: mosqueConfig.duaAfterAzanEnabled == false || duaaDisabled,
     ),
   ];
 }

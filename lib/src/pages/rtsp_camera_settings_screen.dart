@@ -8,8 +8,11 @@ import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/domain/error/rtsp_expceptions.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_notifier.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_state.dart';
+import 'package:mawaqit/src/services/mosque_manager.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
 import 'package:mawaqit/src/widgets/ScreenWithAnimation.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mawaqit/src/widgets/safe_youtube_player.dart';
@@ -24,7 +27,6 @@ class RTSPCameraSettingsScreen extends ConsumerStatefulWidget {
 class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScreen> {
   final TextEditingController _urlController = TextEditingController();
   final FocusNode _saveButtonFocusNode = FocusNode();
-  final FocusNode _replaceWorkflowWithStreamButtonFocusNode = FocusNode();
   late StreamSubscription<bool> keyboardSubscription;
 
   Timer? _saveUrlTimer;
@@ -37,7 +39,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
     keyboardSubscription = keyboardVisibilityController.onChange.listen((bool visible) {
       if (!visible) {
         dev.log('⌨️ [RTSP_SCREEN] Keyboard hidden, focusing save button');
-        FocusScope.of(context).requestFocus(_replaceWorkflowWithStreamButtonFocusNode);
+        FocusScope.of(context).requestFocus(_saveButtonFocusNode);
       }
     });
   }
@@ -60,7 +62,6 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
     dev.log('🧹 [RTSP_SCREEN] Disposing RTSP Camera Settings Screen');
     _urlController.dispose();
     _saveButtonFocusNode.dispose();
-    _replaceWorkflowWithStreamButtonFocusNode.dispose();
     _saveUrlTimer?.cancel();
     keyboardSubscription.cancel();
     super.dispose();
@@ -90,6 +91,9 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
   @override
   Widget build(BuildContext context) {
     final asyncState = ref.watch(liveStreamProvider);
+    final userPrefs = context.watch<UserPreferencesManager>();
+    final mosqueManager = context.read<MosqueManager>();
+    final blockedByPermission = mosqueManager.typeIsMosque && !userPrefs.isSecondaryScreen;
 
     // Update URL controller when state changes
     ref.listen(liveStreamProvider, (previous, next) {
@@ -156,8 +160,11 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
     return asyncState.when(
       data: (state) {
         dev.log('🏗️ [RTSP_SCREEN] Building screen with state: ${state.isEnabled ? "Enabled" : "Disabled"}');
+        // When permission is blocked we collapse to the simple settings layout,
+        // even if the stream is technically still enabled in saved state.
+        final showStreamingLayout = state.isEnabled && !blockedByPermission;
         return Scaffold(
-          appBar: state.isEnabled
+          appBar: showStreamingLayout
               ? AppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -166,7 +173,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
           body: SafeArea(
             child: Stack(
               children: [
-                if (!state.isEnabled)
+                if (!showStreamingLayout)
                   ScreenWithAnimationWidget(
                     animation: "settings",
                     child: SingleChildScrollView(
@@ -317,6 +324,10 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
 
   Widget _buildSettingsContent(LiveStreamViewerState state) {
     dev.log('⚙️ [RTSP_SCREEN] Building settings content');
+    final userPrefs = context.watch<UserPreferencesManager>();
+    final mosqueManager = context.read<MosqueManager>();
+    final requiresSecondaryScreen = mosqueManager.typeIsMosque && !userPrefs.isSecondaryScreen;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -326,62 +337,89 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
           textAlign: TextAlign.center,
         ),
         const Divider(indent: 50, endIndent: 50),
-        const SizedBox(height: 10),
-        Text(
-          S.of(context).rtspCameraSettingScreenDesc,
-          style: Theme.of(context).textTheme.bodySmall?.apply(fontSizeFactor: 1.5),
-          textAlign: TextAlign.center,
-        ),
         const SizedBox(height: 20),
-        SwitchListTile(
-          title: Text(S.of(context).enableRtspCamera),
-          value: state.isEnabled,
-          autofocus: true,
-          onChanged: (value) {
-            dev.log('🔌 [RTSP_SCREEN] Toggling RTSP enabled state: $value');
-            ref.read(liveStreamProvider.notifier).toggleEnabled(value);
-          },
-          shape: RoundedRectangleBorder(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).dividerColor),
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          child: Row(
+            children: [
+              Text(S.of(context).streamMode, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButton<StreamTriggerMode>(
+                  value: userPrefs.streamTriggerMode,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  borderRadius: BorderRadius.circular(16),
+                  alignment: AlignmentDirectional.centerEnd,
+                  onChanged: requiresSecondaryScreen
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          userPrefs.streamTriggerMode = value;
+                          // camera mode = stream auto-replaces workflow when active.
+                          // other modes = stream is shown only inside specific workflow items.
+                          ref.read(liveStreamProvider.notifier).applyStreamMode(
+                                enabled: value != StreamTriggerMode.disabled,
+                                replaceWorkflow: value == StreamTriggerMode.camera,
+                              );
+                        },
+                  items: StreamTriggerMode.values.map((mode) {
+                    return DropdownMenuItem(
+                      value: mode,
+                      child: Text(
+                        switch (mode) {
+                          StreamTriggerMode.disabled => S.of(context).streamModeDisabled,
+                          StreamTriggerMode.camera => S.of(context).streamModeCamera,
+                          StreamTriggerMode.jumuaOnly => S.of(context).streamModeJumuaOnly,
+                          StreamTriggerMode.jumuaAndPrayers => S.of(context).streamModeJumuaAndPrayers,
+                        },
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        // Toggle for using backoffice stream URL
-        if (state.backofficeStreamUrl != null && state.backofficeStreamUrl!.isNotEmpty) ...[
-          SwitchListTile(
-            title: Text(S.of(context).mosqueDefault),
-            value: state.useBackofficeStream,
-            onChanged: state.isEnabled
-                ? (value) {
-                    dev.log('🏢 [RTSP_SCREEN] Toggling use backoffice stream: $value');
-                    ref.read(liveStreamProvider.notifier).toggleUseBackofficeStream(value);
-                  }
-                : null,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Theme.of(context).dividerColor),
-            ),
+        if (requiresSecondaryScreen) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 14, color: Theme.of(context).colorScheme.secondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  S.of(context).streamRequiresSecondaryScreen,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
         ],
-        SwitchListTile(
-          focusNode: _replaceWorkflowWithStreamButtonFocusNode,
-          title: Text(S.of(context).replaceWorkflowWithStream),
-          subtitle: Text(S.of(context).replaceAppWorkflowWithCameraStream),
-          value: state.replaceWorkflow,
-          onChanged: state.isEnabled
-              ? (value) {
-                  dev.log('🔄 [RTSP_SCREEN] Toggling workflow replacement: $value');
-                  ref.read(liveStreamProvider.notifier).toggleReplaceWorkflow(value);
-                }
-              : null,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Theme.of(context).dividerColor),
-          ),
-        ),
-        if (state.isEnabled) ...[
+        if (!requiresSecondaryScreen && userPrefs.streamTriggerMode != StreamTriggerMode.disabled) ...[
+          const SizedBox(height: 12),
+          if (state.backofficeStreamUrl != null && state.backofficeStreamUrl!.isNotEmpty) ...[
+            SwitchListTile(
+              title: Text(S.of(context).mosqueDefault),
+              value: state.useBackofficeStream,
+              onChanged: (value) {
+                dev.log('🏢 [RTSP_SCREEN] Toggling use backoffice stream: $value');
+                ref.read(liveStreamProvider.notifier).toggleUseBackofficeStream(value);
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 20),
           Text(
             S.of(context).addRtspUrl,
@@ -465,7 +503,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    'RTSP server is not available. Please check your connection.',
+                                    S.of(context).rtspServerNotAvailable,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -501,7 +539,7 @@ class _RTSPCameraSettingsScreenState extends ConsumerState<RTSPCameraSettingsScr
                             children: [
                               const Icon(Icons.check_circle, color: Colors.white),
                               const SizedBox(width: 12),
-                              Text('Settings saved successfully'),
+                              Text(S.of(context).settingsSavedSuccessfully),
                             ],
                           ),
                           backgroundColor: Colors.green,

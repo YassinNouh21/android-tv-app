@@ -111,6 +111,13 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     bool jumuaaDisableInMosque,
     LiveStreamViewerState streamState,
   ) {
+    final streamTriggerMode = context.read<UserPreferencesManager>().streamTriggerMode;
+
+    // Disabled mode: never show stream regardless of other conditions
+    if (streamTriggerMode == StreamTriggerMode.disabled) {
+      return _buildFallbackWidget(mosqueManager);
+    }
+
     // If jumuaa is disabled in mosque, check for dhikr/black screen
     if (jumuaaDisableInMosque) {
       return _buildFallbackWidget(mosqueManager);

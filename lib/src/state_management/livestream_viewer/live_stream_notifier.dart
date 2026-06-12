@@ -351,6 +351,18 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
     }
   }
 
+  /// Apply a stream trigger mode in one pass: persist replaceWorkflow first so
+  /// the re-initialization inside [toggleEnabled] picks up the fresh value.
+  /// Avoids racing two concurrent toggles that both rewrite the state.
+  Future<void> applyStreamMode({required bool enabled, required bool replaceWorkflow}) async {
+    dev.log('🔌 [LIVE_STREAM] Applying stream mode - enabled: $enabled, replaceWorkflow: $replaceWorkflow');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(LiveStreamConstants.prefKeyReplaceWorkflow, replaceWorkflow);
+
+    await toggleEnabled(enabled);
+  }
+
   /// toggle replace workflow
   Future<void> toggleReplaceWorkflow(bool isEnabled) async {
     state = const AsyncValue.loading();
