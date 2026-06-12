@@ -6,12 +6,9 @@ import 'package:mawaqit/src/helpers/AppDate.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
 import 'package:mawaqit/src/widgets/display_text_widget.dart';
-import 'package:mawaqit/src/pages/home/widgets/salah_items/responsive_mini_salah_bar_widget.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/widgets/time_widget.dart';
 import 'package:provider/provider.dart';
-
-import '../widgets/salah_items/responsive_mini_salah_bar_turkish_widget.dart';
 
 class _JumuaCenteredClock extends StatelessWidget {
   const _JumuaCenteredClock();
@@ -32,7 +29,7 @@ class _JumuaCenteredClock extends StatelessWidget {
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 30.vw,
+              fontSize: 20.vw,
               height: 1,
             ),
           ),
@@ -59,7 +56,6 @@ class JumuaHadithSubScreen extends StatelessWidget {
         body: _JumuaCenteredClock(),
       );
     }
-    final mosqueProvider = context.read<MosqueManager>();
 
     return Container(
       decoration: BoxDecoration(
@@ -82,11 +78,6 @@ class JumuaHadithSubScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.start,
             ),
           ),
-          Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              child: mosqueProvider.times!.isTurki
-                  ? ResponsiveMiniSalahBarTurkishWidget(activeItem: 1)
-                  : ResponsiveMiniSalahBarWidget(activeItem: 1)),
         ],
       ),
     );

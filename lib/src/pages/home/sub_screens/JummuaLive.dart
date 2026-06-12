@@ -209,7 +209,7 @@ class JumuaCenteredClock extends StatelessWidget {
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 30.vw,
+              fontSize: 20.vw,
               height: 1,
             ),
           ),
