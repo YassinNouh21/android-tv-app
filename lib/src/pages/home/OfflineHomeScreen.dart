@@ -107,7 +107,8 @@ class OfflineHomeScreen extends ConsumerWidget {
         tryAgainText: S.of(context).changeMosque,
       );
 
-    final shouldShowStream = streamState.valueOrNull?.shouldReplaceWorkflow == true;
+    final shouldShowStream = userPrefs.streamTriggerMode != StreamTriggerMode.disabled &&
+        streamState.valueOrNull?.shouldReplaceWorkflow == true;
     final isShowingQuran = userPrefs.appMode == AppMode.quran && !showHomeOverride;
 
     return WillPopScope(

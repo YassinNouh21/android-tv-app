@@ -2,14 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
 import 'package:mawaqit/src/helpers/HexColor.dart';
-import 'package:mawaqit/src/pages/home/widgets/schedule_audio_indicator.dart';
+import 'package:mawaqit/src/pages/home/widgets/audio_controller.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
-import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_state.dart';
 import 'package:mawaqit/src/widgets/MawaqitDrawer.dart';
 import 'package:provider/provider.dart';
 
@@ -41,6 +37,11 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
     super.dispose();
   }
 
+  bool get _isAudioControllable {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) return false;
+    return ref.read(activeAudioControllerProvider) != null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final mosqueProvider = context.watch<MosqueManager>();
@@ -53,7 +54,6 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
             event.logicalKey == LogicalKeyboardKey.select || event.logicalKey == LogicalKeyboardKey.enter;
 
         if (event is KeyDownEvent) {
-          // Arrow keys open the drawer
           if (event.isArrow) {
             if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
               _scaffoldKey.currentState?.openDrawer();
@@ -61,13 +61,7 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
             }
           }
 
-          // Record when Enter/Select is first pressed down (only when drawer is closed and not stopped)
-          // Guard _enterKeyDownTime == null to ignore key-repeat events from remotes
-          if (isEnterOrSelect &&
-              _enterKeyDownTime == null &&
-              !(_scaffoldKey.currentState?.isDrawerOpen ?? false) &&
-              isScheduleAudioActive(ref) &&
-              !(ref.read(audioControlProvider).value?.isStopped ?? false)) {
+          if (isEnterOrSelect && _enterKeyDownTime == null && _isAudioControllable) {
             _enterKeyDownTime = DateTime.now();
             return KeyEventResult.handled;
           }
@@ -77,23 +71,13 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
           final holdDuration = DateTime.now().difference(_enterKeyDownTime!);
           _enterKeyDownTime = null;
 
-          if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false) && isScheduleAudioActive(ref)) {
-            if (holdDuration >= _longPressDuration) {
-              // Long press → stop
-              ref.read(audioControlProvider.notifier).stopPlayback();
+          final controller = ref.read(activeAudioControllerProvider);
+          if (controller != null) {
+            final isLongPress = holdDuration >= _longPressDuration;
+            if (isLongPress) {
+              controller.longPress(ref);
             } else {
-              // Short press → toggle pause/play
-              final isPlaying = ref.read(audioControlProvider).value?.status == AudioStatus.playing;
-              if (isPlaying) {
-                Fluttertoast.showToast(
-                  msg: S.current.holdOkToStop,
-                  toastLength: Toast.LENGTH_SHORT,
-                  gravity: ToastGravity.BOTTOM,
-                  backgroundColor: Colors.black54,
-                  textColor: Colors.white,
-                );
-              }
-              ref.read(audioControlProvider.notifier).togglePlayback();
+              controller.tap(ref);
             }
           }
           return KeyEventResult.handled;
@@ -152,7 +136,7 @@ class _MosqueBackgroundScreenState extends riverpod.ConsumerState<MosqueBackgrou
               width: 40,
               height: 40,
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor), // Green color
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
               ),
             ),
           );

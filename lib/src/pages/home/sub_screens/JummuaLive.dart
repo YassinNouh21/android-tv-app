@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mawaqit/src/models/address_model.dart';
+import 'package:mawaqit/src/pages/home/widgets/AboveSalahBar.dart';
 import 'package:mawaqit/src/services/mosque_manager.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_notifier.dart';
 import 'package:mawaqit/src/state_management/livestream_viewer/live_stream_state.dart';
@@ -9,9 +10,12 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-import '../../../helpers/connectivity_provider.dart';
-import '../../../services/user_preferences_manager.dart';
-import 'JumuaHadithSubScreen.dart';
+import 'package:mawaqit/src/helpers/AppDate.dart';
+import 'package:mawaqit/src/helpers/RelativeSizes.dart';
+import 'package:mawaqit/src/helpers/connectivity_provider.dart';
+import 'package:mawaqit/src/pages/home/sub_screens/JumuaHadithSubScreen.dart';
+import 'package:mawaqit/src/services/user_preferences_manager.dart';
+import 'package:mawaqit/src/widgets/time_widget.dart';
 
 class JummuaLive extends ConsumerStatefulWidget {
   const JummuaLive({
@@ -90,7 +94,10 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
 
     // Priority 2: Black screen if enabled
     if (mosqueManager.mosqueConfig!.jumuaBlackScreenEnabled == true) {
-      return const Scaffold(backgroundColor: Colors.black);
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: JumuaCenteredClock(),
+      );
     }
 
     // Priority 3: Exit to prayer times screen
@@ -104,6 +111,13 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     bool jumuaaDisableInMosque,
     LiveStreamViewerState streamState,
   ) {
+    final streamTriggerMode = context.read<UserPreferencesManager>().streamTriggerMode;
+
+    // Disabled mode: never show stream regardless of other conditions
+    if (streamTriggerMode == StreamTriggerMode.disabled) {
+      return _buildFallbackWidget(mosqueManager);
+    }
+
     // If jumuaa is disabled in mosque, check for dhikr/black screen
     if (jumuaaDisableInMosque) {
       return _buildFallbackWidget(mosqueManager);
@@ -129,13 +143,21 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     if (isStreamActive && streamState.streamType == LiveStreamType.rtsp && notifier.videoController != null) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Video(
-              controller: notifier.videoController!,
+        body: Stack(
+          children: [
+            Center(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Video(
+                  controller: notifier.videoController!,
+                ),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: AboveSalahBar(),
+            ),
+          ],
         ),
       );
     }
@@ -144,18 +166,55 @@ class _JummuaLiveState extends ConsumerState<JummuaLive> {
     if (isStreamActive && streamState.streamType == LiveStreamType.youtubeLive && notifier.youtubeController != null) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: YoutubePlayer(
-              controller: notifier.youtubeController!,
+        body: Stack(
+          children: [
+            Center(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: YoutubePlayer(
+                  controller: notifier.youtubeController!,
+                ),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: AboveSalahBar(),
+            ),
+          ],
         ),
       );
     }
 
     // No stream available, use fallback priority
     return _buildFallbackWidget(mosqueManager);
+  }
+}
+
+class JumuaCenteredClock extends StatelessWidget {
+  const JumuaCenteredClock();
+
+  @override
+  Widget build(BuildContext context) {
+    final mosqueManager = context.watch<MosqueManager>();
+    final is12Hours = mosqueManager.mosqueConfig?.timeDisplayFormat == '12';
+
+    return StreamBuilder(
+      stream: Stream.periodic(const Duration(seconds: 1)),
+      builder: (context, _) {
+        final now = AppDateTime.now();
+        return Center(
+          child: TimeWidget.fromDate(
+            dateTime: now,
+            show24hFormat: !is12Hours,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 30.vw,
+              height: 1,
+            ),
+          ),
+        );
+      },
+    );
   }
 }

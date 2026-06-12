@@ -26,7 +26,7 @@ class AboveSalahBar extends StatelessWidget {
             mosqueManager.nextSalahIndex(),
             context,
           );
-          String countDownText = StringManager.getCountDownText(
+          String countDownText = StringManager.getPrayerCountdown(
             context,
             nextSalahTime,
             nextSalahName,

@@ -28,6 +28,11 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   static StreamSubscription? _playerStateSubscription;
   static Timer? _scheduleCheckTimer;
 
+  // Surah IDs for the current random playlist, derived from the track URLs,
+  // and the last index broadcast to the UI (to avoid redundant broadcasts).
+  static List<int?>? _playlistSurahIds;
+  static int? _lastBroadcastIndex;
+
   factory UnifiedBackgroundService() => _instance;
 
   UnifiedBackgroundService._internal() {
@@ -239,8 +244,13 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
   }
 
   static Future<void> _setupPlaylist(dynamic surahSource) async {
+    final sources = surahSource as List;
+    // Derive each track's surah ID from its URL up front, so track-change
+    // broadcasts never need a cross-isolate SharedPreferences read.
+    _playlistSurahIds = sources.map((s) => s is String ? _surahIdFromUrl(s) : null).toList();
+    _lastBroadcastIndex = null;
     final playlist = ConcatenatingAudioSource(
-      children: (surahSource as List).map((source) {
+      children: sources.map((source) {
         if (source is String) {
           return AudioSource.uri(Uri.parse(source));
         } else if (source is AudioSource) {
@@ -251,6 +261,38 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
     );
     await _audioPlayer?.setAudioSource(playlist);
     await _audioPlayer?.setLoopMode(LoopMode.all);
+  }
+
+  /// Extracts the zero-padded surah number from a recitation URL
+  /// (e.g. "https://.../067.mp3" → 67).
+  static int? _surahIdFromUrl(String url) {
+    try {
+      final segments = Uri.parse(url).pathSegments;
+      if (segments.isEmpty) return null;
+      final digits = segments.last.split('.').first;
+      final id = int.tryParse(digits);
+      return (id != null && id > 0) ? id : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Persists the surah ID for playlist [index] to kCurrentPlayingSurahId
+  /// (for restart/initial-state fallback) and broadcasts it to the UI so the
+  /// displayed name stays in sync as the playlist advances between surahs.
+  static Future<void> _broadcastSurahForIndex(int index) async {
+    final ids = _playlistSurahIds;
+    if (ids == null || index < 0 || index >= ids.length) return;
+    final surahId = ids[index];
+    if (surahId == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(BackgroundScheduleAudioServiceConstant.kCurrentPlayingSurahId, surahId);
+    } catch (_) {}
+    FlutterBackgroundService().invoke('kAudioStateChanged', {
+      'isPlaying': _audioPlayer?.playing ?? false,
+      'currentSurahId': surahId,
+    });
   }
 
   static Future<void> _setupSingleAudio(dynamic surahSource) async {
@@ -266,12 +308,22 @@ class UnifiedBackgroundService with WidgetsBindingObserver {
     await _playbackEventSubscription?.cancel();
     await _playerStateSubscription?.cancel();
 
-    _playbackEventSubscription = _audioPlayer?.playbackEventStream.listen((event) {
+    _playbackEventSubscription = _audioPlayer?.playbackEventStream.listen((event) async {
       if (event.processingState == ProcessingState.completed && !createPlaylist) {
         _audioPlayer?.seek(Duration.zero);
         _audioPlayer?.play();
         _savedPosition = null;
         FlutterBackgroundService().invoke('kAudioStateChanged', {'isPlaying': true});
+        return;
+      }
+      // playbackEventStream carries currentIndex and fires on every track
+      // transition; broadcast the new surah whenever the index actually changes.
+      if (createPlaylist) {
+        final idx = event.currentIndex;
+        if (idx != null && idx != _lastBroadcastIndex) {
+          _lastBroadcastIndex = idx;
+          await _broadcastSurahForIndex(idx);
+        }
       }
     });
 

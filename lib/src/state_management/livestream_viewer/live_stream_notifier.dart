@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/domain/error/live_stream_exceptions.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -350,6 +351,18 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
     }
   }
 
+  /// Apply a stream trigger mode in one pass: persist replaceWorkflow first so
+  /// the re-initialization inside [toggleEnabled] picks up the fresh value.
+  /// Avoids racing two concurrent toggles that both rewrite the state.
+  Future<void> applyStreamMode({required bool enabled, required bool replaceWorkflow}) async {
+    dev.log('🔌 [LIVE_STREAM] Applying stream mode - enabled: $enabled, replaceWorkflow: $replaceWorkflow');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(LiveStreamConstants.prefKeyReplaceWorkflow, replaceWorkflow);
+
+    await toggleEnabled(enabled);
+  }
+
   /// toggle replace workflow
   Future<void> toggleReplaceWorkflow(bool isEnabled) async {
     state = const AsyncValue.loading();
@@ -476,8 +489,9 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
 
       // Reinitialize to apply the new backoffice URL
       await reinitialize();
-    } catch (e) {
+    } catch (e, s) {
       dev.log('🚨 [LIVE_STREAM] Error updating backoffice URL: $e');
+      await CrashlyticsWrapper.sendException(e, s);
     }
   }
 
@@ -853,8 +867,9 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
             _bufferingStartTime = null;
           }
         }
-      } catch (e) {
+      } catch (e, s) {
         dev.log('[LIVE_STREAM] Error checking YouTube stream status: $e');
+        await CrashlyticsWrapper.sendException(e, s);
         await _handleStreamError('YouTube status check error: $e');
       }
     }
@@ -875,8 +890,9 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
           // Optionally update status to active if it was in an error state
           _updateStreamStatus(LiveStreamStatus.active);
         }
-      } catch (e) {
+      } catch (e, s) {
         dev.log('[LIVE_STREAM] Error checking RTSP stream status: $e');
+        await CrashlyticsWrapper.sendException(e, s);
         await _handleStreamError('RTSP status check error: $e');
       }
     }
@@ -954,8 +970,9 @@ class LiveStreamNotifier extends AsyncNotifier<LiveStreamViewerState> {
           await toggleReplaceWorkflow(true);
         }
       }
-    } catch (e) {
+    } catch (e, s) {
       dev.log('[LIVE_STREAM] Reconnection attempt failed: $e');
+      await CrashlyticsWrapper.sendException(e, s);
       // Keep trying to reconnect (timer will call this method again)
     }
   }

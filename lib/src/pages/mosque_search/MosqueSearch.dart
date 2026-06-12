@@ -9,11 +9,15 @@ class MosqueSearch extends StatefulWidget {
     required this.nextButtonFocusNode,
     this.onDone,
     this.isOnboarding = false,
+    this.noFocusNode,
   }) : super(key: key);
 
   final void Function()? onDone;
   final fp.Option<FocusNode> nextButtonFocusNode;
   final bool isOnboarding;
+
+  /// External focus node for the "No" option (onboarding nav-bar Up target).
+  final FocusNode? noFocusNode;
 
   @override
   State<MosqueSearch> createState() => _MosqueSearchState();
@@ -24,6 +28,16 @@ class _MosqueSearchState extends State<MosqueSearch> {
 
   @override
   Widget build(BuildContext context) {
+    // Onboarding: skip the Navigator so buttons share a scope with the video.
+    if (widget.isOnboarding) {
+      return InputTypeSelector(
+        onDone: widget.onDone,
+        nextButtonFocusNode: widget.nextButtonFocusNode,
+        isOnboarding: widget.isOnboarding,
+        noFocusNode: widget.noFocusNode,
+      );
+    }
+
     return WillPopScope(
       onWillPop: () async {
         if (navKey.currentState!.canPop()) {
@@ -39,6 +53,7 @@ class _MosqueSearchState extends State<MosqueSearch> {
             onDone: widget.onDone,
             nextButtonFocusNode: widget.nextButtonFocusNode,
             isOnboarding: widget.isOnboarding,
+            noFocusNode: widget.noFocusNode,
           ),
         ),
       ),

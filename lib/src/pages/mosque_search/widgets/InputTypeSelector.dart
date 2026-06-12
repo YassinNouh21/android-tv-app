@@ -23,11 +23,15 @@ class InputTypeSelector extends ConsumerStatefulWidget {
     super.key,
     this.onDone,
     this.isOnboarding = false,
+    this.noFocusNode,
   });
 
   final void Function()? onDone;
   final fp.Option<FocusNode> nextButtonFocusNode;
   final bool isOnboarding;
+
+  /// External focus node for the "No" option (overrides the internal one).
+  final FocusNode? noFocusNode;
 
   @override
   _InputTypeSelectorState createState() => _InputTypeSelectorState();
@@ -37,15 +41,27 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
   bool _hasSelectedYes = false;
   bool _hasSelectedNo = false;
 
+  final FocusNode _yesFocusNode = FocusNode(debugLabel: 'mosque_id_yes');
+  final FocusNode _noFocusNode = FocusNode(debugLabel: 'mosque_id_no');
+
   @override
   void initState() {
     super.initState();
-    // Only auto-select and navigate during onboarding
+    // Focus the first option on entry (no pre-selection).
     if (widget.isOnboarding) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleYesSelection();
+        if (mounted && _yesFocusNode.canRequestFocus) {
+          _yesFocusNode.requestFocus();
+        }
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _yesFocusNode.dispose();
+    _noFocusNode.dispose();
+    super.dispose();
   }
 
   bool get _isPhone {
@@ -202,6 +218,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
           label: S.of(context).yes,
           buttonFontSize: buttonFontSize,
           isPortrait: isPortrait,
+          focusNode: _yesFocusNode,
         ),
         SizedBox(height: isPortrait ? 2 : 2.h),
         _buildOption(
@@ -211,6 +228,7 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
           label: S.of(context).no,
           buttonFontSize: buttonFontSize,
           isPortrait: isPortrait,
+          focusNode: widget.noFocusNode ?? _noFocusNode,
         ),
       ],
     );
@@ -223,11 +241,13 @@ class _InputTypeSelectorState extends ConsumerState<InputTypeSelector> {
     required String label,
     required double buttonFontSize,
     required bool isPortrait,
+    FocusNode? focusNode,
   }) {
     return ToggleButtonWidget(
       isSelected: isSelected,
       onPressed: onToggle,
       label: label,
+      focusNode: focusNode,
       textStyle: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.bold,
         fontSize: buttonFontSize,

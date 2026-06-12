@@ -24,7 +24,8 @@ import android.os.AsyncTask
 import android.util.Log
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
-import android.net.ConnectivityManager
+import android.net.wifi.WifiInfo
+import android.net.wifi.SupplicantState
 import java.util.concurrent.Executors
 import android.os.Looper
 import android.os.Handler
@@ -85,7 +86,6 @@ class MainActivity : FlutterActivity() {
           }
 
           "checkRoot" -> result.success(checkRoot())
-          "connectToNetworkWPA" -> connectToNetworkWPA(call, result)
           "addLocationPermission" -> addLocationPermission(call, result)
           "grantFineLocationPermission" -> grantFineLocationPermission(call, result)
           "grantOverlayPermission" -> grantOverlayPermission(call, result)
@@ -274,6 +274,56 @@ class MainActivity : FlutterActivity() {
     }
   }
 
+  /** Strips the surrounding quotes Android wraps around SSIDs in WifiInfo. */
+  private fun normalizeSsid(ssid: String?): String = ssid?.removeSurrounding("\"") ?: ""
+
+  /**
+   * Polls until the supplicant reports a completed handshake on the target
+   * network (i.e. the password was accepted), or [timeoutMs] elapses.
+   *
+   * SupplicantState.COMPLETED is the only safe success signal: a wrong PSK
+   * fails the 4-way handshake and never reaches COMPLETED, while a correct
+   * PSK reaches it even when the network has no internet / slow captive-portal
+   * check. We deliberately ignore NET_CAPABILITY_VALIDATED here because a
+   * previously-connected validated network lingers in ConnectivityManager
+   * during our attempt and would mask a wrong-password failure.
+   */
+  private fun awaitWifiConnected(
+    targetSsid: String?,
+    targetNetworkId: Int?,
+    timeoutMs: Long = 15000,
+  ): Boolean {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (System.currentTimeMillis() < deadline) {
+      if (isConnectedToTargetWifi(targetSsid, targetNetworkId)) return true
+      Thread.sleep(500)
+    }
+    return false
+  }
+
+  private fun isConnectedToTargetWifi(targetSsid: String?, targetNetworkId: Int?): Boolean {
+    val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val info = wifiManager.connectionInfo ?: return false
+    if (info.supplicantState != SupplicantState.COMPLETED) return false
+    return matchesTarget(info, targetSsid, targetNetworkId)
+  }
+
+  /**
+   * Strict identity check. Returns true only when [info] is positively the
+   * network we asked for — either by networkId or by SSID. If neither is
+   * available (transient DISCONNECTED state, redacted SSID) we report no-match
+   * so a wrong-password attempt can't squeak through on the back of a previous
+   * connection's lingering state.
+   */
+  private fun matchesTarget(info: WifiInfo, targetSsid: String?, targetNetworkId: Int?): Boolean {
+    if (targetNetworkId != null && targetNetworkId != -1 && info.networkId != -1) {
+      return info.networkId == targetNetworkId
+    }
+    val ssid = normalizeSsid(info.ssid)
+    if (ssid.isEmpty() || ssid == WifiManager.UNKNOWN_SSID) return false
+    return targetSsid == null || ssid == targetSsid
+  }
+
   private fun connectToWifi(call: MethodCall, result: MethodChannel.Result) {
     AsyncTask.execute {
       try {
@@ -282,47 +332,62 @@ class MainActivity : FlutterActivity() {
         val capabilities = call.argument<String>("security")
         val security = getSecurityType(capabilities, password)
 
+        // Prefer `cmd wifi connect-network` (added in API 30 / Android 11).
+        // Older boxes like MAWAQITBOX V2 (API 29) reject it with
+        // "Unknown command", in which case we fall back to the legacy
+        // WifiManager.addNetwork() path.
         val command = if (password.isNullOrEmpty()) {
           "cmd wifi connect-network ${shellEscape(ssid)} open"
         } else {
           "cmd wifi connect-network ${shellEscape(ssid)} $security ${shellEscape(password)}"
         }
 
-        Log.i("SU_COMMAND", "Wifi Command: $command")
+        // Never log the raw command: it embeds the PSK and would leak via logcat / Sentry.
+        val safeCommand = if (password.isNullOrEmpty()) command
+          else command.replace(shellEscape(password), "***")
+        Log.i("SU_COMMAND", "Wifi Command: $safeCommand")
 
-        val suProcess = Runtime.getRuntime().exec("su")
-        val os = DataOutputStream(suProcess.outputStream)
-        os.writeBytes("$command\n")
-        os.flush()
-        os.close()
+        // Clear any lingering SupplicantState.COMPLETED from a prior connection to
+        // the same SSID before polling — otherwise awaitWifiConnected can return
+        // true on stale state even when this attempt's handshake hasn't completed.
+        (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).disconnect()
 
-        val output = BufferedReader(InputStreamReader(suProcess.inputStream)).readText()
-        val error = BufferedReader(InputStreamReader(suProcess.errorStream)).readText()
-        val exitCode = suProcess.waitFor()
+        val cmd = runSuCommand(command)
+        val safeOutput = if (password.isNullOrEmpty()) cmd.output
+          else cmd.output.replace(password, "***").replace(shellEscape(password), "***")
+        val safeError = if (password.isNullOrEmpty()) cmd.error
+          else cmd.error.replace(password, "***").replace(shellEscape(password), "***")
+        Log.i("SU_COMMAND", "Command output: $safeOutput")
+        Log.e("SU_COMMAND", "Command error: $safeError")
+        Log.d("SU_COMMAND", "Exit code: ${cmd.exitCode}")
 
-        Log.i("SU_COMMAND", "Command output: $output")
-        Log.e("SU_COMMAND", "Command error: $error")
-        Log.d("SU_COMMAND", "Exit code: $exitCode")
+        val cmdUnsupported = cmd.error.contains("Unknown command", ignoreCase = true) ||
+          cmd.output.contains("Unknown command", ignoreCase = true)
+        if (cmdUnsupported) {
+          Log.i("SU_COMMAND", "cmd wifi connect-network unsupported, falling back to WifiManager.")
+          connectViaWifiManager(ssid, password, result)
+          return@execute
+        }
 
-        if (exitCode != 0 || output.contains("Connection failed") || output.contains("Invalid args")) {
-          Log.e("SU_COMMAND", "Command failed with exit code $exitCode.")
+        if (cmd.exitCode != 0 ||
+          cmd.output.contains("Connection failed") ||
+          cmd.output.contains("Invalid args")
+        ) {
+          Log.e("SU_COMMAND", "Command failed with exit code ${cmd.exitCode}.")
           result.success(false)
           return@execute
         }
 
-        // Wait for the actual connection to be established (up to 10 seconds)
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        var connectionAttempts = 0
-        while (wifiManager.connectionInfo.networkId == -1 && connectionAttempts < 20) {
-          Thread.sleep(500)
-          connectionAttempts++
-        }
-
-        val connected = wifiManager.connectionInfo.networkId != -1
+        val connected = awaitWifiConnected(targetSsid = ssid, targetNetworkId = null)
         if (connected) {
-          Log.i("SU_COMMAND", "Connected to network successfully.")
+          Log.i("SU_COMMAND", "Connected to $ssid successfully.")
         } else {
-          Log.e("SU_COMMAND", "Connection timed out after 10 seconds.")
+          Log.e("SU_COMMAND", "Failed to connect to $ssid (wrong password or timeout).")
+          // Drop the just-added profile so the framework doesn't auto-reconnect
+          // with the bad credentials on the next scan — mirrors the legacy path's
+          // wifiManager.removeNetwork() cleanup. `cmd wifi forget-network` takes
+          // a networkId, so look it up via `cmd wifi list-networks` first.
+          forgetNetworkBySsid(ssid)
         }
         result.success(connected)
 
@@ -332,53 +397,96 @@ class MainActivity : FlutterActivity() {
     }
   }
 
-  fun connectToNetworkWPA(call: MethodCall, result: MethodChannel.Result) {
-    AsyncTask.execute {
-      try {
-        val networkSSID = call.argument<String>("ssid")
-        val password = call.argument<String>("password")
-        val conf = WifiConfiguration().apply {
-          SSID = "\"$networkSSID\""
-          status = WifiConfiguration.Status.ENABLED
-          allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP)
-          allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP)
-          allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP)
-          allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP)
-          if (password.isNullOrEmpty()) {
-            allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE)
-          } else {
-            preSharedKey = "\"$password\""
-            allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK)
-          }
-        }
-
-        Log.d("connectToNetworkWPA", "Connecting to SSID: ${conf.SSID}")
-
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val networkId = wifiManager.addNetwork(conf)
-        wifiManager.disconnect()
-        wifiManager.enableNetwork(networkId, true)
-        wifiManager.reconnect()
-
-        // Wait for the connection to be established (up to 10 seconds)
-        var connectionAttempts = 0
-        while (wifiManager.getConnectionInfo().networkId == -1 && connectionAttempts < 20) {
-          Thread.sleep(500)
-          connectionAttempts++
-        }
-
-        val wifiInfo = wifiManager.getConnectionInfo()
-        if (wifiInfo.networkId != -1) {
-          Log.d("connectToNetworkWPA", "Connected to network:")
-          result.success(true)
-        } else {
-          Log.e("connectToNetworkWPA", "Failed to connect to network")
-          result.success(false)
-        }
-      } catch (ex: Exception) {
-        Log.e("connectToNetworkWPA", "Error connecting to network", ex)
-        result.error("exception", ex.message, ex)
+  private fun forgetNetworkBySsid(ssid: String) {
+    val list = runSuCommand("cmd wifi list-networks")
+    // Output format (Android 11+):
+    //   Network Id      SSID                    Security
+    //   0               MyHomeWifi              WPA_PSK
+    // SSID may or may not be quoted depending on ROM.
+    val id = list.output.lineSequence()
+      .mapNotNull { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("Network Id")) return@mapNotNull null
+        val firstSpace = trimmed.indexOf(' ')
+        if (firstSpace <= 0) return@mapNotNull null
+        val idStr = trimmed.substring(0, firstSpace)
+        val rest = trimmed.substring(firstSpace).trim().trim('"')
+        if (rest.startsWith(ssid)) idStr.toIntOrNull() else null
       }
+      .firstOrNull()
+    if (id != null) {
+      runSuCommand("cmd wifi forget-network $id")
+    } else {
+      Log.w("SU_COMMAND", "forget-network: could not find networkId for SSID.")
+    }
+  }
+
+  private data class SuResult(val output: String, val error: String, val exitCode: Int)
+
+  private fun runSuCommand(command: String): SuResult {
+    val process = Runtime.getRuntime().exec("su")
+    val os = DataOutputStream(process.outputStream)
+    os.writeBytes("$command\n")
+    os.flush()
+    os.close()
+    val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
+    val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
+    return SuResult(output, error, process.waitFor())
+  }
+
+  /**
+   * Legacy connect path for boxes whose Android build doesn't ship
+   * `cmd wifi connect-network` (MAWAQITBOX V2 on API 29). Uses the deprecated
+   * WifiManager.addNetwork() API which still works on these devices.
+   */
+  private fun connectViaWifiManager(
+    ssid: String,
+    password: String?,
+    result: MethodChannel.Result,
+  ) {
+    try {
+      val conf = WifiConfiguration().apply {
+        SSID = "\"$ssid\""
+        status = WifiConfiguration.Status.ENABLED
+        allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP)
+        allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP)
+        allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP)
+        allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP)
+        if (password.isNullOrEmpty()) {
+          allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE)
+        } else {
+          preSharedKey = "\"$password\""
+          allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK)
+        }
+      }
+
+      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+      val networkId = wifiManager.addNetwork(conf)
+      if (networkId == -1) {
+        // -1 means a saved config for this SSID already exists and is owned by
+        // another uid (e.g. created in Android Settings, uid=system). This app
+        // isn't privileged enough to overwrite it, so the user must forget it in
+        // Settings first. Signal that distinct case so the UI shows the right hint.
+        Log.e("WIFI_LEGACY", "addNetwork returned -1 for SSID $ssid (system-owned config)")
+        result.success("SYSTEM_OWNED")
+        return
+      }
+      wifiManager.disconnect()
+      wifiManager.enableNetwork(networkId, true)
+      wifiManager.reconnect()
+
+      val connected = awaitWifiConnected(targetSsid = ssid, targetNetworkId = networkId)
+      if (connected) {
+        Log.i("WIFI_LEGACY", "Connected to $ssid via WifiManager.")
+      } else {
+        Log.e("WIFI_LEGACY", "Failed to connect to $ssid (wrong password or timeout).")
+        // Drop the bad config so Android doesn't keep retrying it.
+        wifiManager.removeNetwork(networkId)
+      }
+      result.success(connected)
+    } catch (ex: Exception) {
+      Log.e("WIFI_LEGACY", "Error connecting to network", ex)
+      result.error("exception", ex.message, ex)
     }
   }
 

@@ -357,6 +357,7 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   }
 
   Future<void> play() async {
+    if (state.value == null) return;
     state = AsyncData(
       state.value!.copyWith(
         playerState: AudioPlayerState.playing,
@@ -366,6 +367,10 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   }
 
   Future<void> pause() async {
+    // A pause on a player that was never started (or already stopped) must be
+    // a no-op: flipping a stopped player to `paused` would make the home-screen
+    // listening indicator appear with no surah/reciter text.
+    if (state.value == null || state.value!.playerState == AudioPlayerState.stopped) return;
     state = AsyncData(
       state.value!.copyWith(
         playerState: AudioPlayerState.paused,
@@ -387,6 +392,13 @@ class QuranAudioPlayer extends AsyncNotifier<QuranAudioPlayerState> {
   Future<void> saveAndStop() async {
     await _savePlaybackSession();
     await stop();
+  }
+
+  /// Persists the current playback position without stopping the player.
+  /// Used when navigating away from the player screen so audio keeps
+  /// playing in the background and the home indicator can show controls.
+  Future<void> savePlaybackSession() async {
+    await _savePlaybackSession();
   }
 
   Future<void> seekTo(Duration position) async {

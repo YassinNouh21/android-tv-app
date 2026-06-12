@@ -66,12 +66,12 @@ class MosqueIdTutorialWidget extends StatelessWidget {
         final stepFontSize = isPortrait ? 8.5.sp : (isLargeTV ? 8.sp : 6.sp);
         final titleFontSize = isPortrait ? 11.sp : (isLargeTV ? 11.sp : 10.sp);
         final subtitleFontSize = isPortrait ? 8.sp : (isLargeTV ? 8.sp : 7.sp);
-        final scanTitleFontSize = isPortrait ? 7.sp : (isLargeTV ? 7.sp : 6.sp);
-        final scanDescFontSize = isPortrait ? 6.sp : (isLargeTV ? 6.sp : 5.sp);
+        final scanTitleFontSize = isPortrait ? 9.sp : (isLargeTV ? 10.sp : 9.sp);
+        final scanDescFontSize = isPortrait ? 7.5.sp : (isLargeTV ? 8.sp : 7.sp);
         final fullTutorialFontSize = isPortrait ? 10.sp : (isLargeTV ? 9.sp : 7.sp);
         final iconSize = isLargeTV ? 28.0 : 22.0;
         final iconInnerSize = isLargeTV ? 16.0 : 12.0;
-        final qrSize = isPortrait ? 28.0 : (isLargeTV ? 48.0 : 35.0);
+        final qrSize = isPortrait ? 60.0 : (isLargeTV ? 95.0 : 75.0);
         final stepSpacing = isPortrait ? 3.0 : (isLargeTV ? 8.0 : 5.0);
         final sectionSpacing = isPortrait ? 4.0 : (isLargeTV ? 12.0 : 8.0);
         final videoMaxHeight = availableH * (isPortrait ? 0.15 : (isLargeTV ? 0.32 : 0.25));
@@ -151,7 +151,7 @@ class MosqueIdTutorialWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(2),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
@@ -162,6 +162,7 @@ class MosqueIdTutorialWidget extends StatelessWidget {
                       version: QrVersions.auto,
                       size: qrSize,
                       backgroundColor: Colors.white,
+                      errorCorrectionLevel: QrErrorCorrectLevel.M,
                     ),
                   ),
                   const SizedBox(width: 8),

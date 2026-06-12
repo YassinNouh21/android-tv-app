@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:fpdart/fpdart.dart' as fp;
 import 'package:mawaqit/i18n/l10n.dart';
-import 'package:mawaqit/main.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_notifier.dart';
 import 'package:mawaqit/src/state_management/kiosk_mode/wifi_scan/wifi_scan_state.dart';
 import 'package:mawaqit/src/widgets/mawaqit_icon_button.dart';
@@ -44,7 +43,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   final FocusNode _parentFocusNode = FocusNode(debugLabel: 'parent_container');
 
   bool _obscureText = true;
-  FocusNode? _lastFocusedNode;
+  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -64,16 +63,7 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   }
 
   void _onFocusChange() {
-    // Track the last focused node for navigation
-    if (_passwordFocusNode.hasFocus) {
-      _lastFocusedNode = _passwordFocusNode;
-    } else if (_connectButtonFocusNode.hasFocus) {
-      _lastFocusedNode = _connectButtonFocusNode;
-    } else if (_toggleVisibilityFocusNode.hasFocus) {
-      _lastFocusedNode = _toggleVisibilityFocusNode;
-    }
-
-    // Trigger rebuild for focus visual changes
+    // Rebuild so the focus highlight (border/colour) follows the focused node.
     if (mounted) {
       setState(() {});
     }
@@ -98,11 +88,13 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   }
 
   void _connectToWifi() {
+    if (_isConnecting) return;
     if (_passwordController.text.isEmpty) {
       _showToast(S.of(context).wifiFailure);
       return;
     }
 
+    setState(() => _isConnecting = true);
     ref.read(wifiScanNotifierProvider.notifier).connectToWifi(
           widget.ssid,
           widget.capabilities,
@@ -119,10 +111,15 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
       return KeyEventResult.ignored;
     }
 
-    // While the soft keyboard is visible and the password field has focus, let
-    // the IME handle all key events — don't let D-pad navigation close it.
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    if (keyboardVisible && _passwordFocusNode.hasFocus) {
+    // When the password field has focus, defer every key to the IME except
+    // Escape/Back. On Android TV the soft keyboard floats and doesn't update
+    // viewInsets.bottom, so we can't gate on "keyboard visible" — handling
+    // D-pad keys here would move focus away and dismiss the IME instantly.
+    if (_passwordFocusNode.hasFocus) {
+      if (event.logicalKey == LogicalKeyboardKey.escape || event.logicalKey == LogicalKeyboardKey.gameButtonB) {
+        _cancel();
+        return KeyEventResult.handled;
+      }
       return KeyEventResult.ignored;
     }
 
@@ -187,21 +184,36 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final size = MediaQuery.of(context).size;
+    // Tablet/phone IMEs report viewInsets and the Scaffold resizes — keep the
+    // original centred, full-size dialog there. TV/Mawabox keyboards float
+    // without insets, so we reserve their space, top-align, and use a compact
+    // card that fits above the keyboard.
+    final keyboardInsetReported = MediaQuery.of(context).viewInsets.bottom > 0;
 
-    // Listen for Wi-Fi connection status changes
+    // Listen for Wi-Fi connection status changes. Guarded so a late-arriving
+    // result doesn't touch a disposed FocusNode after the user navigated back.
     ref.listen(wifiScanNotifierProvider, (previous, next) {
-      if (next.hasValue && !next.isRefreshing) {
-        if (next.value!.status == Status.connected) {
-          _showToast(S.of(context).wifiSuccess);
-          widget.onComplete(true);
-          Navigator.of(context).pop(false);
-        } else if (next.value!.status == Status.error) {
-          _showToast(S.of(context).wifiFailure);
-          widget.onComplete(false);
-          Future.delayed(Duration(milliseconds: 500), () {
+      if (!mounted || !_isConnecting) return;
+      if (!next.hasValue || next.isRefreshing) return;
+      final status = next.value!.status;
+      if (status == Status.connected) {
+        setState(() => _isConnecting = false);
+        _showToast(S.of(context).wifiSuccess);
+        widget.onComplete(true);
+        Navigator.of(context).pop(false);
+      } else if (status == Status.error) {
+        setState(() => _isConnecting = false);
+        // A system-owned saved config can't be overwritten by the app — tell the
+        // user to forget it in Android settings rather than show a generic fail.
+        _showToast(
+          next.value!.isSystemOwnedError ? S.of(context).wifiForgetNetwork : S.of(context).wifiFailure,
+        );
+        widget.onComplete(false);
+        Future.delayed(Duration(milliseconds: 500), () {
+          if (mounted && _connectButtonFocusNode.canRequestFocus) {
             _connectButtonFocusNode.requestFocus();
-          });
-        }
+          }
+        });
       }
     });
 
@@ -213,158 +225,174 @@ class _TvWifiPasswordScreenState extends ConsumerState<TvWifiPasswordScreen> {
         child: Focus(
           focusNode: _parentFocusNode,
           onKey: _handleKeyEvent,
-          child: Align(
-            alignment: Alignment.center,
-            child: SingleChildScrollView(
-              child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: size.width * 0.95,
-                  constraints: BoxConstraints(
-                    maxWidth: 700,
-                    minHeight: 300,
-                  ),
-                  margin: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 20,
-                  ),
-                  child: Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    elevation: 10,
-                    child: Padding(
-                      padding: EdgeInsets.all(30),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header
-                          Text(
-                            S.of(context).appWifi,
-                            style: TextStyle(
-                              fontSize: 15.sp,
-                              fontWeight: FontWeight.bold,
-                              color: themeData.brightness == Brightness.dark ? null : themeData.primaryColor,
-                            ),
-                          ),
-                          SizedBox(height: 15),
-
-                          // Network name
-                          Row(
-                            children: [
-                              Icon(Icons.wifi, size: 12.sp),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  widget.ssid,
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 25),
-
-                          // Password entry
-                          Container(
-                            height: 70,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : Colors.grey.shade400,
-                                width: _passwordFocusNode.hasFocus ? 2.5 : 1,
+          // On TVs the keyboard floats over the window reporting no insets, so
+          // reserve the bottom portion it covers and pin the card to the top
+          // of the remaining space.
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: keyboardInsetReported ? 0 : size.height * 0.44,
+            ),
+            child: Align(
+              alignment: keyboardInsetReported ? Alignment.center : Alignment.topCenter,
+              child: SingleChildScrollView(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Container(
+                    width: size.width * 0.95,
+                    constraints: BoxConstraints(
+                      maxWidth: 700,
+                      minHeight: 300,
+                    ),
+                    margin: EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      elevation: 10,
+                      child: Padding(
+                        padding: EdgeInsets.all(keyboardInsetReported ? 30 : 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header
+                            Text(
+                              S.of(context).appWifi,
+                              style: TextStyle(
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.bold,
+                                color: themeData.brightness == Brightness.dark ? null : themeData.primaryColor,
                               ),
                             ),
-                            child: Row(
+                            SizedBox(height: 15),
+
+                            // Network name
+                            Row(
                               children: [
+                                Icon(Icons.wifi, size: 12.sp),
+                                SizedBox(width: 12),
                                 Expanded(
-                                  child: TextFormField(
-                                    controller: _passwordController,
-                                    focusNode: _passwordFocusNode,
-                                    obscureText: _obscureText,
-                                    keyboardType: TextInputType.visiblePassword,
-                                    textInputAction: TextInputAction.done,
-                                    style: TextStyle(fontSize: 10.sp),
-                                    decoration: InputDecoration(
-                                      hintText: S.of(context).wifiPassword,
-                                      hintStyle: TextStyle(fontSize: 10.sp),
-                                      prefixIcon: Icon(
-                                        Icons.lock,
-                                        color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : null,
-                                        size: 15.sp,
-                                      ),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                      fillColor: _passwordFocusNode.hasFocus
-                                          ? const Color(0xFF490094).withOpacity(0.05)
-                                          : Colors.transparent,
-                                      filled: true,
+                                  child: Text(
+                                    widget.ssid,
+                                    style: TextStyle(
+                                      fontSize: 12.sp,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    onFieldSubmitted: (_) => _connectToWifi(),
-                                  ),
-                                ),
-
-                                // Password visibility toggle
-                                Focus(
-                                  focusNode: _toggleVisibilityFocusNode,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _obscureText = !_obscureText;
-                                      });
-                                    },
-                                    child: Container(
-                                      width: 60,
-                                      height: double.infinity,
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.only(
-                                          topRight: Radius.circular(20),
-                                          bottomRight: Radius.circular(20),
-                                        ),
-                                        color: _toggleVisibilityFocusNode.hasFocus
-                                            ? const Color(0xFF490094).withOpacity(0.1)
-                                            : Colors.transparent,
-                                      ),
-                                      child: Icon(
-                                        _obscureText ? Icons.visibility : Icons.visibility_off,
-                                        color: _toggleVisibilityFocusNode.hasFocus
-                                            ? const Color(0xFF490094)
-                                            : Colors.grey.shade600,
-                                        size: 12.sp,
-                                      ),
-                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          SizedBox(height: 30),
+                            SizedBox(height: keyboardInsetReported ? 25 : 18),
 
-                          // Action buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                child: MawaqitBackIconButton(
-                                  icon: Icons.close,
-                                  label: S.of(context).cancel,
-                                  onPressed: _cancel,
+                            // Password entry
+                            Container(
+                              height: keyboardInsetReported ? 70 : 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : Colors.grey.shade400,
+                                  width: _passwordFocusNode.hasFocus ? 2.5 : 1,
                                 ),
                               ),
-                              SizedBox(width: 16),
-                              Expanded(
-                                child: MawaqitIconButton(
-                                  focusNode: _connectButtonFocusNode,
-                                  icon: Icons.wifi,
-                                  label: S.of(context).connect,
-                                  onPressed: _connectToWifi,
-                                ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _passwordController,
+                                      focusNode: _passwordFocusNode,
+                                      obscureText: _obscureText,
+                                      keyboardType: TextInputType.visiblePassword,
+                                      textInputAction: TextInputAction.done,
+                                      style: TextStyle(fontSize: 10.sp),
+                                      decoration: InputDecoration(
+                                        hintText: S.of(context).wifiPassword,
+                                        hintStyle: TextStyle(fontSize: 10.sp),
+                                        prefixIcon: Icon(
+                                          Icons.lock,
+                                          color: _passwordFocusNode.hasFocus ? const Color(0xFF490094) : null,
+                                          size: 15.sp,
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        fillColor: _passwordFocusNode.hasFocus
+                                            ? const Color(0xFF490094).withOpacity(0.05)
+                                            : Colors.transparent,
+                                        filled: true,
+                                      ),
+                                      onFieldSubmitted: (_) => _connectToWifi(),
+                                    ),
+                                  ),
+
+                                  // Password visibility toggle
+                                  Focus(
+                                    focusNode: _toggleVisibilityFocusNode,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _obscureText = !_obscureText;
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 60,
+                                        height: double.infinity,
+                                        padding: EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.only(
+                                            topRight: Radius.circular(20),
+                                            bottomRight: Radius.circular(20),
+                                          ),
+                                          color: _toggleVisibilityFocusNode.hasFocus
+                                              ? const Color(0xFF490094).withOpacity(0.1)
+                                              : Colors.transparent,
+                                        ),
+                                        child: Icon(
+                                          _obscureText ? Icons.visibility : Icons.visibility_off,
+                                          color: _toggleVisibilityFocusNode.hasFocus
+                                              ? const Color(0xFF490094)
+                                              : Colors.grey.shade600,
+                                          size: 12.sp,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          )
-                        ],
+                            ),
+                            SizedBox(height: keyboardInsetReported ? 30 : 20),
+
+                            // Action buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: MawaqitBackIconButton(
+                                    icon: Icons.close,
+                                    label: S.of(context).cancel,
+                                    onPressed: _isConnecting ? null : _cancel,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: _isConnecting
+                                      ? Center(
+                                          child: SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                                          ),
+                                        )
+                                      : MawaqitIconButton(
+                                          focusNode: _connectButtonFocusNode,
+                                          icon: Icons.wifi,
+                                          label: S.of(context).connect,
+                                          onPressed: _connectToWifi,
+                                        ),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
                       ),
                     ),
                   ),

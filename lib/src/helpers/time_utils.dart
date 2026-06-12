@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mawaqit/src/helpers/AppDate.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 
 extension StringTimeUtils on String {
   /// convert xx:xx to today date
@@ -57,7 +58,9 @@ extension StringTimeUtils on String {
   TimeOfDay? toTimeOffset(String time) {
     try {
       return TimeOfDay.fromDateTime(time.toTimeOfDay()!.toDate().add(Duration(minutes: int.parse(this))));
-    } on FormatException catch (e) {}
+    } on FormatException catch (e, s) {
+      CrashlyticsWrapper.sendException(e, s);
+    }
 
     return null;
   }

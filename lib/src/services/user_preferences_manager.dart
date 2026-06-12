@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mawaqit/i18n/l10n.dart';
 import 'package:mawaqit/src/helpers/Api.dart';
 import 'package:mawaqit/src/helpers/AppRouter.dart';
+import 'package:mawaqit/src/const/constants.dart';
 import 'package:mawaqit/src/helpers/RelativeSizes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,8 +28,16 @@ const _hijriAdjustments = 'UserPreferencesManager.hijriAdjustments';
 const _adhanNotificationKey = 'UserPreferencesManager.adhan.notification.enabled';
 const _iqamaShowClockKey = 'UserPreferencesManager.iqama.show.clock';
 const _appFontSizeKey = 'UserPreferencesManager.app.font.size';
+const _streamTriggerModeKey = 'UserPreferencesManager.stream.trigger.mode';
 
 enum AppFontSize { small, medium, large, extraLarge }
+
+enum StreamTriggerMode {
+  disabled,
+  camera,
+  jumuaOnly,
+  jumuaAndPrayers,
+}
 
 /// this manager responsible for managing user preferences
 class UserPreferencesManager extends ChangeNotifier {
@@ -290,5 +299,26 @@ class UserPreferencesManager extends ChangeNotifier {
       case AppFontSize.extraLarge:
         return 1.2;
     }
+  }
+
+  StreamTriggerMode get streamTriggerMode {
+    final value = _sharedPref.getString(_streamTriggerModeKey);
+    if (value == null) {
+      // Migration: replaceWorkflow users get camera mode; users with the stream
+      // merely enabled were only ever shown it during jumua, so map to jumuaOnly.
+      final hadReplaceWorkflow = _sharedPref.getBool(LiveStreamConstants.prefKeyReplaceWorkflow) ?? false;
+      if (hadReplaceWorkflow) return StreamTriggerMode.camera;
+      final wasEnabled = _sharedPref.getBool(LiveStreamConstants.prefKeyEnabled) ?? false;
+      return wasEnabled ? StreamTriggerMode.jumuaOnly : StreamTriggerMode.disabled;
+    }
+    return StreamTriggerMode.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => StreamTriggerMode.disabled,
+    );
+  }
+
+  set streamTriggerMode(StreamTriggerMode value) {
+    _sharedPref.setString(_streamTriggerModeKey, value.name);
+    notifyListeners();
   }
 }

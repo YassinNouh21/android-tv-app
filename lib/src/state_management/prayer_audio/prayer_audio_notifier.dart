@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mawaqit/src/const/constants.dart';
+import 'package:mawaqit/src/helpers/CrashlyticsWrapper.dart';
 import 'package:mawaqit/src/models/mosqueConfig.dart';
 import 'package:mawaqit/src/services/audio_stream_offline_manager.dart';
 import 'package:mawaqit/src/state_management/prayer_audio/prayer_audio_state.dart';
@@ -99,8 +100,9 @@ class PrayerAudioNotifier extends StateNotifier<PrayerAudioState> {
 
       // If we reach here, playback was successful, setup completion listener
       _setupPlaybackListener();
-    } catch (e) {
+    } catch (e, s) {
       log('PrayerAudioNotifier: Error in _playFromUrlWithCache: $e');
+      await CrashlyticsWrapper.sendException(e, s);
       // Set state to idle on error, no fallback audio
       state = const PrayerAudioState(processingState: ProcessingState.idle);
     }
@@ -150,8 +152,9 @@ class PrayerAudioNotifier extends StateNotifier<PrayerAudioState> {
       );
 
       return true;
-    } catch (e) {
+    } catch (e, s) {
       log('PrayerAudioNotifier: Cache playback failed: $e');
+      await CrashlyticsWrapper.sendException(e, s);
       return false;
     }
   }

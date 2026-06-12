@@ -2,17 +2,15 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
-import 'package:mawaqit/src/helpers/connectivity_provider.dart';
-import 'package:mawaqit/src/models/address_model.dart';
 import 'package:mawaqit/src/pages/home/widgets/SalahInWidget.dart';
+import 'package:mawaqit/src/pages/home/widgets/audio_controller.dart';
+import 'package:mawaqit/src/pages/home/widgets/listening_audio_indicator.dart';
 import 'package:mawaqit/src/pages/home/widgets/schedule_audio_indicator.dart';
-import 'package:mawaqit/src/state_management/quran/schedule_listening/audio_control_notifier.dart';
-import 'package:mawaqit/src/state_management/quran/schedule_listening/schedule_listening_notifier.dart';
 
-/// Switches between the countdown (SalahInWidget) and the audio indicator
-/// depending on whether scheduled Quran audio is actively playing/paused.
-/// Re-evaluates the schedule window every 30 seconds so the indicator
-/// auto-hides when the window ends.
+/// Switches between the countdown (SalahInWidget), the listening-mode audio
+/// indicator, and the scheduled-audio indicator depending on which audio
+/// session is active. Re-evaluates the schedule window every 30 seconds so the
+/// schedule indicator auto-hides when its window ends.
 class CountdownOrAudioWidget extends ConsumerStatefulWidget {
   const CountdownOrAudioWidget({super.key});
 
@@ -39,21 +37,14 @@ class _CountdownOrAudioWidgetState extends ConsumerState<CountdownOrAudioWidget>
 
   @override
   Widget build(BuildContext context) {
-    final connectivity = ref.watch(connectivityProvider);
-    final audioAsync = ref.watch(audioControlProvider);
-    final scheduleAsync = ref.watch(scheduleProvider);
+    final controller = ref.watch(activeAudioControllerProvider);
 
-    final hasInternet = connectivity.hasValue && connectivity.value == ConnectivityStatus.connected;
-
-    if (hasInternet &&
-        audioAsync.hasValue &&
-        scheduleAsync.hasValue &&
-        scheduleAsync.value!.isScheduleEnabled &&
-        !audioAsync.value!.isStopped &&
-        isInScheduleWindow(scheduleAsync.value!.startTime, scheduleAsync.value!.endTime)) {
+    if (controller is ListeningController) {
+      return const ListeningAudioIndicator();
+    }
+    if (controller is ScheduleController) {
       return ScheduleAudioIndicator();
     }
-
     return SalahInWidget();
   }
 }
