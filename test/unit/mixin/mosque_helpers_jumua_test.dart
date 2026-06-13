@@ -425,8 +425,8 @@ void main() {
       expect(helper.jumuaaWorkflowTime(), true);
 
       helper.setMosqueDate(DateTime(2023, 6, 30, 14, 40)); // During second jumua time
-      // This should be false as workflow only follows first jumua
-      expect(helper.jumuaaWorkflowTime(), false);
+      // Workflow repeats for each jumua time, so it is active during the second one too
+      expect(helper.jumuaaWorkflowTime(), true);
     });
 
     test('should handle jumuaAsDuhr edge cases', () {
