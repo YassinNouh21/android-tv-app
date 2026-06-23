@@ -279,7 +279,10 @@ class MosqueConfig {
       duaAfterAzanEnabled: map['duaAfterAzanEnabled'],
       duaAfterPrayerEnabled: map['duaAfterPrayerEnabled'],
       iqamaDisplayTime: map['iqamaDisplayTime'],
-      iqamaBip: map['iqamaBip'] ?? false,
+      // Backend may send `iqamaBip` as a legacy bool or, since the new release, as an
+      // iqama-sound name String. Treat any non-null value as "enabled" so a String no
+      // longer crashes parsing (`type 'String' is not a subtype of type 'bool'`).
+      iqamaBip: map['iqamaBip'] is bool ? map['iqamaBip'] as bool : map['iqamaBip'] != null,
       backgroundColor: map['backgroundColor'],
       jumuaDhikrReminderEnabled: map['jumuaDhikrReminderEnabled'],
       jumuaTimeout: map['jumuaTimeout'],
